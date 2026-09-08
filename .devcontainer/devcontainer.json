@@ -1,0 +1,52 @@
+{
+  // Entorno de desarrollo del FRONTEND de GreenITESO.
+  // Stack: TypeScript + React + Vite · pnpm · ESLint · Playwright · Tailwind + shadcn/ui
+  "name": "GreenITESO Frontend",
+
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+
+  "forwardPorts": [5173],
+  "portsAttributes": {
+    "5173": { "label": "Vite PWA (dev)", "onAutoForward": "openBrowser" }
+  },
+
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "ms-playwright.playwright",
+        "usernamehw.errorlens",
+        "editorconfig.editorconfig"
+      ],
+      "settings": {
+        "editor.tabSize": 2,
+        "files.eol": "\n",
+        // Prettier como formateador predeterminado
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true,
+        // ESLint como fixer al guardar (linter elegido por el equipo)
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit"
+        },
+        "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
+        // Autocompletado de clases Tailwind dentro de strings
+        "editor.quickSuggestions": {
+          "strings": "on"
+        },
+        // IntelliSense de Tailwind dentro de helpers de shadcn/ui (cva, cn)
+        "tailwindCSS.experimental.classRegex": [
+          ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+          ["cn\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"]
+        ]
+      }
+    }
+  },
+
+  "remoteUser": "node"
+}
