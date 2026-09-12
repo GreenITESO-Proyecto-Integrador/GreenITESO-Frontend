@@ -87,6 +87,7 @@ Routes: `/` (home), `/design-system` (design showcase), `*` (fallback to home). 
 Built on @base-ui/react primitives. Currently available: Button, Input, Card.
 
 Add new components with:
+
 ```bash
 pnpm dlx shadcn@latest add <component>
 ```
@@ -114,6 +115,7 @@ pnpm format
 ## Design System
 
 Centralized tokens & components at `/design-system` route. See `docs/DESIGN_SYSTEM.md` for:
+
 - Typography (Plus Jakarta Sans, scale from `text-xs` to `text-4xl`)
 - Color palette (primary green, secondary sage, semantic status colors)
 - Spacing, border-radius, shadows, responsive breakpoints
