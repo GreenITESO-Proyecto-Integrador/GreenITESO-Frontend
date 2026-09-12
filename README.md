@@ -1,18 +1,19 @@
 # GreenITESO Frontend
 
-Frontend project for GreenITESO using React, TypeScript, Tailwind CSS, and Shadcn/UI.
+Frontend for GreenITESO using React 19, TypeScript, Tailwind CSS v4, and shadcn/ui components.
 
 ## Tech Stack
 
-- **Framework**: React 18
-- **Language**: TypeScript 5
-- **Build Tool**: Vite 5
+- **Framework**: React 19
+- **Language**: TypeScript 5.7
+- **Build Tool**: Vite 6
+- **Router**: React Router v7
 - **Package Manager**: pnpm
-- **Styling**: Tailwind CSS 3 + Shadcn/UI
-- **Linting**: ESLint 8
-- **Formatting**: Prettier 3
-- **Testing**: Playwright 1.40
-- **Editor Config**: EditorConfig
+- **Styling**: Tailwind CSS 4 (@theme-based) + shadcn/ui (@base-ui)
+- **Linting**: ESLint 10 (flat config)
+- **Formatting**: Prettier 3.4
+- **Testing**: Playwright 1.63
+- **Icons**: Lucide React
 
 ## Setup
 
@@ -54,21 +55,53 @@ Server runs at `http://localhost:3000`
 
 ```
 src/
-  ├── main.tsx          # App entry point
-  ├── App.tsx           # Root component
-  └── index.css         # Global styles
+  ├── main.tsx              # Entry point
+  ├── App.tsx               # Root (BrowserRouter + Routes)
+  ├── routes.tsx            # Route definitions
+  ├── index.css             # Global styles + @theme tokens
+  ├── components/
+  │  ├── ui/               # shadcn/ui primitives (Button, Input, Card, etc.)
+  │  └── custom/           # Custom component variations
+  ├── pages/
+  │  ├── Home/
+  │  │  ├── Home.tsx
+  │  │  └── components/    # Page-local subcomponents
+  │  └── DesignSystem/     # Design system showcase
+  ├── lib/
+  │  └── utils.ts          # cn() (clsx + tailwind-merge)
+  └── hooks/
 
 tests/
-  └── example.spec.ts   # Example test
+  └── example.spec.ts   # Playwright tests
+
+docs/
+  └── DESIGN_SYSTEM.md  # Design tokens, typography, colors, spacing
 
 public/                 # Static assets
 ```
 
+Routes: `/` (home), `/design-system` (design showcase), `*` (fallback to home). Add pages via `src/routes.tsx`.
+
+## UI Components (shadcn/ui)
+
+Built on @base-ui/react primitives. Currently available: Button, Input, Card.
+
+Add new components with:
+
+```bash
+pnpm dlx shadcn@latest add <component>
+```
+
+This scaffolds `src/components/ui/<component>.tsx`. For custom variants, extend in `src/components/custom/` rather than modifying `ui/` files directly.
+
+Components inherit `cn()` utility (clsx + tailwind-merge) for class merging and design tokens from `src/index.css`.
+
 ## Code Conventions
 
 - **camelCase**: Variables, functions, hooks
-- **PascalCase**: Components, interfaces, types, enums
-- **kebab-case**: File and directory names
+- **PascalCase**: Components, types, interfaces, enums
+- **kebab-case**: File & directory names (except component files)
+- Page pattern: `src/pages/<PageName>/<PageName>.tsx` with page-local subcomponents in `components/` subfolder
 
 ## Linting & Formatting
 
@@ -79,15 +112,30 @@ pnpm lint:fix
 pnpm format
 ```
 
+## Design System
+
+Centralized tokens & components at `/design-system` route. See `docs/DESIGN_SYSTEM.md` for:
+
+- Typography (Plus Jakarta Sans, scale from `text-xs` to `text-4xl`)
+- Color palette (primary green, secondary sage, semantic status colors)
+- Spacing, border-radius, shadows, responsive breakpoints
+- Mobile-first rules (44×44px touch targets, fixed bottom nav)
+
+CSS variables defined in `src/index.css` under `@theme` and `:root`.
+
 ## Testing
 
 Run tests with Playwright:
 
 ```bash
 pnpm test
+pnpm test:ui       # Interactive test runner
+pnpm test:debug    # Debug mode
 ```
 
-Tests run against the dev server. Ensure it's running or Playwright will start it.
+Single test: `pnpm exec playwright test -g "test name"`
+
+Dev server starts automatically if not running. Tests use `page.goto('/')` to hit localhost:3000.
 
 ## Environment Variables
 
