@@ -1,12 +1,12 @@
-import { Typography } from './components/Typography';
-import { ColorPalette } from './components/ColorPalette';
-import { SemanticStates } from './components/SemanticStates';
-import { EnvironmentalImpact } from './components/EnvironmentalImpact';
-import { ButtonShowcase } from './components/ButtonShowcase';
-import { FormShowcase } from './components/FormShowcase';
-import { CardShowcase } from './components/CardShowcase';
-import { BadgeShowcase } from './components/BadgeShowcase';
-import { BottomNavigation } from './components/BottomNavigation';
+import { Typography } from './sections/Typography';
+import { ColorPalette } from './sections/ColorPalette';
+import { SemanticStates } from './sections/SemanticStates';
+import { EnvironmentalImpact } from './sections/EnvironmentalImpact';
+import { ButtonShowcase } from './sections/ButtonShowcase';
+import { FormShowcase } from './sections/FormShowcase';
+import { CardShowcase } from './sections/CardShowcase';
+import { BadgeShowcase } from './sections/BadgeShowcase';
+import { BottomNavigation } from './sections/BottomNavigation';
 
 export function DesignSystemPage() {
   return (
