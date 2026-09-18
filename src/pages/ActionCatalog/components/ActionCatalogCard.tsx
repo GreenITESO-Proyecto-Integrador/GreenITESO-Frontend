@@ -6,6 +6,9 @@ interface ActionCatalogCardProps {
   action: CatalogAction;
 }
 
+/**
+ * Pick a Lucide icon from catalog category metadata.
+ */
 function categoryIcon(iconName: string) {
   const normalized = iconName.trim().toLowerCase();
   if (normalized.includes('drop') || normalized.includes('water')) {
@@ -20,6 +23,9 @@ function categoryIcon(iconName: string) {
   return Leaf;
 }
 
+/**
+ * Card for one catalog action, including points, validation, and impact factors.
+ */
 export function ActionCatalogCard({ action }: ActionCatalogCardProps) {
   const Icon = categoryIcon(action.category.icon || action.category.code);
   const requiresPhoto = action.validationType === 'PHOTO';

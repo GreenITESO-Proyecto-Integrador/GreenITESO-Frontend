@@ -3,6 +3,9 @@ import { Button } from '@/components/ui/button';
 import { useActionCatalog } from '@/hooks/use-action-catalog';
 import { ActionCatalogList } from './components/ActionCatalogList';
 
+/**
+ * Catalog screen that lists sustainable actions and their point values.
+ */
 export function ActionCatalogPage() {
   const { actions, status, errorMessage, reload } = useActionCatalog();
 
@@ -25,14 +28,14 @@ export function ActionCatalogPage() {
           </p>
         ) : null}
 
-        {status === 'fallback' ? (
-          <section className="mb-6 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sky-800">
-            <h2 className="text-lg font-semibold">Vista de ejemplo</h2>
-            <p className="mt-1 text-sm">
-              No hay conexión con el catálogo. Se muestran acciones de prueba para revisar el
-              diseño.
+        {status === 'error' ? (
+          <section className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+            <h2 className="text-lg font-semibold">No se pudo cargar el catálogo</h2>
+            <p className="mt-2 text-sm">
+              No fue posible obtener las acciones sustentables. Intenta de nuevo cuando el servicio
+              esté disponible.
             </p>
-            {errorMessage ? <p className="mt-1 text-xs text-sky-700">{errorMessage}</p> : null}
+            {errorMessage ? <p className="mt-2 text-xs text-red-600">{errorMessage}</p> : null}
             <Button
               type="button"
               onClick={() => {
@@ -55,7 +58,7 @@ export function ActionCatalogPage() {
           </section>
         ) : null}
 
-        {(status === 'success' || status === 'fallback') && actions.length > 0 ? (
+        {status === 'success' && actions.length > 0 ? (
           <ActionCatalogList actions={actions} />
         ) : null}
       </div>

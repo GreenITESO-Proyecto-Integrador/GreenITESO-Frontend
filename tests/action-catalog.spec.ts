@@ -45,6 +45,9 @@ const sampleActions = [
   },
 ];
 
+/**
+ * Stub intercept for GET /api/v1/actions/ during Playwright runs.
+ */
 async function mockCatalog(page: Page, body: unknown, status = 200) {
   await page.route(catalogEndpoint, async route => {
     await route.fulfill({
@@ -66,12 +69,50 @@ test('should render sustainable action cards from the catalog endpoint', async (
   await expect(page.getByText('5 pts')).toBeVisible();
 });
 
-test('should show mock catalog cards when the catalog endpoint fails', async ({ page }) => {
+test('should show an error when the catalog endpoint fails', async ({ page }) => {
   await mockCatalog(page, { detail: 'Service unavailable' }, 500);
   await page.goto('/actions');
 
-  await expect(page.getByRole('heading', { name: 'Vista de ejemplo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'No se pudo cargar el catálogo' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reintentar' })).toBeVisible();
+  await expect(page.getByText('Llegar en bicicleta')).toHaveCount(0);
+});
+
+test('should show an error when the catalog payload is malformed', async ({ page }) => {
+  await mockCatalog(page, { results: [{}, { name: '' }] });
+  await page.goto('/actions');
+
+  await expect(page.getByRole('heading', { name: 'No se pudo cargar el catálogo' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reintentar' })).toBeVisible();
+});
+
+test('should load catalog cards after retry reaches a valid response', async ({ page }) => {
+  let requestCount = 0;
+
+  await page.route(catalogEndpoint, async route => {
+    requestCount += 1;
+    if (requestCount === 1) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Service unavailable' }),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ results: sampleActions }),
+    });
+  });
+
+  await page.goto('/actions');
+  await expect(page.getByRole('heading', { name: 'No se pudo cargar el catálogo' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Reintentar' }).click();
+
+  await expect(page.getByRole('heading', { name: 'No se pudo cargar el catálogo' })).toHaveCount(0);
   await expect(page.getByText('Llegar en bicicleta')).toBeVisible();
   await expect(page.getByText('Usar termo reutilizable')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Reintentar' })).toBeVisible();
 });
