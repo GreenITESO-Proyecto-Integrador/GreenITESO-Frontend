@@ -4,6 +4,7 @@ import { DesignSystemPage } from './pages/DesignSystem/DesignSystem';
 import { ActionCatalogPage } from './pages/ActionCatalog/ActionCatalog';
 import { ActionLogFormPage } from './pages/ActionLogForm/ActionLogForm';
 import { AuditReviewPage } from './pages/AuditReview/AuditReview';
+import { LeaderboardPage } from './pages/Leaderboard/Leaderboard';
 
 export const routes = [
   <Route key="home-root" path="/" element={<HomePage />} />,
@@ -12,5 +13,6 @@ export const routes = [
   <Route key="action-catalog" path="/actions" element={<ActionCatalogPage />} />,
   <Route key="action-log-form" path="/actions/register" element={<ActionLogFormPage />} />,
   <Route key="audit-review" path="/audit" element={<AuditReviewPage />} />,
+  <Route key="leaderboard" path="/leaderboard" element={<LeaderboardPage />} />,
   <Route key="catch-all" path="*" element={<HomePage />} />,
 ];
