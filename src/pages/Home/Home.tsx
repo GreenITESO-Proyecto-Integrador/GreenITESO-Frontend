@@ -35,9 +35,13 @@ export function HomePage() {
               Ver Design System
               <ArrowRight className="ml-2 size-5" />
             </Button>
-            {/* <Button variant="outline" className="min-h-[44px] border-2 border-secondary-300 text-secondary-500 font-semibold px-8 py-3 rounded-xl transition-colors">
-              Documentación
-            </Button> */}
+            <Button
+              variant="outline"
+              onClick={() => navigate('/login')}
+              className="min-h-11 border-2 border-secondary-300 px-8 py-3 font-semibold text-secondary-500"
+            >
+              Iniciar sesión
+            </Button>
           </div>
         </div>
       </div>

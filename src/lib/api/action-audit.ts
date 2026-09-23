@@ -1,18 +1,7 @@
 import type { ActionLogStatus, AuditActionSummary, PendingAuditLog } from '@/types/action-audit';
+import { apiFetch, getApiBaseUrl } from './client';
 
 export const ACTION_LOGS_PATH = '/api/v1/action-logs/';
-
-const DEFAULT_API_BASE_URL = 'http://localhost:3001';
-
-/**
- * Resolve the API origin from Vite env, dropping a trailing slash.
- */
-function getApiBaseUrl(): string {
-  const configured = import.meta.env.VITE_API_BASE_URL;
-  const baseUrl =
-    typeof configured === 'string' && configured.length > 0 ? configured : DEFAULT_API_BASE_URL;
-  return baseUrl.replace(/\/$/, '');
-}
 
 /**
  * Narrow unknown values to plain objects before reading audit fields.
@@ -119,7 +108,7 @@ export function getPendingAuditLogsUrl(): string {
  * Load PENDING_AUDIT action logs from the Team 1 audit queue.
  */
 export async function fetchPendingAuditLogs(): Promise<PendingAuditLog[]> {
-  const response = await fetch(getPendingAuditLogsUrl());
+  const response = await apiFetch(`${ACTION_LOGS_PATH}?status=PENDING_AUDIT`);
 
   if (!response.ok) {
     throw new Error(`Failed to load audit queue (${response.status})`);
@@ -141,7 +130,7 @@ export async function fetchPendingAuditLogs(): Promise<PendingAuditLog[]> {
  * Ask the backend to approve a pending log. Point credits stay in the server transaction.
  */
 export async function approveAuditLog(logId: string): Promise<void> {
-  const response = await fetch(`${getApiBaseUrl()}${ACTION_LOGS_PATH}${logId}/approve/`, {
+  const response = await apiFetch(`${ACTION_LOGS_PATH}${logId}/approve/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
@@ -155,7 +144,7 @@ export async function approveAuditLog(logId: string): Promise<void> {
  * Ask the backend to reject a pending log with an audit reason.
  */
 export async function rejectAuditLog(logId: string, rejectionReason: string): Promise<void> {
-  const response = await fetch(`${getApiBaseUrl()}${ACTION_LOGS_PATH}${logId}/reject/`, {
+  const response = await apiFetch(`${ACTION_LOGS_PATH}${logId}/reject/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ rejection_reason: rejectionReason }),
