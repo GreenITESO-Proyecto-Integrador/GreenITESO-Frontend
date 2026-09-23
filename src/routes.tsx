@@ -1,5 +1,7 @@
 import { Route } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
+import { LoginPage } from './pages/Login/Login';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { HomePage } from './pages/Home/Home';
 import { DesignSystemPage } from './pages/DesignSystem/DesignSystem';
 import { ActionCatalogPage } from './pages/ActionCatalog/ActionCatalog';
@@ -9,8 +11,6 @@ import { LeaderboardPage } from './pages/Leaderboard/Leaderboard';
 import { MissionsPage } from './pages/Missions/Missions';
 import { FeedPage } from './pages/Feed/Feed';
 import { NotificationsPage } from './pages/Notifications/Notifications';
-import { LoginPage } from './pages/Login/Login';
-import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { ADMIN_ROLES, type UserRole } from './types/auth';
 
 function protectedElement(
