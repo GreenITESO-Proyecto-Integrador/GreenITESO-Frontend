@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { mockAdminSession } from './helpers/auth';
 
 const pendingQueueUrl = '**/api/v1/action-logs**';
 
@@ -35,6 +36,10 @@ async function mockPendingQueue(page: Page, body: unknown, status = 200) {
     });
   });
 }
+
+test.beforeEach(async ({ page }) => {
+  await mockAdminSession(page);
+});
 
 test('should list pending evidence with approve and reject controls', async ({ page }) => {
   await mockPendingQueue(page, { results: pendingLogs });

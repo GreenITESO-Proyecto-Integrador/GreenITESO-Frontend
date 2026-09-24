@@ -1,6 +1,8 @@
-import { Leaf, ArrowRight, BarChart3, Target, Trophy } from 'lucide-react';
+import { Leaf, ArrowRight, BarChart3, Target, Trophy, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { RequireRole } from '@/components/auth/RequireRole';
+import { ADMIN_ROLES } from '@/types/auth';
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -27,10 +29,10 @@ export function HomePage() {
             Medimos, monitoreamos y maximizamos el impacto positivo en nuestro planeta.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button
               onClick={() => navigate('/design-system')}
-              className="min-h-11 bg-primary-500 hover:bg-primary-600 text-white font-semibold px-8 py-3 rounded-xl shadow-sm transition-colors"
+              className="min-h-11 bg-primary-500 hover:bg-primary-600 text-white font-semibold px-8 py-3 rounded-xl shadow-sm transition-colors cursor-pointer"
             >
               Ver Design System
               <ArrowRight className="ml-2 size-5" />
@@ -38,10 +40,20 @@ export function HomePage() {
             <Button
               variant="outline"
               onClick={() => navigate('/login')}
-              className="min-h-11 border-2 border-secondary-300 px-8 py-3 font-semibold text-secondary-500"
+              className="min-h-11 border-2 border-secondary-300 px-8 py-3 font-semibold text-secondary-500 cursor-pointer"
             >
               Iniciar sesión
             </Button>
+            <RequireRole allowedRoles={ADMIN_ROLES}>
+              <Button
+                variant="outline"
+                onClick={() => navigate('/audit')}
+                className="min-h-11 border-2 border-primary-600 bg-primary-50 px-8 py-3 font-semibold text-primary-700 hover:bg-primary-100 cursor-pointer"
+              >
+                <ShieldCheck className="mr-2 size-5 text-primary-600" />
+                Panel de Auditoría
+              </Button>
+            </RequireRole>
           </div>
         </div>
       </div>
