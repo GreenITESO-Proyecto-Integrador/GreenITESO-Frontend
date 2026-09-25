@@ -1,18 +1,7 @@
 import type { ActionCategory, ActionValidationType, CatalogAction } from '@/types/action-catalog';
+import { apiFetch, getApiBaseUrl } from './client';
 
 export const ACTION_CATALOG_PATH = '/api/v1/actions/';
-
-const DEFAULT_API_BASE_URL = 'http://localhost:3001';
-
-/**
- * Resolve the catalog API origin from Vite env, dropping a trailing slash.
- */
-function getApiBaseUrl(): string {
-  const configured = import.meta.env.VITE_API_BASE_URL;
-  const baseUrl =
-    typeof configured === 'string' && configured.length > 0 ? configured : DEFAULT_API_BASE_URL;
-  return baseUrl.replace(/\/$/, '');
-}
 
 /**
  * Narrow unknown values to plain objects before reading catalog fields.
@@ -130,7 +119,7 @@ export function getActionCatalogUrl(): string {
  * Throws on HTTP errors, invalid JSON, unexpected shapes, or payloads with no usable actions.
  */
 export async function fetchActionCatalog(): Promise<CatalogAction[]> {
-  const response = await fetch(getActionCatalogUrl());
+  const response = await apiFetch(ACTION_CATALOG_PATH);
 
   if (!response.ok) {
     throw new Error(`Failed to load action catalog (${response.status})`);

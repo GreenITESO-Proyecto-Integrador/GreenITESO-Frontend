@@ -1,19 +1,8 @@
 import type { LeaderboardEntry, LeaderboardTab } from '@/types/leaderboard';
+import { apiFetch, getApiBaseUrl } from './client';
 
 export const USER_RANKINGS_PATH = '/api/v1/rankings/users/';
 export const CLAN_RANKINGS_PATH = '/api/v1/rankings/clans/';
-
-const DEFAULT_API_BASE_URL = 'http://localhost:3001';
-
-/**
- * Resolve the API origin from Vite env, dropping a trailing slash.
- */
-function getApiBaseUrl(): string {
-  const configured = import.meta.env.VITE_API_BASE_URL;
-  const baseUrl =
-    typeof configured === 'string' && configured.length > 0 ? configured : DEFAULT_API_BASE_URL;
-  return baseUrl.replace(/\/$/, '');
-}
 
 /**
  * Narrow unknown values to plain objects before reading ranking fields.
@@ -92,7 +81,8 @@ export function getLeaderboardUrl(tab: LeaderboardTab): string {
  * Load ranking rows for global users or clans. Totals are display-only.
  */
 export async function fetchLeaderboard(tab: LeaderboardTab): Promise<LeaderboardEntry[]> {
-  const response = await fetch(getLeaderboardUrl(tab));
+  const path = tab === 'teams' ? CLAN_RANKINGS_PATH : USER_RANKINGS_PATH;
+  const response = await apiFetch(path);
 
   if (!response.ok) {
     throw new Error(`Failed to load leaderboard (${response.status})`);
