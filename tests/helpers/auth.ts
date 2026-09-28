@@ -13,13 +13,29 @@ interface MockSessionOptions {
   token?: string;
 }
 
+const configuredPages = new WeakSet<Page>();
+
 /**
  * Injects session credentials into sessionStorage before the page is loaded.
+ *
+ * Note: Each test must use a fresh `page` fixture. Playwright's `addInitScript`
+ * persists across navigations for the lifetime of the page, so calling this
+ * multiple times on the same page causes multiple init scripts to run in
+ * an undefined evaluation order.
  */
 export async function mockAuthenticatedSession(
   page: Page,
   options?: MockSessionOptions,
 ): Promise<AuthUser> {
+  if (configuredPages.has(page)) {
+    throw new Error(
+      'mockAuthenticatedSession was already called on this page. ' +
+        'Playwright init scripts persist across navigations and running multiple init scripts has an undefined evaluation order. ' +
+        'Split each role check into a separate test with a fresh page fixture.',
+    );
+  }
+  configuredPages.add(page);
+
   const role = options?.role ?? 'STUDENT';
   const mockUser: AuthUser = {
     id: 'test-user-id',
