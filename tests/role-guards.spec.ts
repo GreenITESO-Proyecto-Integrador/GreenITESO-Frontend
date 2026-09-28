@@ -54,7 +54,7 @@ test.describe('Role-based route guards and permissions', () => {
     await expect(page.getByRole('heading', { name: 'Acceso Restringido' })).toHaveCount(0);
   });
 
-  test('should allow both STUDENT and STAFF to access standard protected routes like /actions', async ({
+  test('should allow STUDENT to access standard protected routes like /actions', async ({
     page,
   }) => {
     await page.route(actionsUrl, async route => {
@@ -65,31 +65,40 @@ test.describe('Role-based route guards and permissions', () => {
       });
     });
 
-    // Test STUDENT access
     await mockStudentSession(page);
     await page.goto('/actions');
     await expect(page.getByRole('heading', { name: 'Catálogo de Acciones' })).toBeVisible();
+  });
 
-    // Test STAFF access
+  test('should allow STAFF to access standard protected routes like /actions', async ({ page }) => {
+    await page.route(actionsUrl, async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ results: [] }),
+      });
+    });
+
     await mockStaffSession(page);
     await page.goto('/actions');
     await expect(page.getByRole('heading', { name: 'Catálogo de Acciones' })).toBeVisible();
   });
 
-  test('should conditionally render admin UI controls exclusively for ADMIN users', async ({
-    page,
-  }) => {
-    // STUDENT user should NOT see the audit button on Home
+  test('should not render admin UI controls on Home for STUDENT users', async ({ page }) => {
     await mockStudentSession(page);
     await page.goto('/');
     await expect(page.getByRole('button', { name: 'Panel de Auditoría' })).toHaveCount(0);
+  });
 
-    // STAFF user should NOT see the audit button on Home
+  test('should not render admin UI controls on Home for STAFF users', async ({ page }) => {
     await mockStaffSession(page);
     await page.goto('/');
     await expect(page.getByRole('button', { name: 'Panel de Auditoría' })).toHaveCount(0);
+  });
 
-    // ADMIN user SHOULD see the audit button on Home
+  test('should conditionally render admin UI controls exclusively for ADMIN users', async ({
+    page,
+  }) => {
     await mockAdminSession(page);
     await page.goto('/');
     await expect(page.getByRole('button', { name: 'Panel de Auditoría' })).toBeVisible();
