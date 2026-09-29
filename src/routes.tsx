@@ -7,10 +7,14 @@ import { AuditReviewPage } from './pages/AuditReview/AuditReview';
 import { LeaderboardPage } from './pages/Leaderboard/Leaderboard';
 import { LoginPage } from './pages/Login/Login';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { ADMIN_ROLES, type UserRole } from './types/auth';
 import { FeedPage } from './pages/Feed/Feed';
 
-function protectedElement(element: React.ReactElement) {
-  return <ProtectedRoute>{element}</ProtectedRoute>;
+function protectedElement(
+  element: React.ReactElement,
+  allowedRoles?: readonly (UserRole | string)[],
+) {
+  return <ProtectedRoute allowedRoles={allowedRoles}>{element}</ProtectedRoute>;
 }
 
 export const routes = [
@@ -28,10 +32,13 @@ export const routes = [
     path="/actions/register"
     element={protectedElement(<ActionLogFormPage />)}
   />,
-  <Route key="audit-review" path="/audit" element={protectedElement(<AuditReviewPage />)} />,
+
+  <Route
+    key="audit-review"
+    path="/audit"
+    element={protectedElement(<AuditReviewPage />, ADMIN_ROLES)}
+  />,
   <Route key="leaderboard" path="/leaderboard" element={protectedElement(<LeaderboardPage />)} />,
-  
   <Route key="feed" path="/feed" element={protectedElement(<FeedPage />)} />,
-  
   <Route key="catch-all" path="*" element={protectedElement(<HomePage />)} />,
 ];
