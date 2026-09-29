@@ -1,16 +1,34 @@
-export type PostType = 'ACTION_LOG' | 'MISSION_COMPLETED' | 'ACHIEVEMENT' | 'GENERAL';
+// src/types/feed.ts
 
-export interface PostAuthor {
-  id: string;
+export type PostType = 'OFFICIAL_ANNOUNCEMENT' | 'COMMUNITY_MILESTONE' | 'SHARED_EVIDENCE';
+
+export interface AuthorInfo {
+  id: number;
   nickname: string;
-  avatarUrl?: string;
+  avatar_url: string | null;
 }
 
-export interface Post {
-  id: string;
-  author: PostAuthor;
-  createdAt: string;
+export interface BadgeInfo {
+  title: string;
+  icon: string;
+}
+
+export interface FeedPost {
+  id: number;
+  author_id: string;
+  author: AuthorInfo; // Información del autor incluida por el serializador
+  post_type: PostType;
   content: string;
-  imageUrl?: string;
-  type: PostType;
+  image_url?: string | null;
+  badge_user_id?: number | null;
+  badge?: BadgeInfo; // Información de la insignia si existe
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FeedResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: FeedPost[];
 }
