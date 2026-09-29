@@ -7,6 +7,7 @@ import { AuditReviewPage } from './pages/AuditReview/AuditReview';
 import { LeaderboardPage } from './pages/Leaderboard/Leaderboard';
 import { LoginPage } from './pages/Login/Login';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { FeedPage } from './pages/Feed/Feed';
 
 function protectedElement(element: React.ReactElement) {
   return <ProtectedRoute>{element}</ProtectedRoute>;
@@ -29,5 +30,8 @@ export const routes = [
   />,
   <Route key="audit-review" path="/audit" element={protectedElement(<AuditReviewPage />)} />,
   <Route key="leaderboard" path="/leaderboard" element={protectedElement(<LeaderboardPage />)} />,
+  
+  <Route key="feed" path="/feed" element={protectedElement(<FeedPage />)} />,
+  
   <Route key="catch-all" path="*" element={protectedElement(<HomePage />)} />,
 ];
