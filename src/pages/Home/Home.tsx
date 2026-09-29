@@ -31,10 +31,10 @@ export function HomePage() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button
-              onClick={() => navigate('/design-system')}
+              onClick={() => navigate('/')}
               className="min-h-11 bg-primary-500 hover:bg-primary-600 text-white font-semibold px-8 py-3 rounded-xl shadow-sm transition-colors cursor-pointer"
             >
-              Ver Design System
+              Ver Dashboard
               <ArrowRight className="ml-2 size-5" />
             </Button>
             <Button
