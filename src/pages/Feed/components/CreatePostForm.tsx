@@ -27,7 +27,7 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
         post_type: 'SHARED_EVIDENCE', // Por defecto los usuarios comparten evidencias
         image_url: imageUrl.trim() || undefined,
       });
-      
+
       onPostCreated(newPost);
       setContent('');
       setImageUrl('');
@@ -41,10 +41,13 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden p-4"
+    >
       <textarea
         value={content}
-        onChange={(e) => setContent(e.target.value)}
+        onChange={e => setContent(e.target.value)}
         placeholder="¿Qué acción sostenible realizaste hoy?"
         className="w-full bg-gray-50 border border-gray-100 rounded-lg p-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:bg-white transition-all resize-none min-h-[100px]"
         disabled={isSubmitting}
@@ -54,7 +57,7 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
         <input
           type="url"
           value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
+          onChange={e => setImageUrl(e.target.value)}
           placeholder="Pega la URL de tu imagen aquí (opcional)"
           className="w-full mt-3 bg-gray-50 border border-gray-100 rounded-lg p-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
           disabled={isSubmitting}

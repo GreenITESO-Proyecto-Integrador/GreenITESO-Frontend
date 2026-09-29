@@ -11,7 +11,11 @@ export async function getFeed(page = 1, postType?: string): Promise<FeedResponse
 }
 
 // CREATE:
-export async function createPost(data: { content: string; post_type: PostType; image_url?: string }) {
+export async function createPost(data: {
+  content: string;
+  post_type: PostType;
+  image_url?: string;
+}) {
   const response = await apiFetch('/api/v1/feed/', {
     method: 'POST',
     headers: {
@@ -36,7 +40,7 @@ export async function deletePost(postId: number) {
   if (!response.ok) {
     throw new Error('Error al eliminar la publicación');
   }
-  
+
   return true;
 }
 

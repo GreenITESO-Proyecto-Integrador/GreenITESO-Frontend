@@ -26,14 +26,30 @@ export const routes = [
     <Route key="login" path="/login" element={<LoginPage />} />
     <Route key="home-root" path="/" element={protectedElement(<DashboardPage />)} />
     <Route key="home-alias" path="/home" element={protectedElement(<HomePage />)} />
-    <Route key="design-system" path="/design-system" element={protectedElement(<DesignSystemPage />)} />
+    <Route
+      key="design-system"
+      path="/design-system"
+      element={protectedElement(<DesignSystemPage />)}
+    />
     <Route key="missions" path="/missions" element={protectedElement(<MissionsPage />)} />
     <Route key="feed" path="/feed" element={protectedElement(<FeedPage />)} />
-    <Route key="notifications" path="/notifications" element={protectedElement(<NotificationsPage />)} />
+    <Route
+      key="notifications"
+      path="/notifications"
+      element={protectedElement(<NotificationsPage />)}
+    />
     <Route key="action-catalog" path="/actions" element={protectedElement(<ActionCatalogPage />)} />
-    <Route key="action-log-form" path="/actions/register" element={protectedElement(<ActionLogFormPage />)} />
-    <Route key="audit-review" path="/audit" element={protectedElement(<AuditReviewPage />, ADMIN_ROLES)} />
+    <Route
+      key="action-log-form"
+      path="/actions/register"
+      element={protectedElement(<ActionLogFormPage />)}
+    />
+    <Route
+      key="audit-review"
+      path="/audit"
+      element={protectedElement(<AuditReviewPage />, ADMIN_ROLES)}
+    />
     <Route key="leaderboard" path="/leaderboard" element={protectedElement(<LeaderboardPage />)} />
     <Route key="catch-all" path="*" element={protectedElement(<DashboardPage />)} />
-  </Route>
+  </Route>,
 ];

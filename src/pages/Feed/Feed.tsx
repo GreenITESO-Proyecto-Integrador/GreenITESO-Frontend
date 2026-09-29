@@ -25,12 +25,12 @@ export function FeedPage() {
   }, []);
 
   const handlePostCreated = (newPost: FeedPostType) => {
-    setPosts((prevPosts) => [newPost, ...prevPosts]);
+    setPosts(prevPosts => [newPost, ...prevPosts]);
   };
 
   const handlePostDeleted = async (postId: number) => {
     if (!window.confirm('¿Estás seguro de que deseas eliminar esta publicación?')) return;
-    
+
     try {
       await deletePost(postId);
       // Removemos el post del estado local para que desaparezca de la pantalla
@@ -45,7 +45,7 @@ export function FeedPage() {
     try {
       const updatedPost = await updatePost(postId, { content: newContent });
       // Reemplazamos el post antiguo con la versión actualizada que nos devuelve el backend
-      setPosts(prevPosts => prevPosts.map(post => post.id === postId ? updatedPost : post));
+      setPosts(prevPosts => prevPosts.map(post => (post.id === postId ? updatedPost : post)));
     } catch (err) {
       console.error(err);
       throw err; // Lanzamos el error para que FeedPost lo atrape y muestre la alerta
@@ -64,9 +64,13 @@ export function FeedPage() {
       <CreatePostForm onPostCreated={handlePostCreated} />
 
       {loading ? (
-        <div className="text-center text-muted-foreground py-10 animate-pulse">Cargando publicaciones...</div>
+        <div className="text-center text-muted-foreground py-10 animate-pulse">
+          Cargando publicaciones...
+        </div>
       ) : error ? (
-        <div className="text-center text-destructive py-10 bg-destructive/10 rounded-lg">{error}</div>
+        <div className="text-center text-destructive py-10 bg-destructive/10 rounded-lg">
+          {error}
+        </div>
       ) : (
         <div className="flex flex-col gap-4">
           {posts.length === 0 ? (
@@ -75,11 +79,11 @@ export function FeedPage() {
             </p>
           ) : (
             posts.map(post => (
-              <FeedPost 
-                key={post.id} 
-                post={post} 
+              <FeedPost
+                key={post.id}
+                post={post}
                 currentUserId="58b92fca-dceb-468a-baa5-ec3eceacedc2" // TODO: Extraer el ID real de la sesión o contexto de autenticación
-                onDelete={handlePostDeleted} 
+                onDelete={handlePostDeleted}
                 onUpdate={handlePostUpdated}
               />
             ))
