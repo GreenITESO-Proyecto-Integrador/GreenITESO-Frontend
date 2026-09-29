@@ -2,8 +2,8 @@ import { Route } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import { LoginPage } from './pages/Login/Login';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { DashboardPage } from './pages/Dashboard/Dashboard';
 import { HomePage } from './pages/Home/Home';
-import { DesignSystemPage } from './pages/DesignSystem/DesignSystem';
 import { ActionCatalogPage } from './pages/ActionCatalog/ActionCatalog';
 import { ActionLogFormPage } from './pages/ActionLogForm/ActionLogForm';
 import { AuditReviewPage } from './pages/AuditReview/AuditReview';
@@ -23,13 +23,8 @@ function protectedElement(
 export const routes = [
   <Route key="app" element={<Layout />}>
     <Route key="login" path="/login" element={<LoginPage />} />
-    <Route key="home-root" path="/" element={protectedElement(<HomePage />)} />
-    <Route key="home-alias" path="/home" element={protectedElement(<HomePage />)} />
-    <Route
-      key="design-system"
-      path="/design-system"
-      element={protectedElement(<DesignSystemPage />)}
-    />
+    <Route key="home-root" path="/" element={protectedElement(<DashboardPage />)} />
+    <Route key="design-system" path="/design-system" element={protectedElement(<HomePage />)} />
     <Route key="missions" path="/missions" element={protectedElement(<MissionsPage />)} />
     <Route key="feed" path="/feed" element={protectedElement(<FeedPage />)} />
     <Route
@@ -49,27 +44,6 @@ export const routes = [
       element={protectedElement(<AuditReviewPage />, ADMIN_ROLES)}
     />
     <Route key="leaderboard" path="/leaderboard" element={protectedElement(<LeaderboardPage />)} />
-    <Route key="catch-all" path="*" element={protectedElement(<HomePage />)} />
+    <Route key="catch-all" path="*" element={protectedElement(<DashboardPage />)} />
   </Route>,
-  <Route key="home-root" path="/" element={protectedElement(<HomePage />)} />,
-  <Route key="home-alias" path="/home" element={protectedElement(<HomePage />)} />,
-  <Route key="login" path="/login" element={<LoginPage />} />,
-  <Route
-    key="design-system"
-    path="/design-system"
-    element={protectedElement(<DesignSystemPage />)}
-  />,
-  <Route key="action-catalog" path="/actions" element={protectedElement(<ActionCatalogPage />)} />,
-  <Route
-    key="action-log-form"
-    path="/actions/register"
-    element={protectedElement(<ActionLogFormPage />)}
-  />,
-  <Route
-    key="audit-review"
-    path="/audit"
-    element={protectedElement(<AuditReviewPage />, ADMIN_ROLES)}
-  />,
-  <Route key="leaderboard" path="/leaderboard" element={protectedElement(<LeaderboardPage />)} />,
-  <Route key="catch-all" path="*" element={protectedElement(<HomePage />)} />,
 ];
