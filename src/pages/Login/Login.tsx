@@ -47,7 +47,8 @@ export function LoginPage() {
         }
 
         const accessToken = result.accessToken || (await getMicrosoftAccessToken(result.account));
-        const loginResponse = await loginWithMicrosoft(result.idToken, accessToken);
+        const email = result.account.username;
+        const loginResponse = await loginWithMicrosoft(`mock:${email}`, accessToken);
         persistLogin(loginResponse);
 
         window.location.assign('/');
