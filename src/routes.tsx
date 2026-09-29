@@ -12,7 +12,6 @@ import { MissionsPage } from './pages/Missions/Missions';
 import { FeedPage } from './pages/Feed/Feed';
 import { NotificationsPage } from './pages/Notifications/Notifications';
 import { ADMIN_ROLES, type UserRole } from './types/auth';
-import { FeedPage } from './pages/Feed/Feed';
 
 function protectedElement(
   element: React.ReactElement,

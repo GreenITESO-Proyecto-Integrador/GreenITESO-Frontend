@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getFeed } from '@/lib/api/feed';
+import { getFeed, deletePost, updatePost } from '@/lib/api/feed';
 import { FeedPost } from './components/FeedPost';
 import { CreatePostForm } from './components/CreatePostForm';
 import type { FeedPost as FeedPostType } from '@/types/feed';
@@ -28,6 +28,30 @@ export function FeedPage() {
     setPosts((prevPosts) => [newPost, ...prevPosts]);
   };
 
+  const handlePostDeleted = async (postId: number) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar esta publicación?')) return;
+    
+    try {
+      await deletePost(postId);
+      // Removemos el post del estado local para que desaparezca de la pantalla
+      setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
+    } catch (err) {
+      alert('No se pudo eliminar la publicación.');
+      console.error(err);
+    }
+  };
+
+  const handlePostUpdated = async (postId: number, newContent: string) => {
+    try {
+      const updatedPost = await updatePost(postId, { content: newContent });
+      // Reemplazamos el post antiguo con la versión actualizada que nos devuelve el backend
+      setPosts(prevPosts => prevPosts.map(post => post.id === postId ? updatedPost : post));
+    } catch (err) {
+      console.error(err);
+      throw err; // Lanzamos el error para que FeedPost lo atrape y muestre la alerta
+    }
+  };
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-8">
       <div>
@@ -51,7 +75,13 @@ export function FeedPage() {
             </p>
           ) : (
             posts.map(post => (
-              <FeedPost key={post.id} post={post} />
+              <FeedPost 
+                key={post.id} 
+                post={post} 
+                currentUserId="58b92fca-dceb-468a-baa5-ec3eceacedc2" // TODO: Extraer el ID real de la sesión o contexto de autenticación
+                onDelete={handlePostDeleted} 
+                onUpdate={handlePostUpdated}
+              />
             ))
           )}
         </div>

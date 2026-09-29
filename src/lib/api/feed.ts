@@ -10,7 +10,7 @@ export async function getFeed(page = 1, postType?: string): Promise<FeedResponse
   return response.json();
 }
 
-// NUEVA FUNCIÓN:
+// CREATE:
 export async function createPost(data: { content: string; post_type: PostType; image_url?: string }) {
   const response = await apiFetch('/api/v1/feed/', {
     method: 'POST',
@@ -22,6 +22,36 @@ export async function createPost(data: { content: string; post_type: PostType; i
 
   if (!response.ok) {
     throw new Error('Error al crear la publicación');
+  }
+
+  return response.json();
+}
+
+// DELETE:
+export async function deletePost(postId: number) {
+  const response = await apiFetch(`/api/v1/feed/${postId}/`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw new Error('Error al eliminar la publicación');
+  }
+  
+  return true;
+}
+
+// UPDATE:
+export async function updatePost(postId: number, data: { content: string }) {
+  const response = await apiFetch(`/api/v1/feed/${postId}/`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error('Error al actualizar la publicación');
   }
 
   return response.json();

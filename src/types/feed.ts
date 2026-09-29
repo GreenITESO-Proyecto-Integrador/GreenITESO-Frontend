@@ -15,7 +15,7 @@ export interface BadgeInfo {
 
 export interface FeedPost {
   id: number;
-  author_id: number;
+  author_id: string;
   author: AuthorInfo; // Información del autor incluida por el serializador
   post_type: PostType;
   content: string;
