@@ -324,6 +324,30 @@ export async function proposeCampaign(payload: CampaignPayload): Promise<void> {
   );
 }
 
+export interface CampaignUpdate {
+  title: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+}
+
+/**
+ * Edit title, description and dates of a campaign in PROMOTION (requires `can_manage`).
+ */
+export async function updateCampaign(campaignId: string, payload: CampaignUpdate): Promise<void> {
+  const response = await apiFetch(`${CAMPAIGNS_PATH}${campaignId}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: payload.title,
+      description: payload.description,
+      start_date: payload.startDate,
+      end_date: payload.endDate,
+    }),
+  });
+  if (!response.ok) throw await readError(response, 'No se pudo guardar la campaña.');
+}
+
 /**
  * Add a mission to a campaign in PROMOTION (requires `can_manage`).
  */

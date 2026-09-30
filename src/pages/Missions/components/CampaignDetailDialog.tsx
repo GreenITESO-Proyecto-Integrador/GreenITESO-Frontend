@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { CalendarRange, Plus, Users } from 'lucide-react';
+import { CalendarRange, Pencil, Plus, Users } from 'lucide-react';
 import { ModalContent } from '@/components/custom/ModalContent';
 import { MissionItem } from '@/components/shared/MissionItem';
 import { Badge } from '@/components/ui/badge';
@@ -7,12 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useCampaignDetail } from '@/hooks/use-campaign-detail';
 import { useClanName } from '@/hooks/use-clan-name';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { joinCampaign } from '@/lib/api/campaigns';
 import { toFriendlyMessage } from '@/lib/api/errors';
 import { SCOPE_META, STATUS_META, formatDate } from '@/lib/campaign-meta';
 import type { CampaignDetail } from '@/types/campaign';
 import type { Mission } from '@/types/mission';
+import { WRAP_TEXT } from '../field-limits';
 import { AddMissionForm } from './AddMissionForm';
+import { EditCampaignForm } from './EditCampaignForm';
 import { SuccessBanner } from './SuccessBanner';
 
 interface CampaignDetailDialogProps {
@@ -34,7 +37,9 @@ function DetailBody({
   fallback,
 }: Omit<CampaignDetailDialogProps, 'campaignId' | 'onClose'> & { campaignId: string }) {
   const { detail: loaded, status, errorMessage, reload, refresh } = useCampaignDetail(campaignId);
+  const { isAdmin } = useCurrentUser();
   const [addingMission, setAddingMission] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [joining, setJoining] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -57,6 +62,13 @@ function DetailBody({
     } finally {
       setJoining(false);
     }
+  }
+
+  async function handleCampaignSaved() {
+    setEditing(false);
+    setNotice('¡Listo! Los cambios de la campaña se guardaron.');
+    await refresh();
+    onChanged?.();
   }
 
   async function handleMissionAdded() {
@@ -95,9 +107,31 @@ function DetailBody({
   const { label: scopeLabel, icon: ScopeIcon } = SCOPE_META[detail.scope];
   const statusMeta = STATUS_META[detail.status];
   const isPromotion = detail.status === 'PROMOTION';
+  // Backend only allows editing and adding missions while in PROMOTION, for managers.
   const canAddMission = detail.canManage && isPromotion && !usingFallback;
-  const canJoin = isPromotion && !detail.isParticipant && !usingFallback;
+  const canEdit = canAddMission;
+  // Admins cannot join campaigns.
+  const canJoin = isPromotion && !detail.isParticipant && !usingFallback && !isAdmin;
   const existingCodes = new Set(detail.missions.map(mission => mission.action.id));
+
+  if (editing && canEdit) {
+    return (
+      <>
+        <DialogHeader className="pr-10">
+          <DialogTitle className="text-xl font-bold text-foreground">Editar campaña</DialogTitle>
+          <DialogDescription>
+            Puedes cambiar el título, la descripción y las fechas mientras la campaña esté en
+            promoción.
+          </DialogDescription>
+        </DialogHeader>
+        <EditCampaignForm
+          campaign={detail}
+          onCancel={() => setEditing(false)}
+          onSaved={handleCampaignSaved}
+        />
+      </>
+    );
+  }
 
   return (
     <>
@@ -111,8 +145,12 @@ function DetailBody({
             {statusMeta.label}
           </Badge>
         </div>
-        <DialogTitle className="text-xl font-bold text-foreground">{detail.title}</DialogTitle>
-        <DialogDescription className="text-sm sm:text-base">{detail.description}</DialogDescription>
+        <DialogTitle className={`text-xl font-bold text-foreground ${WRAP_TEXT}`}>
+          {detail.title}
+        </DialogTitle>
+        <DialogDescription className={`text-sm sm:text-base ${WRAP_TEXT}`}>
+          {detail.description}
+        </DialogDescription>
       </DialogHeader>
 
       {notice ? <SuccessBanner message={notice} onDismiss={dismissNotice} /> : null}
@@ -139,7 +177,7 @@ function DetailBody({
         {detail.targetClanId ? (
           <div className="sm:col-span-2">
             <dt className="text-xs text-muted-foreground">Clan</dt>
-            <dd className="font-medium text-foreground">{clanName ?? 'Clan'}</dd>
+            <dd className={`font-medium text-foreground ${WRAP_TEXT}`}>{clanName ?? 'Clan'}</dd>
           </div>
         ) : null}
       </dl>
@@ -190,8 +228,23 @@ function DetailBody({
         </p>
       ) : null}
 
-      {canJoin || (canAddMission && !addingMission) ? (
+      {canJoin || canEdit || (canAddMission && !addingMission) ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+          {canEdit ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setNotice(null);
+                setAddingMission(false);
+                setEditing(true);
+              }}
+              className="min-h-11 cursor-pointer rounded-xl px-5 font-semibold"
+            >
+              <Pencil className="size-4" />
+              Editar campaña
+            </Button>
+          ) : null}
           {canAddMission && !addingMission ? (
             <Button
               type="button"
