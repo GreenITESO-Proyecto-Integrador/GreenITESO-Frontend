@@ -10,11 +10,11 @@ import type { CampaignApprovalStatus } from '@/types/campaign';
 import type { CampaignProposal } from '@/types/campaign-proposal';
 import { usePagedItems } from '@/hooks/use-paged-items';
 import { cn } from '@/lib/utils';
-import { REJECTION_REASON_MAX_LENGTH, WRAP_TEXT } from '../field-limits';
+import { REJECTION_REASON_MAX_LENGTH, WRAP_TEXT } from './field-limits';
 import { CharCounter } from './CharCounter';
-import { FilterChips } from './FilterChips';
-import { Pagination } from './Pagination';
-import { SectionState } from './SectionState';
+import { FilterChips } from '@/components/shared/FilterChips';
+import { Pagination } from '@/components/shared/Pagination';
+import { SectionState } from '@/components/shared/SectionState';
 
 export type ProposalFilter = CampaignApprovalStatus | 'ALL';
 

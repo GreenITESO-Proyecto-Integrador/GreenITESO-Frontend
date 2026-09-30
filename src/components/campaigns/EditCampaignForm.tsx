@@ -6,8 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { updateCampaign } from '@/lib/api/campaigns';
 import { ApiError, toFriendlyMessage } from '@/lib/api/errors';
 import type { CampaignDetail } from '@/types/campaign';
-import { endOfDay, startOfDay, toDateInputValue, validateDates } from '../campaign-dates';
-import { DESCRIPTION_MAX_LENGTH, TITLE_MAX_LENGTH, WRAP_TEXT } from '../field-limits';
+import { endOfDay, startOfDay, toDateInputValue, validateDates } from './campaign-dates';
+import { DESCRIPTION_MAX_LENGTH, TITLE_MAX_LENGTH, WRAP_TEXT } from './field-limits';
 import { CharCounter } from './CharCounter';
 import { FieldError } from './FieldError';
 

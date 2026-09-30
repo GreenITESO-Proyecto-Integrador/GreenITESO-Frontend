@@ -6,7 +6,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { CatalogAction } from '@/types/action-catalog';
-import { SELECT_ITEM_CLASS } from '../field-limits';
+import { SELECT_ITEM_CLASS } from './field-limits';
 
 interface ActionPickerProps {
   id: string;

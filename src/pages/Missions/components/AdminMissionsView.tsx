@@ -8,16 +8,16 @@ import {
   STATUS_OPTIONS,
   type ScopeFilter,
   type StatusFilter,
-} from '../campaign-filters';
-import { buildFallbackDetail } from '../fallback-detail';
-import { CampaignDetailDialog } from './CampaignDetailDialog';
+} from '@/components/campaigns/campaign-filters';
+import { buildFallbackDetail } from '@/components/campaigns/fallback-detail';
+import { CampaignDetailDialog } from '@/components/campaigns/CampaignDetailDialog';
 import { CampaignFormDialog } from './CampaignFormDialog';
-import { CampaignGrid } from './CampaignGrid';
-import { FilterChips } from './FilterChips';
-import { MockNotice } from './MockNotice';
-import { ProposalList, type ProposalFilter } from './ProposalList';
-import { SectionState } from './SectionState';
-import { SuccessBanner } from './SuccessBanner';
+import { CampaignGrid } from '@/components/campaigns/CampaignGrid';
+import { FilterChips } from '@/components/shared/FilterChips';
+import { MockNotice } from '@/components/campaigns/MockNotice';
+import { ProposalList, type ProposalFilter } from '@/components/campaigns/ProposalList';
+import { SectionState } from '@/components/shared/SectionState';
+import { SuccessBanner } from '@/components/campaigns/SuccessBanner';
 
 /**
  * Missions page for ADMIN: every campaign with filters, plus the proposals audit.

@@ -22,11 +22,11 @@ import {
   SELECT_ITEM_CLASS,
   TITLE_MAX_LENGTH,
   WRAP_TEXT,
-} from '../field-limits';
-import { endOfDay, startOfDay, validateDates } from '../campaign-dates';
-import { ActionPicker } from './ActionPicker';
-import { CharCounter } from './CharCounter';
-import { FieldError } from './FieldError';
+} from '@/components/campaigns/field-limits';
+import { endOfDay, startOfDay, validateDates } from '@/components/campaigns/campaign-dates';
+import { ActionPicker } from '@/components/campaigns/ActionPicker';
+import { CharCounter } from '@/components/campaigns/CharCounter';
+import { FieldError } from '@/components/campaigns/FieldError';
 
 interface CampaignFormDialogProps {
   open: boolean;

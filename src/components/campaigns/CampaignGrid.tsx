@@ -1,7 +1,7 @@
 import { CampaignCard } from '@/components/shared/CampaignCard';
 import { usePagedItems } from '@/hooks/use-paged-items';
 import type { Campaign } from '@/types/campaign';
-import { Pagination } from './Pagination';
+import { Pagination } from '@/components/shared/Pagination';
 
 interface CampaignGridProps {
   campaigns: Campaign[];

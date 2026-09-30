@@ -13,7 +13,7 @@ import { toFriendlyMessage } from '@/lib/api/errors';
 import { SCOPE_META, STATUS_META, formatDate } from '@/lib/campaign-meta';
 import type { CampaignDetail } from '@/types/campaign';
 import type { Mission } from '@/types/mission';
-import { WRAP_TEXT } from '../field-limits';
+import { WRAP_TEXT } from './field-limits';
 import { AddMissionForm } from './AddMissionForm';
 import { EditCampaignForm } from './EditCampaignForm';
 import { SuccessBanner } from './SuccessBanner';
