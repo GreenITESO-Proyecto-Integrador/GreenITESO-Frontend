@@ -50,9 +50,7 @@ export function AuditReviewPage() {
               No fue posible obtener las evidencias pendientes. Intenta de nuevo cuando el servicio
               esté disponible.
             </p>
-            {errorMessage ? (
-              <p className="mt-2 text-xs text-red-600">{errorMessage}</p>
-            ) : null}
+            {errorMessage ? <p className="mt-2 text-xs text-red-600">{errorMessage}</p> : null}
             <Button
               type="button"
               onClick={() => {
