@@ -1,10 +1,8 @@
 import { useCallback, useState } from 'react';
-import { Megaphone, Plus, Target } from 'lucide-react';
-import { MissionItem } from '@/components/shared/MissionItem';
+import { Megaphone, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCampaignProposals } from '@/hooks/use-campaign-proposals';
 import { useCampaigns } from '@/hooks/use-campaigns';
-import type { Mission } from '@/types/mission';
 import {
   SCOPE_OPTIONS,
   STATUS_OPTIONS,
@@ -21,17 +19,18 @@ import { ProposalList, type ProposalFilter } from '@/components/campaigns/Propos
 import { SectionState } from '@/components/shared/SectionState';
 import { SuccessBanner } from '@/components/campaigns/SuccessBanner';
 
-// Stable reference: the hook only reads primitives, but a constant avoids re-creating it.
-const PARTICIPATING = { participating: true } as const;
-
 /**
- * Missions page for non-admin users: their campaigns, active missions and proposals.
+ * Missions page for non-admin users: every campaign to join, plus their own proposals.
+ * Their joined campaigns and active missions live in the Dashboard.
  */
 export function UserMissionsView() {
-  const campaignsData = useCampaigns(PARTICIPATING);
-  const { campaigns, missions, progress, status, errorMessage, usingMock, reload } = campaignsData;
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [scopeFilter, setScopeFilter] = useState<ScopeFilter>('ALL');
+  const campaignsData = useCampaigns({
+    status: statusFilter === 'ALL' ? undefined : statusFilter,
+    scope: scopeFilter === 'ALL' ? undefined : scopeFilter,
+  });
+  const { campaigns, status, errorMessage, usingMock, reload } = campaignsData;
   const [proposalFilter, setProposalFilter] = useState<ProposalFilter>('ALL');
   const proposalsData = useCampaignProposals(proposalFilter === 'ALL' ? undefined : proposalFilter);
   const [createOpen, setCreateOpen] = useState(false);
@@ -39,26 +38,6 @@ export function UserMissionsView() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const dismissNotice = useCallback(() => setNotice(null), []);
-
-  // Filters only narrow the campaign cards; "Misiones activas" keeps using every campaign.
-  const visibleCampaigns = campaigns.filter(
-    campaign =>
-      (statusFilter === 'ALL' || campaign.status === statusFilter) &&
-      (scopeFilter === 'ALL' || campaign.scope === scopeFilter),
-  );
-
-  const activeGroups = campaigns
-    .filter(campaign => campaign.status === 'IN_PROGRESS' && campaign.isParticipant)
-    .map(campaign => ({
-      campaign,
-      missions: missions.filter(mission => mission.campaignId === campaign.id),
-    }))
-    .filter(group => group.missions.length > 0);
-
-  function handleLogAction(mission: Mission) {
-    // TASK: conectar con el endpoint de registro de acciones cuando exista.
-    console.info('Registrar acción (pendiente de endpoint):', mission.id, mission.action.name);
-  }
 
   // With sample data on screen the section is usable, so it is not shown as an error.
   const campaignsStatus = status === 'error' ? 'success' : status;
@@ -87,7 +66,7 @@ export function UserMissionsView() {
       {usingMock ? <MockNotice errorMessage={errorMessage} onRetry={() => void reload()} /> : null}
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-xl font-bold text-foreground">Mis campañas</h2>
+        <h2 className="text-xl font-bold text-foreground">Todas las campañas</h2>
         <div className="flex flex-col gap-3">
           <FilterChips
             label="Filtrar campañas por estado"
@@ -106,57 +85,18 @@ export function UserMissionsView() {
           status={campaignsStatus}
           errorMessage={errorMessage}
           onRetry={() => void reload()}
-          isEmpty={visibleCampaigns.length === 0}
+          isEmpty={campaigns.length === 0}
           loadingText="Cargando campañas…"
-          errorTitle="No se pudieron cargar tus campañas"
+          errorTitle="No se pudieron cargar las campañas"
           emptyIcon={Megaphone}
-          emptyTitle={
-            campaigns.length === 0
-              ? 'Aún no participas en campañas'
-              : 'Ninguna campaña coincide con los filtros'
-          }
-          emptyText={
-            campaigns.length === 0
-              ? 'Cuando te inscribas a una campaña, aparecerá aquí.'
-              : 'Prueba con otro estado o alcance.'
-          }
+          emptyTitle="No hay campañas"
+          emptyText="No se encontraron campañas con los filtros seleccionados."
         >
           <CampaignGrid
             key={`${statusFilter}-${scopeFilter}`}
-            campaigns={visibleCampaigns}
+            campaigns={campaigns}
             onSelect={c => setSelectedId(c.id)}
           />
-        </SectionState>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-xl font-bold text-foreground">Misiones activas</h2>
-        <SectionState
-          status={campaignsStatus}
-          errorMessage={errorMessage}
-          onRetry={() => void reload()}
-          isEmpty={activeGroups.length === 0}
-          loadingText="Cargando misiones…"
-          errorTitle="No se pudieron cargar tus misiones"
-          emptyIcon={Target}
-          emptyTitle="No tienes misiones activas"
-          emptyText="Las misiones de tus campañas activas aparecerán aquí."
-        >
-          <div className="flex flex-col gap-5">
-            {activeGroups.map(group => (
-              <div key={group.campaign.id} className="flex flex-col gap-2">
-                <h3 className="text-lg font-semibold text-foreground">{group.campaign.title}</h3>
-                {group.missions.map(mission => (
-                  <MissionItem
-                    key={mission.id}
-                    mission={mission}
-                    userProgress={progress[mission.id]}
-                    onLogAction={handleLogAction}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
         </SectionState>
       </section>
 
@@ -210,7 +150,6 @@ export function UserMissionsView() {
         campaignId={selectedId}
         onClose={() => setSelectedId(null)}
         onChanged={() => void reload()}
-        onLogAction={handleLogAction}
         fallback={usingMock ? buildFallbackDetail(selectedId, campaignsData) : null}
       />
     </>
