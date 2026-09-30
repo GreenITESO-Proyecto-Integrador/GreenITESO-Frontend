@@ -1,8 +1,17 @@
 import { CampaignCard } from '@/components/shared/CampaignCard';
 import { MissionItem } from '@/components/shared/MissionItem';
-import { mockCampaigns, mockMissions, mockUserProgress } from '@/pages/Missions/mock-data';
+import { useCampaigns } from '@/hooks/use-campaigns';
 
 export function MissionsPage() {
+  const { campaigns, missions, progress, status, errorMessage, usingMock, reload } =
+    useCampaigns();
+  const activeCampaignIds = new Set(
+    campaigns.filter(campaign => campaign.status === 'ACTIVE').map(campaign => campaign.id),
+  );
+  const activeMissions = usingMock
+    ? missions
+    : missions.filter(mission => activeCampaignIds.has(mission.campaignId));
+
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-8">
       <div>
@@ -12,10 +21,20 @@ export function MissionsPage() {
         </p>
       </div>
 
+      {usingMock ? (
+        <p className="text-sm text-muted-foreground">
+          No se pudo conectar con el servidor ({errorMessage}). Mostrando datos de ejemplo.{' '}
+          <button type="button" className="underline" onClick={() => void reload()}>
+            Reintentar
+          </button>
+        </p>
+      ) : null}
+      {status === 'loading' ? <p className="text-sm text-muted-foreground">Cargando…</p> : null}
+
       <section className="flex flex-col gap-4">
         <h2 className="text-xl font-bold text-foreground">Campañas</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {mockCampaigns.map(campaign => (
+          {campaigns.map(campaign => (
             <CampaignCard
               key={campaign.id}
               campaign={campaign}
@@ -28,12 +47,8 @@ export function MissionsPage() {
       <section className="flex flex-col gap-3">
         <h2 className="text-xl font-bold text-foreground">Misiones activas</h2>
         <div className="flex flex-col gap-2">
-          {mockMissions.map(mission => (
-            <MissionItem
-              key={mission.id}
-              mission={mission}
-              userProgress={mockUserProgress[mission.id]}
-            />
+          {activeMissions.map(mission => (
+            <MissionItem key={mission.id} mission={mission} userProgress={progress[mission.id]} />
           ))}
         </div>
       </section>
