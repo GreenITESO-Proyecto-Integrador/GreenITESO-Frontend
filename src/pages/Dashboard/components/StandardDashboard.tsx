@@ -28,7 +28,6 @@ export function StandardDashboard() {
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 pt-8 pb-24">
-      
       {usingMock ? <MockNotice errorMessage={errorMessage} onRetry={() => void reload()} /> : null}
 
       {/* TASK: reemplazar este placeholder por el componente de impacto del dashboard. */}
