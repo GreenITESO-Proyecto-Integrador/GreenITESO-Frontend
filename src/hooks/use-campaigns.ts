@@ -1,34 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toFriendlyMessage } from '@/lib/api/errors';
 import { fetchCampaigns, type CampaignFilters, type CampaignsData } from '@/lib/api/campaigns';
-import { mockCampaigns, mockMissions, mockUserProgress } from '@/pages/Missions/mock-data';
 
 export type CampaignsStatus = 'loading' | 'success' | 'error';
 
 const EMPTY_DATA: CampaignsData = { campaigns: [], missions: [], progress: {} };
 
 /**
- * Mock data narrowed by the same filters the API would apply.
- */
-function getMockData({ status, scope, participating }: CampaignFilters): CampaignsData {
-  const campaigns = mockCampaigns.filter(
-    campaign =>
-      (status === undefined || campaign.status === status) &&
-      (scope === undefined || campaign.scope === scope) &&
-      (participating === undefined || campaign.isParticipant === participating),
-  );
-  const campaignIds = new Set(campaigns.map(campaign => campaign.id));
-  const missions = mockMissions.filter(mission => campaignIds.has(mission.campaignId));
-  const progress = Object.fromEntries(
-    missions
-      .filter(mission => mockUserProgress[mission.id])
-      .map(mission => [mission.id, mockUserProgress[mission.id]]),
-  );
-  return { campaigns, missions, progress };
-}
-
-/**
- * Load campaigns/missions from the API. On error, fall back to mock data.
+ * Load campaigns/missions from the API.
  */
 export function useCampaigns(filters: CampaignFilters = {}) {
   const { status: statusFilter, scope, isActive, participating } = filters;
@@ -51,7 +30,6 @@ export function useCampaigns(filters: CampaignFilters = {}) {
       setStatus('success');
     } catch (error) {
       if (requestId !== latestRequest.current) return;
-      setData(getMockData(activeFilters));
       setStatus('error');
       setErrorMessage(toFriendlyMessage(error, 'No se pudieron cargar las campañas.'));
     }
@@ -61,5 +39,5 @@ export function useCampaigns(filters: CampaignFilters = {}) {
     void load();
   }, [load]);
 
-  return { ...data, status, errorMessage, usingMock: status === 'error', reload: load };
+  return { ...data, status, errorMessage, reload: load };
 }

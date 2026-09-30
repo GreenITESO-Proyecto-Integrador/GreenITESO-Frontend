@@ -1,5 +1,5 @@
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { StandardDashboard } from './components/StandardDashboard';
+import { UserDashboard } from './components/UserDashboard';
 
 export function DashboardPage() {
   const { isAdmin } = useCurrentUser();
@@ -13,7 +13,7 @@ export function DashboardPage() {
     );
   }
 
-  return <StandardDashboard />;
+  return <UserDashboard />;
 }
 
 export default DashboardPage;

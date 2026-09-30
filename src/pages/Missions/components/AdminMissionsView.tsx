@@ -8,12 +8,10 @@ import {
   type ScopeFilter,
   type StatusFilter,
 } from '@/components/campaigns/campaign-filters';
-import { buildFallbackDetail } from '@/components/campaigns/fallback-detail';
 import { CampaignDetailDialog } from '@/components/campaigns/CampaignDetailDialog';
 import { CampaignFormDialog } from './CampaignFormDialog';
 import { CampaignGrid } from '@/components/campaigns/CampaignGrid';
 import { FilterChips } from '@/components/shared/FilterChips';
-import { MockNotice } from '@/components/campaigns/MockNotice';
 import { SectionState } from '@/components/shared/SectionState';
 import { SuccessBanner } from '@/components/campaigns/SuccessBanner';
 
@@ -24,18 +22,14 @@ import { SuccessBanner } from '@/components/campaigns/SuccessBanner';
 export function AdminMissionsView() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [scopeFilter, setScopeFilter] = useState<ScopeFilter>('ALL');
-  const campaignsData = useCampaigns({
+  const { campaigns, status, errorMessage, reload } = useCampaigns({
     status: statusFilter === 'ALL' ? undefined : statusFilter,
     scope: scopeFilter === 'ALL' ? undefined : scopeFilter,
   });
-  const { campaigns, status, errorMessage, usingMock, reload } = campaignsData;
   const [formOpen, setFormOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const dismissNotice = useCallback(() => setNotice(null), []);
-
-  // With sample data on screen the section is usable, so it is not shown as an error.
-  const campaignsStatus = status === 'error' ? 'success' : status;
 
   return (
     <>
@@ -58,8 +52,6 @@ export function AdminMissionsView() {
 
       {notice ? <SuccessBanner message={notice} onDismiss={dismissNotice} /> : null}
 
-      {usingMock ? <MockNotice errorMessage={errorMessage} onRetry={() => void reload()} /> : null}
-
       <section className="flex flex-col gap-4">
         <h2 className="text-xl font-bold text-foreground">Todas las campañas</h2>
         <div className="flex flex-col gap-3">
@@ -77,7 +69,7 @@ export function AdminMissionsView() {
           />
         </div>
         <SectionState
-          status={campaignsStatus}
+          status={status}
           errorMessage={errorMessage}
           onRetry={() => void reload()}
           isEmpty={campaigns.length === 0}
@@ -108,7 +100,6 @@ export function AdminMissionsView() {
         campaignId={selectedId}
         onClose={() => setSelectedId(null)}
         onChanged={() => void reload()}
-        fallback={usingMock ? buildFallbackDetail(selectedId, campaignsData) : null}
       />
     </>
   );

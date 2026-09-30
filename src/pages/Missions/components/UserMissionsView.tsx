@@ -9,12 +9,10 @@ import {
   type ScopeFilter,
   type StatusFilter,
 } from '@/components/campaigns/campaign-filters';
-import { buildFallbackDetail } from '@/components/campaigns/fallback-detail';
 import { CampaignDetailDialog } from '@/components/campaigns/CampaignDetailDialog';
 import { CampaignFormDialog } from './CampaignFormDialog';
 import { CampaignGrid } from '@/components/campaigns/CampaignGrid';
 import { FilterChips } from '@/components/shared/FilterChips';
-import { MockNotice } from '@/components/campaigns/MockNotice';
 import { ProposalList, type ProposalFilter } from '@/components/campaigns/ProposalList';
 import { SectionState } from '@/components/shared/SectionState';
 import { SuccessBanner } from '@/components/campaigns/SuccessBanner';
@@ -26,11 +24,10 @@ import { SuccessBanner } from '@/components/campaigns/SuccessBanner';
 export function UserMissionsView() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [scopeFilter, setScopeFilter] = useState<ScopeFilter>('ALL');
-  const campaignsData = useCampaigns({
+  const { campaigns, status, errorMessage, reload } = useCampaigns({
     status: statusFilter === 'ALL' ? undefined : statusFilter,
     scope: scopeFilter === 'ALL' ? undefined : scopeFilter,
   });
-  const { campaigns, status, errorMessage, usingMock, reload } = campaignsData;
   const [proposalFilter, setProposalFilter] = useState<ProposalFilter>('ALL');
   const proposalsData = useCampaignProposals(proposalFilter === 'ALL' ? undefined : proposalFilter);
   const [createOpen, setCreateOpen] = useState(false);
@@ -38,9 +35,6 @@ export function UserMissionsView() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const dismissNotice = useCallback(() => setNotice(null), []);
-
-  // With sample data on screen the section is usable, so it is not shown as an error.
-  const campaignsStatus = status === 'error' ? 'success' : status;
 
   return (
     <>
@@ -57,13 +51,11 @@ export function UserMissionsView() {
           className="min-h-11 shrink-0 cursor-pointer rounded-xl bg-primary-500 px-5 font-semibold text-white shadow-sm hover:bg-primary-600"
         >
           <Plus className="size-4" />
-          Crear campaña
+          Crear campaña de clan
         </Button>
       </div>
 
       {notice ? <SuccessBanner message={notice} onDismiss={dismissNotice} /> : null}
-
-      {usingMock ? <MockNotice errorMessage={errorMessage} onRetry={() => void reload()} /> : null}
 
       <section className="flex flex-col gap-4">
         <h2 className="text-xl font-bold text-foreground">Todas las campañas</h2>
@@ -82,7 +74,7 @@ export function UserMissionsView() {
           />
         </div>
         <SectionState
-          status={campaignsStatus}
+          status={status}
           errorMessage={errorMessage}
           onRetry={() => void reload()}
           isEmpty={campaigns.length === 0}
@@ -150,7 +142,6 @@ export function UserMissionsView() {
         campaignId={selectedId}
         onClose={() => setSelectedId(null)}
         onChanged={() => void reload()}
-        fallback={usingMock ? buildFallbackDetail(selectedId, campaignsData) : null}
       />
     </>
   );

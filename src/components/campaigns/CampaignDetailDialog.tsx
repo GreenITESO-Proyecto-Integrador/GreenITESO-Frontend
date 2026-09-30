@@ -11,7 +11,6 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { joinCampaign } from '@/lib/api/campaigns';
 import { toFriendlyMessage } from '@/lib/api/errors';
 import { SCOPE_META, STATUS_META, formatDate } from '@/lib/campaign-meta';
-import type { CampaignDetail } from '@/types/campaign';
 import type { Mission } from '@/types/mission';
 import { WRAP_TEXT } from './field-limits';
 import { AddMissionForm } from './AddMissionForm';
@@ -26,17 +25,14 @@ interface CampaignDetailDialogProps {
   onChanged?: () => void;
   /** Optional per-mission action, forwarded to MissionItem (e.g. log an action). */
   onLogAction?: (mission: Mission) => void;
-  /** Shown instead of the error state when the detail request fails (sample data). */
-  fallback?: CampaignDetail | null;
 }
 
 function DetailBody({
   campaignId,
   onChanged,
   onLogAction,
-  fallback,
 }: Omit<CampaignDetailDialogProps, 'campaignId' | 'onClose'> & { campaignId: string }) {
-  const { detail: loaded, status, errorMessage, reload, refresh } = useCampaignDetail(campaignId);
+  const { detail, status, errorMessage, reload, refresh } = useCampaignDetail(campaignId);
   const { isAdmin } = useCurrentUser();
   const [addingMission, setAddingMission] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -45,8 +41,6 @@ function DetailBody({
   const [notice, setNotice] = useState<string | null>(null);
   const dismissNotice = useCallback(() => setNotice(null), []);
 
-  const detail = loaded ?? (status === 'error' ? (fallback ?? null) : null);
-  const usingFallback = loaded === null && detail !== null;
   const clanName = useClanName(detail?.targetClanId ?? null);
 
   async function handleJoin() {
@@ -108,10 +102,10 @@ function DetailBody({
   const statusMeta = STATUS_META[detail.status];
   const isPromotion = detail.status === 'PROMOTION';
   // Backend only allows editing and adding missions while in PROMOTION, for managers.
-  const canAddMission = detail.canManage && isPromotion && !usingFallback;
+  const canAddMission = detail.canManage && isPromotion;
   const canEdit = canAddMission;
   // Admins cannot join campaigns.
-  const canJoin = isPromotion && !detail.isParticipant && !usingFallback && !isAdmin;
+  const canJoin = isPromotion && !detail.isParticipant && !isAdmin;
   const existingCodes = new Set(detail.missions.map(mission => mission.action.id));
 
   if (editing && canEdit) {
@@ -181,19 +175,6 @@ function DetailBody({
           </div>
         ) : null}
       </dl>
-
-      {usingFallback ? (
-        <p className="text-xs text-muted-foreground" role="status">
-          Mostrando datos de ejemplo.{' '}
-          <button
-            type="button"
-            className="min-h-11 cursor-pointer font-semibold underline"
-            onClick={() => void reload()}
-          >
-            Reintentar
-          </button>
-        </p>
-      ) : null}
 
       <section className="flex flex-col gap-3">
         <h3 className="text-lg font-semibold text-foreground">Misiones</h3>
