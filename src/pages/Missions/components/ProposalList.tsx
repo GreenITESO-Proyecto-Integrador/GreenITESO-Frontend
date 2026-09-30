@@ -3,13 +3,15 @@ import { CalendarRange, ClipboardList } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { APPROVAL_META, formatDate, formatDateRange } from '@/lib/campaign-meta';
 import type { CampaignApprovalStatus } from '@/types/campaign';
 import type { CampaignProposal } from '@/types/campaign-proposal';
 import { usePagedItems } from '@/hooks/use-paged-items';
 import { cn } from '@/lib/utils';
+import { REJECTION_REASON_MAX_LENGTH, WRAP_TEXT } from '../field-limits';
+import { CharCounter } from './CharCounter';
 import { FilterChips } from './FilterChips';
 import { Pagination } from './Pagination';
 import { SectionState } from './SectionState';
@@ -64,14 +66,18 @@ function ProposalCard({
   const canDecide = isAdmin && proposal.approvalStatus === 'PENDING';
 
   return (
-    <Card className="rounded-2xl bg-card py-0 shadow-sm ring-1 ring-border">
+    // `h-full` + `flex-1` content: cards in the same row stretch to equal height.
+    <Card className="h-full rounded-2xl bg-card py-0 shadow-sm ring-1 ring-border">
       <CardHeader className="gap-3 p-4 pb-0">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
               Propuesta
             </p>
-            <CardTitle className="text-lg font-semibold text-foreground">
+            <CardTitle
+              className={`line-clamp-2 text-lg font-semibold text-foreground ${WRAP_TEXT}`}
+              title={proposal.title}
+            >
               {proposal.title}
             </CardTitle>
           </div>
@@ -80,8 +86,11 @@ function ProposalCard({
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4 p-4">
-        <p className="line-clamp-3 text-sm text-muted-foreground sm:text-base">
+      <CardContent className="flex flex-1 flex-col gap-4 p-4">
+        <p
+          className={`line-clamp-3 text-sm text-muted-foreground sm:text-base ${WRAP_TEXT}`}
+          title={proposal.description}
+        >
           {proposal.description}
         </p>
 
@@ -101,29 +110,36 @@ function ProposalCard({
         {proposal.approvalStatus === 'REJECTED' ? (
           <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
             <p className="text-xs font-semibold tracking-wider uppercase">Motivo del rechazo</p>
-            <p className="mt-1">{proposal.rejectionReason || 'Sin motivo indicado.'}</p>
+            <p
+              className={`mt-1 line-clamp-4 ${WRAP_TEXT}`}
+              title={proposal.rejectionReason || undefined}
+            >
+              {proposal.rejectionReason || 'Sin motivo indicado.'}
+            </p>
           </div>
         ) : null}
 
         {proposal.reviewedAt ? (
-          <p className="text-xs text-muted-foreground">
+          <p className="mt-auto text-xs text-muted-foreground">
             Revisada el {formatDate(proposal.reviewedAt)}
           </p>
         ) : null}
 
         {canDecide ? (
           rejecting ? (
-            <div className="flex flex-col gap-3">
+            <div className="mt-auto flex flex-col gap-3">
               <div className="flex flex-col gap-2">
                 <Label htmlFor={`proposal-reason-${proposal.id}`}>Motivo del rechazo</Label>
-                <Input
+                <Textarea
                   id={`proposal-reason-${proposal.id}`}
                   value={reason}
+                  maxLength={REJECTION_REASON_MAX_LENGTH}
                   disabled={controlsDisabled}
                   placeholder="Obligatorio al rechazar"
                   onChange={event => setReason(event.target.value)}
-                  className="h-11 rounded-xl"
+                  className={`max-h-40 min-h-20 resize-none overflow-y-auto rounded-xl ${WRAP_TEXT}`}
                 />
+                <CharCounter value={reason} max={REJECTION_REASON_MAX_LENGTH} />
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Button
@@ -150,7 +166,7 @@ function ProposalCard({
               </div>
             </div>
           ) : (
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="mt-auto flex flex-col gap-3 sm:flex-row">
               <Button
                 type="button"
                 disabled={controlsDisabled}

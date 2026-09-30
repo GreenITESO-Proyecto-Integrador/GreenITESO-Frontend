@@ -62,7 +62,7 @@ export function CampaignCard({ campaign, onSelect }: CampaignCardProps) {
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 p-4">
-        <p className="line-clamp-2 text-sm text-muted-foreground sm:text-base">
+        <p className="line-clamp-2 text-sm text-muted-foreground [overflow-wrap:anywhere] sm:text-base">
           {campaign.description}
         </p>
 

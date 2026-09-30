@@ -14,7 +14,8 @@ export function ModalContent({ className, children, ...props }: ModalContentProp
     <DialogContent
       showCloseButton={false}
       className={cn(
-        'max-h-[90dvh] gap-5 overflow-y-auto rounded-2xl p-5 shadow-lg sm:max-w-lg',
+        // `[&>*]:min-w-0` lets grid children shrink, so long text wraps instead of widening the modal.
+        'max-h-[90dvh] gap-5 overflow-x-hidden overflow-y-auto rounded-2xl p-5 shadow-lg [scrollbar-width:none] sm:max-w-lg [&::-webkit-scrollbar]:hidden [&>*]:min-w-0',
         className,
       )}
       {...props}

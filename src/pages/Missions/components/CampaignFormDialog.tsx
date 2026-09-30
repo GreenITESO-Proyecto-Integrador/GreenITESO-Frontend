@@ -17,7 +17,16 @@ import { useActionCatalog } from '@/hooks/use-action-catalog';
 import { useClans } from '@/hooks/use-clans';
 import { createCampaign, proposeCampaign } from '@/lib/api/campaigns';
 import { ApiError, toFriendlyMessage } from '@/lib/api/errors';
+import {
+  DESCRIPTION_MAX_LENGTH,
+  SELECT_ITEM_CLASS,
+  TITLE_MAX_LENGTH,
+  WRAP_TEXT,
+} from '../field-limits';
+import { endOfDay, startOfDay, validateDates } from '../campaign-dates';
 import { ActionPicker } from './ActionPicker';
+import { CharCounter } from './CharCounter';
+import { FieldError } from './FieldError';
 
 interface CampaignFormDialogProps {
   open: boolean;
@@ -64,29 +73,6 @@ type FieldErrors = Record<string, string>;
 /** Backend keys shown under a specific field; anything else goes in the general error. */
 const FIELD_KEYS = ['title', 'description', 'start_date', 'end_date', 'missions', 'target_clan'];
 
-/**
- * Local start of day for a `YYYY-MM-DD` value.
- */
-function startOfDay(value: string): Date {
-  return new Date(`${value}T00:00:00`);
-}
-
-/**
- * Local end of day for a `YYYY-MM-DD` value, so a same-day campaign is valid.
- */
-function endOfDay(value: string): Date {
-  return new Date(`${value}T23:59:59`);
-}
-
-function FieldError({ message }: { message?: string }) {
-  if (!message) return null;
-  return (
-    <p className="text-xs text-red-700" role="alert">
-      {message}
-    </p>
-  );
-}
-
 function CampaignForm({
   mode,
   onSubmitted,
@@ -127,16 +113,7 @@ function CampaignForm({
     if (mode === 'create-clan' && !clanId) found.target_clan = 'Elige un clan.';
     if (!title.trim()) found.title = 'Escribe un título.';
     if (!description.trim()) found.description = 'Escribe una descripción.';
-    if (!startDate) found.start_date = 'Elige la fecha de inicio.';
-    if (!endDate) found.end_date = 'Elige la fecha de fin.';
-
-    if (startDate && endDate) {
-      if (endOfDay(endDate) <= startOfDay(startDate)) {
-        found.end_date = 'La fecha de fin debe ser posterior al inicio.';
-      } else if (endOfDay(endDate) <= new Date()) {
-        found.end_date = 'La fecha de fin debe estar en el futuro.';
-      }
-    }
+    Object.assign(found, validateDates(startDate, endDate));
 
     if (rows.some(row => !row.actionId)) {
       found.missions = 'Selecciona una acción en cada misión.';
@@ -244,19 +221,31 @@ function CampaignForm({
                 className="h-11 w-full min-w-0 rounded-xl px-3"
               >
                 <SelectValue
+                  className="min-w-0 overflow-hidden"
                   placeholder={
                     clansData.status === 'loading' ? 'Cargando clanes…' : 'Selecciona un clan'
                   }
-                />
+                >
+                  {(selected: string | null) => {
+                    const label = clanItems.find(item => item.value === selected)?.label;
+                    return label ? (
+                      <span className="block min-w-0 truncate">{label}</span>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        {clansData.status === 'loading' ? 'Cargando clanes…' : 'Selecciona un clan'}
+                      </span>
+                    );
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent alignItemWithTrigger={false} className="min-w-64">
                 {mode === 'create-admin' ? (
-                  <SelectItem value={NO_CLAN} className="min-h-11">
+                  <SelectItem value={NO_CLAN} className={SELECT_ITEM_CLASS}>
                     Global (sin clan)
                   </SelectItem>
                 ) : null}
                 {availableClans.map(clan => (
-                  <SelectItem key={clan.id} value={clan.id} className="min-h-11">
+                  <SelectItem key={clan.id} value={clan.id} className={SELECT_ITEM_CLASS}>
                     {clan.name}
                   </SelectItem>
                 ))}
@@ -272,12 +261,17 @@ function CampaignForm({
         <Input
           id="campaign-title"
           value={title}
-          maxLength={200}
+          maxLength={TITLE_MAX_LENGTH}
           aria-invalid={errors.title ? true : undefined}
           onChange={event => setTitle(event.target.value)}
           className="h-11 rounded-xl"
         />
-        <FieldError message={errors.title} />
+        <div className="flex items-start justify-between gap-3">
+          <FieldError message={errors.title} />
+          <div className="ml-auto">
+            <CharCounter value={title} max={TITLE_MAX_LENGTH} />
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -285,11 +279,17 @@ function CampaignForm({
         <Textarea
           id="campaign-description"
           value={description}
+          maxLength={DESCRIPTION_MAX_LENGTH}
           aria-invalid={errors.description ? true : undefined}
           onChange={event => setDescription(event.target.value)}
-          className="min-h-24 rounded-xl"
+          className={`max-h-48 min-h-24 resize-none overflow-y-auto rounded-xl ${WRAP_TEXT}`}
         />
-        <FieldError message={errors.description} />
+        <div className="flex items-start justify-between gap-3">
+          <FieldError message={errors.description} />
+          <div className="ml-auto">
+            <CharCounter value={description} max={DESCRIPTION_MAX_LENGTH} />
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
