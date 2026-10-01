@@ -32,18 +32,16 @@ export function AuditLogCard({ log, busy, disabled, onApprove, onReject }: Audit
   const controlsDisabled = busy || disabled;
 
   return (
-    <Card className="rounded-2xl bg-white py-0 shadow-sm ring-1 ring-secondary-100">
+    <Card className="rounded-2xl bg-card py-0 shadow-sm ring-1 ring-border">
       <CardHeader className="gap-3 p-4 pb-0">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-semibold tracking-wider text-secondary-300 uppercase">
+            <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
               Evidencia
             </p>
-            <CardTitle className="text-lg font-semibold text-secondary-500">
-              {actionLabel}
-            </CardTitle>
+            <CardTitle className="text-lg font-semibold text-foreground">{actionLabel}</CardTitle>
           </div>
-          <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold tracking-wider text-amber-800">
+          <span className="shrink-0 rounded-full bg-muted px-3 py-1 text-xs font-semibold tracking-wider text-muted-foreground">
             PENDIENTE
           </span>
         </div>
@@ -51,29 +49,29 @@ export function AuditLogCard({ log, busy, disabled, onApprove, onReject }: Audit
       <CardContent className="flex flex-col gap-4 p-4">
         <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
           <div>
-            <dt className="text-xs text-secondary-300">Usuario</dt>
-            <dd className="font-medium break-all text-secondary-500">{log.user.id || '—'}</dd>
+            <dt className="text-xs text-muted-foreground">Usuario</dt>
+            <dd className="font-medium break-all text-foreground">{log.user.id || '—'}</dd>
           </div>
           <div>
-            <dt className="text-xs text-secondary-300">Puntos</dt>
-            <dd className="font-bold text-primary-700 tabular-nums">{log.pointsAwarded} pts</dd>
+            <dt className="text-xs text-muted-foreground">Puntos</dt>
+            <dd className="font-bold text-primary tabular-nums">{log.pointsAwarded} pts</dd>
           </div>
           <div className="sm:col-span-2">
-            <dt className="text-xs text-secondary-300">Objeto de evidencia</dt>
-            <dd className="font-medium break-all text-secondary-400">
+            <dt className="text-xs text-muted-foreground">Objeto de evidencia</dt>
+            <dd className="font-medium break-all text-muted-foreground">
               {log.evidenceObjectKey || 'Sin clave de objeto'}
             </dd>
           </div>
           <div className="sm:col-span-2">
-            <dt className="text-xs text-secondary-300">Registrado</dt>
-            <dd className="text-secondary-400">{formatCreatedAt(log.createdAt)}</dd>
+            <dt className="text-xs text-muted-foreground">Registrado</dt>
+            <dd className="text-muted-foreground">{formatCreatedAt(log.createdAt)}</dd>
           </div>
         </dl>
 
         <div>
           <label
             htmlFor={`rejection-reason-${log.id}`}
-            className="mb-2 block text-sm font-semibold text-secondary-500"
+            className="mb-2 block text-sm font-semibold text-foreground"
           >
             Motivo del rechazo
           </label>
@@ -83,7 +81,7 @@ export function AuditLogCard({ log, busy, disabled, onApprove, onReject }: Audit
             disabled={controlsDisabled}
             placeholder="Obligatorio al rechazar"
             onChange={event => setRejectionReason(event.target.value)}
-            className="h-11 min-h-11 rounded-xl border-secondary-100 text-secondary-500 placeholder:text-secondary-200"
+            className="h-11 min-h-11 rounded-xl"
           />
         </div>
 
@@ -92,16 +90,16 @@ export function AuditLogCard({ log, busy, disabled, onApprove, onReject }: Audit
             type="button"
             disabled={controlsDisabled}
             onClick={() => onApprove(log.id)}
-            className="min-h-11 cursor-pointer rounded-xl bg-primary-500 px-5 font-semibold text-white shadow-sm hover:bg-primary-600"
+            className="min-h-11"
           >
             Aprobar
           </Button>
           <Button
             type="button"
-            variant="outline"
+            variant="destructive"
             disabled={controlsDisabled}
             onClick={() => onReject(log.id, rejectionReason)}
-            className="min-h-11 cursor-pointer rounded-xl border-red-200 bg-red-50 px-5 font-semibold text-red-700 hover:bg-red-50"
+            className="min-h-11"
           >
             Rechazar
           </Button>

@@ -15,38 +15,36 @@ export function LeaderboardPage() {
   const tabId = tab === 'teams' ? 'tab-teams' : 'tab-global';
 
   return (
-    <main className="min-h-screen bg-secondary-50 px-4 pt-8 pb-24">
-      <div className="mx-auto max-w-5xl">
-        <header className="mb-8">
-          <p className="text-xs font-semibold tracking-wider text-primary-600 uppercase">
-            Rankings
-          </p>
-          <h1 className="text-2xl font-bold text-secondary-500">Tablas de clasificación</h1>
-        </header>
+    <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-8">
+      <header>
+        <p className="text-xs font-semibold tracking-wider text-primary uppercase">Rankings</p>
+        <h1 className="text-2xl font-bold text-foreground">Tablas de clasificación</h1>
+      </header>
 
+      <div className="flex flex-col gap-4">
         <LeaderboardTabs activeTab={tab} onChange={setTab} />
 
-        <section role="tabpanel" id={panelId} aria-labelledby={tabId} className="rounded-2xl">
+        <section role="tabpanel" id={panelId} aria-labelledby={tabId}>
           {status === 'loading' ? (
-            <p className="text-sm text-secondary-300" role="status">
+            <p className="text-sm text-muted-foreground" role="status">
               Cargando clasificación…
             </p>
           ) : null}
 
           {status === 'error' ? (
-            <section className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+            <section className="rounded-2xl border border-destructive/40 bg-destructive/10 p-6 text-destructive">
               <h2 className="text-lg font-semibold">No se pudo cargar la clasificación</h2>
               <p className="mt-2 text-sm">
                 No fue posible obtener el ranking. Intenta de nuevo cuando el servicio esté
                 disponible.
               </p>
-              {errorMessage ? <p className="mt-2 text-xs text-red-600">{errorMessage}</p> : null}
+              {errorMessage ? <p className="mt-2 text-xs">{errorMessage}</p> : null}
               <Button
                 type="button"
                 onClick={() => {
                   void reload();
                 }}
-                className="mt-4 min-h-11 rounded-xl bg-primary-500 px-5 font-semibold text-white hover:bg-primary-600"
+                className="mt-4 min-h-11"
               >
                 Reintentar
               </Button>
@@ -56,7 +54,7 @@ export function LeaderboardPage() {
           {status === 'success' ? <LeaderboardTable entries={entries} tab={tab} /> : null}
         </section>
       </div>
-    </main>
+    </div>
   );
 }
 
