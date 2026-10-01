@@ -1,4 +1,4 @@
-import type { Post } from '@/types/feed';
+import type { Post } from '@/components/shared/FeedPost';
 
 export const mockPosts: Post[] = [
   {

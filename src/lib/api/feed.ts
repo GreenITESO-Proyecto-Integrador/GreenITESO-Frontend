@@ -15,6 +15,7 @@ export async function createPost(data: {
   content: string;
   post_type: PostType;
   image_url?: string;
+  badge_user?: string;
 }) {
   const response = await apiFetch('/api/v1/feed/', {
     method: 'POST',
