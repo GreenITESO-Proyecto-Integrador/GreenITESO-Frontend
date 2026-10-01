@@ -1,4 +1,5 @@
 export interface MissionAction {
+  /** Backend does not expose the ActionMaster id in a mission; `code` is the stable key. */
   id: string;
   name: string;
 }
@@ -12,6 +13,8 @@ export interface Mission {
 }
 
 export interface UserMissionProgress {
+  missionId: string;
   currentCount: number;
   completed: boolean;
+  targetCount: number;
 }

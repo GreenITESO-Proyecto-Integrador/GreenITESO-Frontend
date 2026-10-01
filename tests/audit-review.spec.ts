@@ -81,3 +81,41 @@ test('should remove an item after a successful approve request', async ({ page }
   await expect(page.getByText('Usar termo reutilizable')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'No hay evidencias pendientes' })).toBeVisible();
 });
+
+test('should switch to the campaign proposals tab and reflect it in the URL', async ({ page }) => {
+  await mockPendingQueue(page, { results: pendingLogs });
+  await page.route('**/api/v1/campaigns/proposals/**', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ results: [] }),
+    });
+  });
+  await page.goto('/audit');
+
+  await expect(page.getByRole('tab', { name: 'Evidencias' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await page.getByRole('tab', { name: 'Propuestas de campañas' }).click();
+
+  await expect(page).toHaveURL(/tab=propuestas/);
+  await expect(page.getByRole('heading', { name: 'No hay propuestas' })).toBeVisible();
+  await expect(page.getByText('Usar termo reutilizable')).toHaveCount(0);
+});
+
+test('should open the proposals tab directly from ?tab=propuestas', async ({ page }) => {
+  await page.route('**/api/v1/campaigns/proposals/**', async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ results: [] }),
+    });
+  });
+  await page.goto('/audit?tab=propuestas');
+
+  await expect(page.getByRole('tab', { name: 'Propuestas de campañas' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+});
