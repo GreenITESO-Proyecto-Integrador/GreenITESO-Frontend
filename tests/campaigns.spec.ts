@@ -98,8 +98,8 @@ function isoDate(daysFromNow: number): string {
  * Use `fail`/`recover` to make one endpoint answer with an error.
  */
 async function mockApi(page: Page, seed: ApiSeed = {}) {
-  const campaigns = seed.campaigns ?? [];
-  const proposals = seed.proposals ?? [];
+  const campaigns = (seed.campaigns ?? []).map(item => ({ ...item }));
+  const proposals = (seed.proposals ?? []).map(item => ({ ...item }));
   const clans = seed.clans ?? DEFAULT_CLANS;
   const actions = seed.actions ?? DEFAULT_ACTIONS;
   const calls: Call[] = [];
