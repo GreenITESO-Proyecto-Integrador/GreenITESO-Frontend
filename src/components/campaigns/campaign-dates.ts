@@ -16,6 +16,9 @@ export function endOfDay(value: string): Date {
  * Backend datetime -> `YYYY-MM-DD` (local) for a date input. Empty when invalid.
  */
 export function toDateInputValue(value: string): string {
+  const datePart = value.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart;
+
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return '';
   const month = String(parsed.getMonth() + 1).padStart(2, '0');
