@@ -83,8 +83,9 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
   });
   const timeLabel = post.relative_time || formattedDate;
 
-  const isAuthor =
-    Boolean(currentUserId && post.author_id && String(currentUserId) === String(post.author_id));
+  const isAuthor = Boolean(
+    currentUserId && post.author_id && String(currentUserId) === String(post.author_id),
+  );
 
   const handleSave = async () => {
     if (!onUpdate || !editContent.trim() || editContent === post.content) {
