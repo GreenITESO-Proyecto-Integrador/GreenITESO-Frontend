@@ -3,14 +3,15 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Footer } from '@/components/layout/Footer';
+import { NotificationsProvider } from '@/components/notifications-provider';
+import { useNotifications } from '@/hooks/use-notifications';
 
-export function Layout() {
-  // TODO: replace with the real unread-notifications count once the notifications API lands.
-  const unreadNotifications = 3;
+function LayoutContent() {
+  const { unreadCount } = useNotifications();
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar unreadNotifications={unreadNotifications} />
+      <Navbar unreadNotifications={unreadCount} />
       <Sidebar />
 
       <div className="flex min-h-screen flex-col pt-16 pb-24 md:pl-64 md:pb-0">
@@ -20,7 +21,15 @@ export function Layout() {
         <Footer />
       </div>
 
-      <BottomNav unreadNotifications={unreadNotifications} />
+      <BottomNav unreadNotifications={unreadCount} />
     </div>
+  );
+}
+
+export function Layout() {
+  return (
+    <NotificationsProvider>
+      <LayoutContent />
+    </NotificationsProvider>
   );
 }
