@@ -1,6 +1,13 @@
 // src/types/feed.ts
 
-export type PostType = 'OFFICIAL_ANNOUNCEMENT' | 'COMMUNITY_MILESTONE' | 'SHARED_EVIDENCE';
+export type PostType =
+  | 'OFFICIAL_ANNOUNCEMENT'
+  | 'COMMUNITY_MILESTONE'
+  | 'SHARED_EVIDENCE'
+  | 'ACTION_LOG'
+  | 'MISSION_COMPLETED'
+  | 'ACHIEVEMENT'
+  | 'GENERAL';
 
 export interface AuthorInfo {
   id: number;
@@ -24,6 +31,19 @@ export interface FeedPost {
   badge?: BadgeInfo; // Información de la insignia si existe
   created_at: string;
   updated_at: string;
+}
+
+export interface Post {
+  id: string | number;
+  author: {
+    id?: string | number;
+    nickname: string;
+    avatarUrl?: string;
+  };
+  createdAt: string;
+  content: string;
+  type: PostType;
+  imageUrl?: string | null;
 }
 
 export interface FeedResponse {
