@@ -1,8 +1,14 @@
-import type { LeaderboardEntry, LeaderboardTab } from '@/types/leaderboard';
+import type { LeaderboardEntry, LeaderboardPage, LeaderboardTab } from '@/types/leaderboard';
+import { LEADERBOARD_PAGE_SIZE } from '@/types/leaderboard';
 import { apiFetch, getApiBaseUrl } from './client';
 
 export const USER_RANKINGS_PATH = '/api/v1/rankings/users/';
-export const CLAN_RANKINGS_PATH = '/api/v1/rankings/clans/';
+export const CLAN_RANKINGS_PATH = '/api/v1/rankings/';
+
+const CLAN_RANKING_TYPES = {
+  institutional: 'INSTITUTIONAL',
+  private_clan: 'PRIVATE_CLAN',
+} as const;
 
 /**
  * Narrow unknown values to plain objects before reading ranking fields.
@@ -46,7 +52,17 @@ function unwrapList(payload: unknown): unknown[] {
 }
 
 /**
- * Map one ranking row from snake_case API payloads.
+ * Read DRF LimitOffsetPagination `count`, or fall back to the unwrapped list length.
+ */
+function readCount(payload: unknown, resultCount: number): number {
+  if (isRecord(payload) && typeof payload.count === 'number' && Number.isFinite(payload.count)) {
+    return payload.count;
+  }
+  return resultCount;
+}
+
+/**
+ * Map one ranking row from snake_case API payloads (users or clans).
  */
 function mapLeaderboardEntry(raw: unknown, index: number): LeaderboardEntry | null {
   if (!isRecord(raw)) {
@@ -55,7 +71,11 @@ function mapLeaderboardEntry(raw: unknown, index: number): LeaderboardEntry | nu
 
   const id = readString(raw.id);
   const displayName =
-    readString(raw.display_name) || readString(raw.name) || readString(raw.username) || id;
+    readString(raw.display_name) ||
+    readString(raw.clan_name) ||
+    readString(raw.name) ||
+    readString(raw.username) ||
+    id;
 
   if (!id || !displayName) {
     return null;
@@ -69,20 +89,50 @@ function mapLeaderboardEntry(raw: unknown, index: number): LeaderboardEntry | nu
   };
 }
 
-/**
- * Build the ranking URL for the selected leaderboard tab.
- */
-export function getLeaderboardUrl(tab: LeaderboardTab): string {
-  const path = tab === 'teams' ? CLAN_RANKINGS_PATH : USER_RANKINGS_PATH;
-  return `${getApiBaseUrl()}${path}`;
+export interface FetchLeaderboardOptions {
+  limit?: number;
+  offset?: number;
 }
 
 /**
- * Load ranking rows for global users or clans. Totals are display-only.
+ * Build the ranking path for the selected tab, including limit/offset query params.
  */
-export async function fetchLeaderboard(tab: LeaderboardTab): Promise<LeaderboardEntry[]> {
-  const path = tab === 'teams' ? CLAN_RANKINGS_PATH : USER_RANKINGS_PATH;
-  const response = await apiFetch(path);
+export function getLeaderboardPath(
+  tab: LeaderboardTab,
+  options: FetchLeaderboardOptions = {},
+): string {
+  const limit = options.limit ?? LEADERBOARD_PAGE_SIZE;
+  const offset = options.offset ?? 0;
+  const paging = `limit=${limit}&offset=${offset}`;
+
+  if (tab === 'global') {
+    return `${USER_RANKINGS_PATH}?${paging}`;
+  }
+
+  const rankingType = CLAN_RANKING_TYPES[tab];
+  return `${CLAN_RANKINGS_PATH}?type=${rankingType}&${paging}`;
+}
+
+/**
+ * Build the absolute ranking URL for the selected leaderboard tab.
+ */
+export function getLeaderboardUrl(
+  tab: LeaderboardTab,
+  options: FetchLeaderboardOptions = {},
+): string {
+  return `${getApiBaseUrl()}${getLeaderboardPath(tab, options)}`;
+}
+
+/**
+ * Load one page of ranking rows. Totals are display-only; ranks come from the API.
+ */
+export async function fetchLeaderboard(
+  tab: LeaderboardTab,
+  options: FetchLeaderboardOptions = {},
+): Promise<LeaderboardPage> {
+  const limit = options.limit ?? LEADERBOARD_PAGE_SIZE;
+  const offset = options.offset ?? 0;
+  const response = await apiFetch(getLeaderboardPath(tab, { limit, offset }));
 
   if (!response.ok) {
     throw new Error(`Failed to load leaderboard (${response.status})`);
@@ -95,7 +145,14 @@ export async function fetchLeaderboard(tab: LeaderboardTab): Promise<Leaderboard
     throw new Error('Leaderboard response is not valid JSON');
   }
 
-  return unwrapList(payload)
+  const entries = unwrapList(payload)
     .map(mapLeaderboardEntry)
     .filter((entry): entry is LeaderboardEntry => entry !== null);
+
+  return {
+    entries,
+    count: readCount(payload, entries.length),
+    limit,
+    offset,
+  };
 }

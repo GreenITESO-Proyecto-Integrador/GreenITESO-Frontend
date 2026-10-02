@@ -1,18 +1,17 @@
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Pagination } from '@/components/shared/Pagination';
 import { useLeaderboard } from '@/hooks/use-leaderboard';
-import type { LeaderboardTab } from '@/types/leaderboard';
 import { LeaderboardTable } from './components/LeaderboardTable';
 import { LeaderboardTabs } from './components/LeaderboardTabs';
 
 /**
- * Leaderboard screen with global and team ranking tabs.
+ * Leaderboard screen with user and clan ranking tabs, paged from the backend.
  */
 export function LeaderboardPage() {
-  const [tab, setTab] = useState<LeaderboardTab>('global');
-  const { entries, status, errorMessage, reload } = useLeaderboard(tab);
-  const panelId = tab === 'teams' ? 'panel-teams' : 'panel-global';
-  const tabId = tab === 'teams' ? 'tab-teams' : 'tab-global';
+  const { tab, setTab, entries, page, totalPages, setPage, status, errorMessage, reload } =
+    useLeaderboard();
+  const panelId = `panel-${tab}`;
+  const tabId = `tab-${tab}`;
 
   return (
     <main className="min-h-screen bg-secondary-50 px-4 pt-8 pb-24">
@@ -53,7 +52,17 @@ export function LeaderboardPage() {
             </section>
           ) : null}
 
-          {status === 'success' ? <LeaderboardTable entries={entries} tab={tab} /> : null}
+          {status === 'success' ? (
+            <div className="flex flex-col gap-4">
+              <LeaderboardTable entries={entries} tab={tab} />
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                label="clasificación"
+              />
+            </div>
+          ) : null}
         </section>
       </div>
     </main>
