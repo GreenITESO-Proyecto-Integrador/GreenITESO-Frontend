@@ -1,5 +1,5 @@
 import { Bell, Leaf, LogOut, Search, Settings, User as UserIcon } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationBadge } from '@/components/shared/NotificationBadge';
+import { logout } from '@/lib/api/auth';
 
 interface NavbarProps {
   unreadNotifications?: number;
@@ -19,6 +20,13 @@ interface NavbarProps {
 }
 
 export function Navbar({ unreadNotifications = 0, userNickname = 'Usuario' }: NavbarProps) {
+  const navigate = useNavigate();
+
+  async function handleLogout() {
+    await logout();
+    navigate('/login', { replace: true });
+  }
+
   return (
     <header className="fixed inset-x-0 top-0 z-50 h-16 border-b border-border bg-card">
       <div className="flex h-full items-center gap-4 px-4">
@@ -75,7 +83,12 @@ export function Navbar({ unreadNotifications = 0, userNickname = 'Usuario' }: Na
                 Configuración
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive">
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => {
+                  void handleLogout();
+                }}
+              >
                 <LogOut />
                 Cerrar sesión
               </DropdownMenuItem>

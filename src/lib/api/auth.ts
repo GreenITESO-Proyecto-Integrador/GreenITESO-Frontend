@@ -1,8 +1,9 @@
 import type { LoginResponse } from '@/types/auth';
-import { persistSession } from '@/lib/auth/session';
-import { apiFetch } from './client';
+import { clearSession, getRefreshToken, persistSession } from '@/lib/auth/session';
+import { apiFetch, getApiBaseUrl } from './client';
 
 const AUTH_LOGIN_PATH = '/api/v1/auth/login/';
+const AUTH_LOGOUT_PATH = '/api/v1/auth/logout/';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -82,4 +83,29 @@ export async function loginWithMicrosoft(
 
 export function persistLogin(response: LoginResponse): void {
   persistSession(response.access, response.refresh, response.user);
+}
+
+/**
+ * Blacklist the refresh token server-side, then always clear the local
+ * session. Logout doesn't need an access token (POST /auth/logout/ accepts
+ * it even if the access token already expired), so this skips apiFetch's
+ * auth headers/401-retry entirely. Best-effort: an unreachable backend or an
+ * already-invalid refresh token must not block logging out locally.
+ */
+export async function logout(): Promise<void> {
+  const refresh = getRefreshToken();
+
+  if (refresh) {
+    try {
+      await fetch(`${getApiBaseUrl()}${AUTH_LOGOUT_PATH}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh }),
+      });
+    } catch {
+      // Ignore network errors; the local session is cleared regardless.
+    }
+  }
+
+  clearSession();
 }
