@@ -4,9 +4,11 @@ import { CampaignDetailDialog } from '@/components/campaigns/CampaignDetailDialo
 import { SectionState } from '@/components/shared/SectionState';
 import { useCampaigns } from '@/hooks/use-campaigns';
 import { useEcologicalProfile } from '@/hooks/use-ecological-profile';
+import { useImpactTrend } from '@/hooks/use-impact-trend';
 import type { Mission } from '@/types/mission';
 import { ActiveMissionsSection } from './ActiveMissionsSection';
 import { ImpactMetrics } from './ImpactMetrics';
+import { ImpactTrendChart } from './ImpactTrendChart';
 import { MyCampaignsSection } from './MyCampaignsSection';
 
 // Stable reference: the hook only reads primitives, but a constant avoids re-creating it.
@@ -24,6 +26,12 @@ export function UserDashboard() {
     errorMessage: profileErrorMessage,
     reload: reloadProfile,
   } = useEcologicalProfile();
+  const {
+    points: trendPoints,
+    status: trendStatus,
+    errorMessage: trendErrorMessage,
+    reload: reloadTrend,
+  } = useImpactTrend();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   function handleLogAction(mission: Mission) {
@@ -45,6 +53,20 @@ export function UserDashboard() {
         emptyText=""
       >
         {profile ? <ImpactMetrics profile={profile} /> : null}
+      </SectionState>
+
+      <SectionState
+        status={trendStatus}
+        errorMessage={trendErrorMessage}
+        onRetry={() => void reloadTrend()}
+        isEmpty={false}
+        loadingText="Cargando tu tendencia…"
+        errorTitle="No se pudo cargar tu tendencia"
+        emptyIcon={BarChart3}
+        emptyTitle=""
+        emptyText=""
+      >
+        <ImpactTrendChart points={trendPoints} />
       </SectionState>
 
       <MyCampaignsSection
