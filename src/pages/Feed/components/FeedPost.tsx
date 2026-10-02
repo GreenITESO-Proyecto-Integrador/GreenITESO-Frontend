@@ -42,18 +42,18 @@ const typeConfig = {
   },
 };
 
-const BADGE_ICONS: Record<string, LucideIcon> = {
-  leaf: Leaf,
-  recycle: Recycle,
-  tree: TreePine,
-  'tree-pine': TreePine,
-  trophy: Trophy,
-  shield: ShieldCheck,
-};
+const BADGE_ICONS = new Map<string, LucideIcon>([
+  ['leaf', Leaf],
+  ['recycle', Recycle],
+  ['tree', TreePine],
+  ['tree-pine', TreePine],
+  ['trophy', Trophy],
+  ['shield', ShieldCheck],
+]);
 
 function getBadgeIcon(iconName?: string): LucideIcon {
   if (!iconName) return Award;
-  return BADGE_ICONS[iconName.toLowerCase()] || Award;
+  return BADGE_ICONS.get(iconName.toLowerCase()) ?? Award;
 }
 
 export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostProps) {
