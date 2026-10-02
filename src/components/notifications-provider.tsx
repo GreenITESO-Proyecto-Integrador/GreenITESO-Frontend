@@ -24,22 +24,50 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   const [hasError, setHasError] = useState(false);
   const [incoming, setIncoming] = useState<Notification | null>(null);
   const knownIds = useRef(new Set<string>());
+  // Mirrors `notifications` synchronously so load()/markRead() can read the latest
+  // list without waiting on React's state-update timing.
+  const notificationsRef = useRef<Notification[]>([]);
+  const requestSeqRef = useRef(0);
 
-  const replaceAll = useCallback((items: Notification[], unread: number) => {
-    knownIds.current = new Set(items.map(item => item.id));
-    setNotifications(items);
-    setUnreadCount(unread);
+  const setNotificationsState = useCallback((next: Notification[]) => {
+    notificationsRef.current = next;
+    setNotifications(next);
   }, []);
 
+  const replaceAll = useCallback(
+    (items: Notification[], unread: number) => {
+      knownIds.current = new Set(items.map(item => item.id));
+      setNotificationsState(items);
+      setUnreadCount(unread);
+    },
+    [setNotificationsState],
+  );
+
   const load = useCallback(async () => {
+    const requestId = ++requestSeqRef.current;
     try {
       const result = await getNotifications();
-      replaceAll(result.notifications, result.unreadCount);
+      // A newer load() already landed; this response is stale, so drop it.
+      if (requestId !== requestSeqRef.current) return;
+
+      const fetchedIds = new Set(result.notifications.map(item => item.id));
+      // Notifications pushed over the socket while this GET was in flight aren't
+      // in its response yet; keep them instead of letting replaceAll drop them.
+      const missingFromFetch = notificationsRef.current.filter(item => !fetchedIds.has(item.id));
+      const extraUnread = missingFromFetch.filter(item => !item.read).length;
+      const merged = [...missingFromFetch, ...result.notifications].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+
+      missingFromFetch.forEach(item => knownIds.current.add(item.id));
+      fetchedIds.forEach(id => knownIds.current.add(id));
+      setNotificationsState(merged);
+      setUnreadCount(result.unreadCount + extraUnread);
       setHasError(false);
     } catch {
-      setHasError(true);
+      if (requestId === requestSeqRef.current) setHasError(true);
     }
-  }, [replaceAll]);
+  }, [setNotificationsState]);
 
   useEffect(() => {
     if (!hasStoredSession) {
@@ -60,39 +88,48 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         if (knownIds.current.has(notification.id)) return;
 
         knownIds.current.add(notification.id);
-        setNotifications(current => [notification, ...current]);
+        setNotificationsState([notification, ...notificationsRef.current]);
         if (!notification.read) setUnreadCount(count => count + 1);
         setIncoming(notification);
       },
     });
-  }, [hasStoredSession, load, replaceAll]);
+  }, [hasStoredSession, load, replaceAll, setNotificationsState]);
 
   const markRead = useCallback(
     (notification: Notification) => {
-      if (notification.read) return;
-      setNotifications(current =>
-        current.map(item => (item.id === notification.id ? { ...item, read: true } : item)),
+      // The toast can hold a stale copy (read: false) of a notification already
+      // marked read from the list; check the live state by id instead of trusting
+      // the argument, so this transition - and the unreadCount decrement - only
+      // happens once.
+      const existing = notificationsRef.current.find(item => item.id === notification.id);
+      if (!existing || existing.read) return;
+
+      setNotificationsState(
+        notificationsRef.current.map(item =>
+          item.id === notification.id ? { ...item, read: true } : item,
+        ),
       );
       setUnreadCount(count => Math.max(count - 1, 0));
       void markNotificationRead(notification.id).catch(() => load());
     },
-    [load],
+    [load, setNotificationsState],
   );
 
   const markAllRead = useCallback(() => {
-    setNotifications(current => current.map(item => ({ ...item, read: true })));
+    setNotificationsState(notificationsRef.current.map(item => ({ ...item, read: true })));
     setUnreadCount(0);
     void markAllNotificationsRead().catch(() => load());
-  }, [load]);
+  }, [load, setNotificationsState]);
 
   const remove = useCallback(
     (notification: Notification) => {
+      const existing = notificationsRef.current.find(item => item.id === notification.id);
       // The id stays in knownIds so a late push of the same notification is not re-added.
-      setNotifications(current => current.filter(item => item.id !== notification.id));
-      if (!notification.read) setUnreadCount(count => Math.max(count - 1, 0));
+      setNotificationsState(notificationsRef.current.filter(item => item.id !== notification.id));
+      if (existing && !existing.read) setUnreadCount(count => Math.max(count - 1, 0));
       void deleteNotification(notification.id).catch(() => load());
     },
-    [load],
+    [load, setNotificationsState],
   );
 
   const dismissIncoming = useCallback(() => setIncoming(null), []);

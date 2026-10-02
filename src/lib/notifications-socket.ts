@@ -40,7 +40,15 @@ export function connectNotificationsSocket(handlers: NotificationsSocketHandlers
   };
 
   const open = async () => {
-    const token = await ensureAccessToken();
+    let token: string | null;
+    try {
+      token = await ensureAccessToken();
+    } catch {
+      // Token refresh failed (e.g. network error): retry with backoff instead of
+      // leaving the socket unconnected with no onclose to schedule a retry.
+      scheduleReconnect();
+      return;
+    }
     if (stopped) return;
     if (!token) {
       scheduleReconnect();

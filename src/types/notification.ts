@@ -35,4 +35,7 @@ export interface ApiNotification {
 export interface NotificationListResponse {
   results: ApiNotification[];
   unread_count: number;
+  count: number;
+  /** URL of the next page, DRF-style; null/absent on the last page. */
+  next?: string | null;
 }

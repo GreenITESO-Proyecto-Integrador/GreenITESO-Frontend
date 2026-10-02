@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetch, getApiBaseUrl } from './client';
 import type {
   ApiNotification,
   ApiNotificationType,
@@ -41,18 +41,32 @@ export function mapApiNotification(notification: ApiNotification): Notification 
   };
 }
 
+/** Turns a DRF `next` URL into a same-origin path apiFetch can prefix with the API base. */
+function toApiPath(nextUrl: string): string {
+  const { pathname, search } = new URL(nextUrl, getApiBaseUrl());
+  return `${pathname}${search}`;
+}
+
+/** Walks every page so older notifications beyond the first 50 stay reachable. */
 export async function getNotifications(): Promise<{
   notifications: Notification[];
   unreadCount: number;
 }> {
-  const response = await apiFetch('/api/v1/notifications/');
-  if (!response.ok) throw new Error('Fallo al obtener las notificaciones');
+  const notifications: Notification[] = [];
+  let unreadCount = 0;
+  let path: string | null = '/api/v1/notifications/';
 
-  const payload = (await response.json()) as NotificationListResponse;
-  return {
-    notifications: payload.results.map(mapApiNotification),
-    unreadCount: payload.unread_count,
-  };
+  while (path) {
+    const response: Response = await apiFetch(path);
+    if (!response.ok) throw new Error('Fallo al obtener las notificaciones');
+
+    const payload = (await response.json()) as NotificationListResponse;
+    notifications.push(...payload.results.map(mapApiNotification));
+    unreadCount = payload.unread_count;
+    path = payload.next ? toApiPath(payload.next) : null;
+  }
+
+  return { notifications, unreadCount };
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
