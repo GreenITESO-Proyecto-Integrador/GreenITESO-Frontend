@@ -14,7 +14,7 @@ export function LeaderboardTabs({ activeTab, onChange }: LeaderboardTabsProps) {
     <div
       role="tablist"
       aria-label="Tablas de clasificación"
-      className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2"
+      className="grid grid-cols-1 gap-3 sm:grid-cols-2"
     >
       <button
         type="button"
@@ -25,10 +25,10 @@ export function LeaderboardTabs({ activeTab, onChange }: LeaderboardTabsProps) {
         onClick={() => onChange('global')}
         className={cn(
           'min-h-11 cursor-pointer rounded-xl px-5 text-sm font-semibold transition-colors',
-          'focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:outline-none',
+          'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
           activeTab === 'global'
-            ? 'bg-primary-500 text-white shadow-sm'
-            : 'border border-secondary-100 bg-white text-secondary-500 hover:border-primary-200 hover:bg-primary-50',
+            ? 'bg-primary text-primary-foreground shadow-sm'
+            : 'border border-border bg-card text-foreground hover:bg-muted',
         )}
       >
         Clasificación Global
@@ -42,10 +42,10 @@ export function LeaderboardTabs({ activeTab, onChange }: LeaderboardTabsProps) {
         onClick={() => onChange('teams')}
         className={cn(
           'min-h-11 cursor-pointer rounded-xl px-5 text-sm font-semibold transition-colors',
-          'focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:outline-none',
+          'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
           activeTab === 'teams'
-            ? 'bg-primary-500 text-white shadow-sm'
-            : 'border border-secondary-100 bg-white text-secondary-500 hover:border-primary-200 hover:bg-primary-50',
+            ? 'bg-primary text-primary-foreground shadow-sm'
+            : 'border border-border bg-card text-foreground hover:bg-muted',
         )}
       >
         Clasificación por Equipos
