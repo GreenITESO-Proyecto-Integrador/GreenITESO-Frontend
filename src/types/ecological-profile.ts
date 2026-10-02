@@ -35,6 +35,7 @@ export interface EcologicalProfile {
   visibility: ProfileVisibility;
   bio?: string;
   avatarUrl?: string;
+  preferences?: Record<string, unknown>;
   totalPoints: number;
   availablePoints: number;
   currentStreak: number;
@@ -44,4 +45,11 @@ export interface EcologicalProfile {
   finishedCampaigns: FinishedCampaign[];
   institutionalClan: ClanSummary | null;
   activePrivateClan: ClanSummary | null;
+}
+
+export interface ProfileUpdatePayload {
+  bio?: string;
+  visibility?: ProfileVisibility;
+  preferences?: Record<string, unknown>;
+  avatarUrl?: string;
 }

@@ -36,5 +36,5 @@ export function useEcologicalProfile() {
     void loadProfile();
   }, [loadProfile]);
 
-  return { profile, status, errorMessage, reload: loadProfile };
+  return { profile, status, errorMessage, reload: loadProfile, setProfile };
 }

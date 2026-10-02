@@ -138,6 +138,9 @@ export function mapEcologicalProfile(payload: unknown): EcologicalProfile {
     visibility,
     bio: readString(payload.bio),
     avatarUrl: readString(payload.avatar_url ?? payload.avatarUrl),
+    preferences: isRecord(payload.preferences)
+      ? (payload.preferences as Record<string, unknown>)
+      : {},
     totalPoints: readNumber(payload.total_points ?? payload.totalPoints),
     availablePoints: readNumber(payload.available_points ?? payload.availablePoints),
     currentStreak: readNumber(payload.current_streak ?? payload.currentStreak),
@@ -177,4 +180,67 @@ export async function fetchEcologicalProfile(): Promise<EcologicalProfile> {
   }
 
   return mapEcologicalProfile(payload);
+}
+
+/**
+ * Update the authenticated user's ecological profile.
+ */
+export async function updateEcologicalProfile(
+  payload: import('@/types/ecological-profile').ProfileUpdatePayload,
+): Promise<EcologicalProfile> {
+  const body: Record<string, unknown> = {};
+
+  if (payload.bio !== undefined) {
+    body.bio = payload.bio;
+  }
+  if (payload.visibility !== undefined) {
+    body.visibility = payload.visibility;
+  }
+  if (payload.preferences !== undefined) {
+    body.preferences = payload.preferences;
+  }
+  if (payload.avatarUrl !== undefined) {
+    body.avatar_url = payload.avatarUrl;
+  }
+
+  const response = await apiFetch(ECOLOGICAL_PROFILE_PATH, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    let message = `Error al actualizar perfil (${response.status})`;
+    try {
+      const errorJson = (await response.json()) as Record<string, unknown>;
+      if (isRecord(errorJson)) {
+        if (isRecord(errorJson.error) && typeof errorJson.error.message === 'string') {
+          message = errorJson.error.message;
+        } else if (typeof errorJson.detail === 'string') {
+          message = errorJson.detail;
+        } else if (isRecord(errorJson.field_errors)) {
+          message = Object.entries(errorJson.field_errors)
+            .map(
+              ([field, errs]) =>
+                `${field}: ${Array.isArray(errs) ? errs.join(', ') : String(errs)}`,
+            )
+            .join('; ');
+        }
+      }
+    } catch {
+      // Use fallback error message
+    }
+    throw new Error(message);
+  }
+
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error('La respuesta del servidor no es un JSON válido');
+  }
+
+  return mapEcologicalProfile(data);
 }

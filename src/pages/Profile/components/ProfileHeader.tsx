@@ -1,11 +1,13 @@
-import { Globe, Lock } from 'lucide-react';
+import { Globe, Lock, Pencil } from 'lucide-react';
 import type { EcologicalProfile } from '@/types/ecological-profile';
+import { Button } from '@/components/ui/button';
 
 interface ProfileHeaderProps {
   profile: EcologicalProfile;
+  onEditProfile?: () => void;
 }
 
-export function ProfileHeader({ profile }: ProfileHeaderProps) {
+export function ProfileHeader({ profile, onEditProfile }: ProfileHeaderProps) {
   const isPublic = profile.visibility === 'PUBLIC';
   const fullName = `${profile.firstName} ${profile.lastName}`.trim() || profile.email;
   const initials =
@@ -41,11 +43,25 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
 
         {/* User Info */}
         <div className="flex-1 text-center sm:text-left space-y-2">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 justify-center sm:justify-start">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground">{fullName}</h1>
-            <span className="inline-flex items-center self-center px-3 py-0.5 rounded-full text-xs font-semibold bg-primary-50 text-primary-700 dark:bg-primary-950/60 dark:text-primary-300 border border-primary-200 dark:border-primary-800">
-              {roleLabel}
-            </span>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 justify-center sm:justify-start">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground">{fullName}</h1>
+              <span className="inline-flex items-center self-center px-3 py-0.5 rounded-full text-xs font-semibold bg-primary-50 text-primary-700 dark:bg-primary-950/60 dark:text-primary-300 border border-primary-200 dark:border-primary-800">
+                {roleLabel}
+              </span>
+            </div>
+
+            {onEditProfile ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onEditProfile}
+                className="inline-flex items-center gap-2 self-center sm:self-auto rounded-xl border-border bg-background hover:bg-muted text-foreground cursor-pointer shadow-xs font-semibold text-xs h-9"
+              >
+                <Pencil className="size-3.5 text-primary-600 dark:text-primary-400" />
+                <span>Editar perfil</span>
+              </Button>
+            ) : null}
           </div>
 
           <p className="text-sm text-muted-foreground font-medium">{profile.email}</p>
