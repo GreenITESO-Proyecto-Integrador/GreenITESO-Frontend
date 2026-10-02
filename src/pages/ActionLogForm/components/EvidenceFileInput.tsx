@@ -16,6 +16,7 @@ interface EvidenceFileInputProps {
 
 /**
  * File input for photographic evidence, limited to 5 MB image types.
+ * Labels, helper copy, and file name follow semantic theme tokens (light/dark).
  */
 export function EvidenceFileInput({
   file,
@@ -29,12 +30,9 @@ export function EvidenceFileInput({
 
   return (
     <div>
-      <label
-        htmlFor="evidence-file"
-        className="mb-2 block text-sm font-semibold text-secondary-500"
-      >
+      <label htmlFor="evidence-file" className="mb-2 block text-sm font-semibold text-foreground">
         Evidencia fotográfica
-        {requiredPhoto ? <span className="text-red-700"> *</span> : null}
+        {requiredPhoto ? <span className="text-destructive"> *</span> : null}
       </label>
       <Input
         id="evidence-file"
@@ -48,21 +46,21 @@ export function EvidenceFileInput({
           onChange(event.target.files?.[0] ?? null);
         }}
         className={cn(
-          'h-11 min-h-11 rounded-xl border bg-white px-4 py-2 text-secondary-500 file:mr-4 file:rounded-full file:border-0 file:bg-primary-50 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-primary-700',
-          error ? 'border-red-200' : 'border-secondary-100',
+          'h-11 min-h-11 rounded-xl border bg-background px-4 py-2 text-foreground file:mr-4 file:rounded-full file:border-0 file:bg-accent file:px-3 file:py-1 file:text-xs file:font-semibold file:text-accent-foreground',
+          error ? 'border-destructive' : 'border-input',
         )}
       />
-      <p id={helpId} className="mt-2 text-xs text-secondary-300">
+      <p id={helpId} className="mt-2 text-xs text-muted-foreground">
         JPG, PNG o WEBP. Máximo {formatFileSize(MAX_EVIDENCE_FILE_BYTES)}.
         {requiredPhoto ? ' Esta acción exige foto.' : ' Opcional si la acción no pide evidencia.'}
       </p>
       {file ? (
-        <p className="mt-1 text-xs font-semibold text-secondary-400">
+        <p className="mt-1 text-xs font-semibold text-foreground">
           {file.name} · {formatFileSize(file.size)}
         </p>
       ) : null}
       {error ? (
-        <p id={errorId} className="mt-2 text-sm text-red-700">
+        <p id={errorId} className="mt-2 text-sm text-destructive">
           {error}
         </p>
       ) : null}
