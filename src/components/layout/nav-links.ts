@@ -1,4 +1,4 @@
-import { Bell, ClipboardCheck, Home, ListChecks, Rss, Target, Trophy } from 'lucide-react';
+import { Bell, ClipboardCheck, Home, ListChecks, Rss, Target, Trophy, User } from 'lucide-react';
 
 export interface NavLink {
   label: string;
@@ -14,6 +14,7 @@ export const PRIMARY_NAV_LINKS: NavLink[] = [
 ];
 
 export const SECONDARY_NAV_LINKS: NavLink[] = [
+  { label: 'Mi perfil', href: '/profile', icon: User },
   { label: 'Catálogo de acciones', href: '/actions', icon: ListChecks },
   { label: 'Leaderboard', href: '/leaderboard', icon: Trophy },
   { label: 'Auditoría', href: '/audit', icon: ClipboardCheck },
