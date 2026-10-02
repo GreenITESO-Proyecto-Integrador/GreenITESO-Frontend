@@ -8,11 +8,7 @@ interface ToastNotificationProps {
   durationMs?: number;
 }
 
-export function ToastNotification({
-  toast,
-  onDismiss,
-  durationMs = 4000,
-}: ToastNotificationProps) {
+export function ToastNotification({ toast, onDismiss, durationMs = 4000 }: ToastNotificationProps) {
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => {
@@ -34,8 +30,8 @@ export function ToastNotification({
           isSuccess
             ? 'bg-emerald-50 border-emerald-300 text-emerald-900 dark:bg-emerald-950/90 dark:border-emerald-700 dark:text-emerald-100'
             : isError
-            ? 'bg-amber-50 border-amber-300 text-amber-900 dark:bg-amber-950/90 dark:border-amber-700 dark:text-amber-100'
-            : 'bg-sky-50 border-sky-300 text-sky-900 dark:bg-sky-950/90 dark:border-sky-700 dark:text-sky-100'
+              ? 'bg-amber-50 border-amber-300 text-amber-900 dark:bg-amber-950/90 dark:border-amber-700 dark:text-amber-100'
+              : 'bg-sky-50 border-sky-300 text-sky-900 dark:bg-sky-950/90 dark:border-sky-700 dark:text-sky-100'
         }`}
       >
         <div className="shrink-0 pt-0.5">

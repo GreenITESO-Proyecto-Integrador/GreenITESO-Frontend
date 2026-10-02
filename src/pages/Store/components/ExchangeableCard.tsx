@@ -9,21 +9,14 @@ interface ExchangeableCardProps {
   onBuyClick: (item: ExchangeableItem) => void;
 }
 
-const CATEGORY_META: Record<
-  ExchangeableCategory,
-  { label: string; icon: typeof Frame }
-> = {
+const CATEGORY_META: Record<ExchangeableCategory, { label: string; icon: typeof Frame }> = {
   FRAME: { label: 'Marco', icon: Frame },
   BACKGROUND: { label: 'Fondo', icon: ImageIcon },
   THEME: { label: 'Fondo', icon: ImageIcon },
   OTHER: { label: 'Otro', icon: Sparkles },
 };
 
-export function ExchangeableCard({
-  item,
-  isUnlocked,
-  onBuyClick,
-}: ExchangeableCardProps) {
+export function ExchangeableCard({ item, isUnlocked, onBuyClick }: ExchangeableCardProps) {
   const [imgError, setImgError] = useState(false);
   const meta = CATEGORY_META[item.category] || CATEGORY_META.OTHER;
   const Icon = meta.icon;

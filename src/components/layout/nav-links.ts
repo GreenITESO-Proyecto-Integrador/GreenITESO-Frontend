@@ -1,4 +1,14 @@
-import { Bell, ClipboardCheck, Home, ListChecks, Rss, Store, Target, Trophy, User } from 'lucide-react';
+import {
+  Bell,
+  ClipboardCheck,
+  Home,
+  ListChecks,
+  Rss,
+  Store,
+  Target,
+  Trophy,
+  User,
+} from 'lucide-react';
 
 export interface NavLink {
   label: string;

@@ -89,9 +89,7 @@ export function ConfirmPurchaseModal({
             <span>Puntos restantes tras compra:</span>
             <span
               className={`tabular-nums ${
-                remainingPoints >= 0
-                  ? 'text-primary-600 dark:text-primary-400'
-                  : 'text-destructive'
+                remainingPoints >= 0 ? 'text-primary-600 dark:text-primary-400' : 'text-destructive'
               }`}
             >
               {remainingPoints.toLocaleString()} pts

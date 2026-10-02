@@ -8,7 +8,11 @@ interface CategoryFilterTabsProps {
   onSelectCategory: (category: ExchangeableCategory | 'ALL') => void;
 }
 
-const CATEGORY_OPTIONS: readonly { value: ExchangeableCategory | 'ALL'; label: string; icon: React.ElementType }[] = [
+const CATEGORY_OPTIONS: readonly {
+  value: ExchangeableCategory | 'ALL';
+  label: string;
+  icon: React.ElementType;
+}[] = [
   { value: 'ALL', label: 'Todos', icon: Grid },
   { value: 'FRAME', label: 'Marcos', icon: Frame },
   { value: 'BACKGROUND', label: 'Fondos', icon: Palette },
