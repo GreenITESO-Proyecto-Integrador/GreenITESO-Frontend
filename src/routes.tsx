@@ -22,8 +22,8 @@ function protectedElement(
 }
 
 export const routes = [
+  <Route key="login" path="/login" element={<LoginPage />} />,
   <Route key="app" element={<Layout />}>
-    <Route key="login" path="/login" element={<LoginPage />} />
     <Route key="home-root" path="/" element={protectedElement(<DashboardPage />)} />
     <Route key="home-alias" path="/home" element={protectedElement(<HomePage />)} />
     <Route
