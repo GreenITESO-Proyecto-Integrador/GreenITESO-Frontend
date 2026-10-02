@@ -120,12 +120,52 @@ test('should request the next rankings page with limit and offset', async ({ pag
   });
 
   await page.goto('/leaderboard');
-  await expect(page.getByText('Persona 1')).toBeVisible();
+  await expect(page.getByText('Persona 1', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Página siguiente' })).toBeEnabled();
 
   await page.getByRole('button', { name: 'Página siguiente' }).click();
-  await expect(page.getByText('Persona 51')).toBeVisible();
-  await expect(page.getByText('Persona 1')).toHaveCount(0);
+  await expect(page.getByText('Persona 51', { exact: true })).toBeVisible();
+  await expect(page.getByText('Persona 1', { exact: true })).toHaveCount(0);
+});
+
+test('should return to the first page when the ranking count no longer fills page two', async ({
+  page,
+}) => {
+  let secondPageRequested = false;
+  const pageOne = Array.from({ length: 50 }, (_, index) => ({
+    id: `user-${index + 1}`,
+    rank: index + 1,
+    display_name: `Persona ${index + 1}`,
+    total_points: 1000 - index,
+  }));
+
+  await page.route(usersUrl, async route => {
+    const url = new URL(route.request().url());
+    const offset = Number(url.searchParams.get('offset') ?? '0');
+    if (offset > 0) {
+      secondPageRequested = true;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: paginated([], 50),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: paginated(pageOne, secondPageRequested ? 50 : 51),
+    });
+  });
+
+  await page.goto('/leaderboard');
+  await expect(page.getByText('Persona 1', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Página siguiente' }).click();
+
+  await expect(page.getByText('Persona 1', { exact: true })).toBeVisible();
+  await expect(page.getByText('Aún no hay clasificación')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Página siguiente' })).toHaveCount(0);
 });
 
 test('should show an error when the global ranking GET fails', async ({ page }) => {

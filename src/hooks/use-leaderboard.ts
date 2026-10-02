@@ -39,6 +39,13 @@ export function useLeaderboard() {
         limit: LEADERBOARD_PAGE_SIZE,
         offset: (page - 1) * LEADERBOARD_PAGE_SIZE,
       });
+      const nextTotalPages = Math.max(1, Math.ceil(ranking.count / LEADERBOARD_PAGE_SIZE));
+      // Count shrank while this page was open. Stay on loading and refetch the last valid page.
+      if (page > nextTotalPages) {
+        setCount(ranking.count);
+        setPage(nextTotalPages);
+        return;
+      }
       setEntries(ranking.entries);
       setCount(ranking.count);
       setStatus('success');
