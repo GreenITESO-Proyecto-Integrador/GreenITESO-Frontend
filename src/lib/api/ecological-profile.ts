@@ -136,6 +136,8 @@ export function mapEcologicalProfile(payload: unknown): EcologicalProfile {
     lastName: readString(payload.last_name ?? payload.lastName),
     role: readString(payload.role),
     visibility,
+    bio: readString(payload.bio),
+    avatarUrl: readString(payload.avatar_url ?? payload.avatarUrl),
     totalPoints: readNumber(payload.total_points ?? payload.totalPoints),
     availablePoints: readNumber(payload.available_points ?? payload.availablePoints),
     currentStreak: readNumber(payload.current_streak ?? payload.currentStreak),

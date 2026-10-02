@@ -45,6 +45,8 @@ const fullProfileData = {
       end_date: '2026-08-30T18:00:00Z',
     },
   ],
+  bio: 'Comprometida con el reciclaje y la movilidad activa',
+  avatar_url: 'https://example.com/avatar.jpg',
   institutional_clan: {
     id: 'clan-inst-1',
     name: 'Ingeniería en Sistemas Computacionales',
@@ -73,6 +75,8 @@ const emptyProfileData = {
     plastic_kg: 0,
   },
   finished_campaigns: [],
+  bio: '',
+  avatar_url: '',
   institutional_clan: null,
   active_private_clan: null,
 };
@@ -108,7 +112,14 @@ test.describe('Ecological Profile Page (T2-22)', () => {
     // User identity & Role
     await expect(page.getByRole('heading', { name: 'Mariana García' })).toBeVisible();
     await expect(page.getByText('usuario.test@iteso.mx')).toBeVisible();
-    await expect(page.getByText('Estudiante')).toBeVisible();
+    await expect(page.getByText('Estudiante', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('Comprometida con el reciclaje y la movilidad activa'),
+    ).toBeVisible();
+    await expect(page.getByAltText('Mariana García')).toHaveAttribute(
+      'src',
+      'https://example.com/avatar.jpg',
+    );
 
     // Visibility Badge (PUBLIC)
     await expect(page.getByText('Perfil Público')).toBeVisible();
@@ -232,5 +243,27 @@ test.describe('Ecological Profile Page (T2-22)', () => {
     await page.getByRole('button', { name: 'Volver al inicio' }).click();
 
     await expect(page).toHaveURL('/');
+  });
+
+  test('should navigate to profile from the navbar user dropdown', async ({ page }) => {
+    await mockStudentSession(page, {
+      id: fullProfileData.user_id,
+      email: fullProfileData.email,
+      firstName: fullProfileData.first_name,
+      lastName: fullProfileData.last_name,
+    });
+    await mockProfileEndpoint(page, fullProfileData);
+
+    await page.goto('/');
+    const userMenuButton = page.getByRole('button', { name: 'Menú de usuario' });
+    await expect(userMenuButton).toBeVisible();
+    await userMenuButton.click();
+
+    const profileOption = page.getByRole('menuitem', { name: 'Perfil' });
+    await expect(profileOption).toBeVisible();
+    await profileOption.click();
+
+    await expect(page).toHaveURL('/profile');
+    await expect(page.getByRole('heading', { name: 'Mariana García' })).toBeVisible();
   });
 });

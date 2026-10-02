@@ -16,44 +16,42 @@ export function ProfilePage() {
   const { profile, status, errorMessage, reload } = useEcologicalProfile();
 
   return (
-    <main className="min-h-screen bg-secondary-50 px-4 pt-6 pb-24 sm:pt-8">
-      <div className="mx-auto max-w-4xl space-y-8">
-        {/* Navigation Top Bar */}
-        <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-secondary-400 hover:text-secondary-500 font-semibold cursor-pointer"
-          >
-            <ArrowLeft className="size-4" />
-            <span>Volver al inicio</span>
-          </Button>
+    <div className="mx-auto max-w-4xl px-4 py-8 space-y-8">
+      {/* Navigation Top Bar */}
+      <div className="flex items-center justify-between">
+        <Button
+          variant="ghost"
+          onClick={() => navigate('/')}
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground font-semibold cursor-pointer"
+        >
+          <ArrowLeft className="size-4" />
+          <span>Volver al inicio</span>
+        </Button>
 
-          <span className="text-xs font-semibold uppercase tracking-wider text-primary-600">
-            Perfil Ecológico
-          </span>
-        </div>
-
-        {/* State Handlers */}
-        {status === 'loading' && <ProfileSkeleton />}
-
-        {status === 'error' && <ProfileError errorMessage={errorMessage} onRetry={reload} />}
-
-        {status === 'success' && profile && (
-          <div className="space-y-8">
-            <ProfileHeader profile={profile} />
-            <ProgressSection profile={profile} />
-            <ImpactMetricsSection metrics={profile.impactMetrics} />
-            <ClansSection
-              institutionalClan={profile.institutionalClan}
-              activePrivateClan={profile.activePrivateClan}
-            />
-            <BadgesSection badges={profile.badges} />
-            <CampaignsSection finishedCampaigns={profile.finishedCampaigns} />
-          </div>
-        )}
+        <span className="text-xs font-semibold uppercase tracking-wider text-primary-600 dark:text-primary-400">
+          Perfil Ecológico
+        </span>
       </div>
-    </main>
+
+      {/* State Handlers */}
+      {status === 'loading' && <ProfileSkeleton />}
+
+      {status === 'error' && <ProfileError errorMessage={errorMessage} onRetry={reload} />}
+
+      {status === 'success' && profile && (
+        <div className="space-y-8">
+          <ProfileHeader profile={profile} />
+          <ProgressSection profile={profile} />
+          <ImpactMetricsSection metrics={profile.impactMetrics} />
+          <ClansSection
+            institutionalClan={profile.institutionalClan}
+            activePrivateClan={profile.activePrivateClan}
+          />
+          <BadgesSection badges={profile.badges} />
+          <CampaignsSection finishedCampaigns={profile.finishedCampaigns} />
+        </div>
+      )}
+    </div>
   );
 }
 

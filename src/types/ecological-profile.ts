@@ -33,6 +33,8 @@ export interface EcologicalProfile {
   lastName: string;
   role: string;
   visibility: ProfileVisibility;
+  bio?: string;
+  avatarUrl?: string;
   totalPoints: number;
   availablePoints: number;
   currentStreak: number;
