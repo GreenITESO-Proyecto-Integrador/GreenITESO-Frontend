@@ -1,6 +1,10 @@
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuditQueue } from '@/hooks/use-audit-queue';
 import { AuditLogList } from './components/AuditLogList';
+import { parseAuditTab } from './components/audit-tab';
+import { AuditTabs } from './components/AuditTabs';
+import { ProposalsTab } from './components/ProposalsTab';
 
 /**
  * Dashboard that lists PENDING_AUDIT evidence and lets staff approve or reject it.
@@ -8,6 +12,9 @@ import { AuditLogList } from './components/AuditLogList';
 export function AuditReviewPage() {
   const { logs, status, errorMessage, decisionError, busyLogId, reload, approveLog, rejectLog } =
     useAuditQueue();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = parseAuditTab(searchParams.get('tab'));
+  const showEvidence = tab === 'evidencias';
 
   return (
     <main className="min-h-screen bg-secondary-50 px-4 pt-8 pb-24">
@@ -23,13 +30,20 @@ export function AuditReviewPage() {
           </p>
         </header>
 
-        {status === 'loading' ? (
+        <AuditTabs
+          value={tab}
+          onChange={next => setSearchParams({ tab: next }, { replace: true })}
+        />
+
+        {tab === 'propuestas' ? <ProposalsTab /> : null}
+
+        {showEvidence && status === 'loading' ? (
           <p className="text-sm text-secondary-300" role="status">
             Cargando cola de auditoría…
           </p>
         ) : null}
 
-        {status === 'error' ? (
+        {showEvidence && status === 'error' ? (
           <section className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
             <h2 className="text-lg font-semibold">No se pudo cargar la cola de auditoría</h2>
             <p className="mt-2 text-sm">
@@ -49,13 +63,13 @@ export function AuditReviewPage() {
           </section>
         ) : null}
 
-        {decisionError ? (
+        {showEvidence && decisionError ? (
           <p className="mb-4 text-sm text-red-700" role="alert">
             {decisionError}
           </p>
         ) : null}
 
-        {status === 'success' ? (
+        {showEvidence && status === 'success' ? (
           <AuditLogList
             logs={logs}
             busyLogId={busyLogId}
