@@ -6,6 +6,7 @@ import { ActionLogFormPage } from './pages/ActionLogForm/ActionLogForm';
 import { AuditReviewPage } from './pages/AuditReview/AuditReview';
 import { LeaderboardPage } from './pages/Leaderboard/Leaderboard';
 import { LoginPage } from './pages/Login/Login';
+import { ProfilePage } from './pages/Profile/Profile';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { ADMIN_ROLES, type UserRole } from './types/auth';
 
@@ -37,5 +38,6 @@ export const routes = [
     element={protectedElement(<AuditReviewPage />, ADMIN_ROLES)}
   />,
   <Route key="leaderboard" path="/leaderboard" element={protectedElement(<LeaderboardPage />)} />,
+  <Route key="profile" path="/profile" element={protectedElement(<ProfilePage />)} />,
   <Route key="catch-all" path="*" element={protectedElement(<HomePage />)} />,
 ];
