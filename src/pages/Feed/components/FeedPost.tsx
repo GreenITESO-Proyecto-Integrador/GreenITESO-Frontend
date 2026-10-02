@@ -13,6 +13,7 @@ import {
   Recycle,
   TreePine,
   ShieldCheck,
+  type LucideIcon,
 } from 'lucide-react';
 import type { FeedPost as FeedPostType } from '@/types/feed';
 
@@ -41,22 +42,18 @@ const typeConfig = {
   },
 };
 
-function getBadgeIcon(iconName?: string) {
-  switch (iconName?.toLowerCase()) {
-    case 'leaf':
-      return Leaf;
-    case 'recycle':
-      return Recycle;
-    case 'tree':
-    case 'tree-pine':
-      return TreePine;
-    case 'trophy':
-      return Trophy;
-    case 'shield':
-      return ShieldCheck;
-    default:
-      return Award;
-  }
+const BADGE_ICONS: Record<string, LucideIcon> = {
+  leaf: Leaf,
+  recycle: Recycle,
+  tree: TreePine,
+  'tree-pine': TreePine,
+  trophy: Trophy,
+  shield: ShieldCheck,
+};
+
+function getBadgeIcon(iconName?: string): LucideIcon {
+  if (!iconName) return Award;
+  return BADGE_ICONS[iconName.toLowerCase()] || Award;
 }
 
 export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostProps) {
