@@ -47,13 +47,17 @@ function toApiPath(nextUrl: string): string {
   return `${pathname}${search}`;
 }
 
-/** Walks every page so older notifications beyond the first 50 stay reachable. */
-export async function getNotifications(): Promise<{
-  notifications: Notification[];
-  unreadCount: number;
-}> {
+/**
+ * Walks every page so older notifications beyond the first 50 stay reachable.
+ * DRF's pagination is offset-based, so a notification created while this is
+ * paginating shifts every later page by one and duplicates whatever that
+ * offset now points at; dedupe by id to drop the repeat. The per-page
+ * `unread_count` is a point-in-time snapshot that can race the same insert,
+ * so callers should count unread from the returned (deduped) list instead.
+ */
+export async function getNotifications(): Promise<{ notifications: Notification[] }> {
   const notifications: Notification[] = [];
-  let unreadCount = 0;
+  const seenIds = new Set<string>();
   let path: string | null = '/api/v1/notifications/';
 
   while (path) {
@@ -61,12 +65,15 @@ export async function getNotifications(): Promise<{
     if (!response.ok) throw new Error('Fallo al obtener las notificaciones');
 
     const payload = (await response.json()) as NotificationListResponse;
-    notifications.push(...payload.results.map(mapApiNotification));
-    unreadCount = payload.unread_count;
+    for (const apiNotification of payload.results) {
+      if (seenIds.has(apiNotification.id)) continue;
+      seenIds.add(apiNotification.id);
+      notifications.push(mapApiNotification(apiNotification));
+    }
     path = payload.next ? toApiPath(payload.next) : null;
   }
 
-  return { notifications, unreadCount };
+  return { notifications };
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
