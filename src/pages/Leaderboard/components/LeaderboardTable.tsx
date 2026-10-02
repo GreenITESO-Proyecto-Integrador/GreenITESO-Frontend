@@ -1,5 +1,6 @@
 import { Trophy } from 'lucide-react';
 import type { LeaderboardEntry, LeaderboardTab } from '@/types/leaderboard';
+import { isClanLeaderboardTab } from '@/types/leaderboard';
 
 interface LeaderboardTableProps {
   entries: LeaderboardEntry[];
@@ -7,10 +8,11 @@ interface LeaderboardTableProps {
 }
 
 /**
- * Ranked table of display names and denormalized point totals.
+ * Ranked table of display names and denormalized point totals for the current page.
  */
 export function LeaderboardTable({ entries, tab }: LeaderboardTableProps) {
-  const nameHeading = tab === 'teams' ? 'Equipo' : 'Participante';
+  const isClanTab = isClanLeaderboardTab(tab);
+  const nameHeading = isClanTab ? 'Equipo' : 'Participante';
 
   if (entries.length === 0) {
     return (
@@ -28,7 +30,11 @@ export function LeaderboardTable({ entries, tab }: LeaderboardTableProps) {
     <div className="overflow-x-auto rounded-2xl border border-secondary-100 bg-white shadow-sm">
       <table className="w-full min-w-[320px] text-left">
         <caption className="sr-only">
-          {tab === 'teams' ? 'Clasificación por equipos' : 'Clasificación global'}
+          {tab === 'institutional'
+            ? 'Ranking institucional'
+            : tab === 'private_clan'
+              ? 'Ranking de clanes privados'
+              : 'Clasificación global'}
         </caption>
         <thead>
           <tr className="border-b border-secondary-100 bg-primary-50 text-xs font-semibold tracking-wider text-secondary-400 uppercase">
