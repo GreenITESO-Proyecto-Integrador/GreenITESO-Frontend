@@ -94,7 +94,7 @@ async function mockClansApi(page: Page, seed: ApiSeed = {}) {
       return;
     }
 
-    let body: Json | null = null;
+    let body: Json | null;
     try {
       body = request.postDataJSON() as Json | null;
     } catch {
