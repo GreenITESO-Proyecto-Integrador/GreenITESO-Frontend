@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { ModalContent } from '@/components/custom/ModalContent';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -36,6 +36,8 @@ function CreateClanForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Blocks a second submit fired before React disables the button.
+  const inFlight = useRef(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -43,8 +45,9 @@ function CreateClanForm({
     if (!name.trim()) found.name = 'Escribe un nombre para el clan.';
     setErrors(found);
     setSubmitError(null);
-    if (Object.keys(found).length > 0) return;
+    if (Object.keys(found).length > 0 || inFlight.current) return;
 
+    inFlight.current = true;
     setSubmitting(true);
     try {
       const clan = await createClan({
@@ -63,6 +66,7 @@ function CreateClanForm({
         setSubmitError(toFriendlyMessage(error, 'No se pudo crear el clan.'));
       }
     } finally {
+      inFlight.current = false;
       setSubmitting(false);
     }
   }

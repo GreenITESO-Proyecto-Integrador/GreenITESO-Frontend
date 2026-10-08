@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Link2, Plus, Search, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,8 @@ import { SuccessBanner } from '@/components/campaigns/SuccessBanner';
 import { SectionState } from '@/components/shared/SectionState';
 import { useClanSearch } from '@/hooks/use-clan-search';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
-import { readNoticeState, type ClanNoticeState } from '@/lib/clan-meta';
+import { useRouteNotice } from '@/hooks/use-route-notice';
+import type { ClanNoticeState } from '@/lib/clan-meta';
 import { ClanGrid } from './components/ClanGrid';
 import { CreateClanDialog } from './components/CreateClanDialog';
 import { JoinByLinkDialog } from './components/JoinByLinkDialog';
@@ -18,15 +19,13 @@ import { MyClansSection } from './components/MyClansSection';
  */
 export function ClansPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search.trim());
   const { clans, status, errorMessage, reload } = useClanSearch(debouncedSearch);
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
-  // A notice sent by another page (left or dissolved a clan); cleared when dismissed.
-  const [notice, setNotice] = useState<string | null>(() => readNoticeState(location.state));
-  const dismissNotice = useCallback(() => setNotice(null), []);
+  // A notice sent by another page (left or dissolved a clan).
+  const { notice, dismiss: dismissNotice } = useRouteNotice();
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 pt-8 pb-24">

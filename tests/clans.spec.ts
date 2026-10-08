@@ -405,3 +405,48 @@ test('should show the clans link in the sidebar navigation', async ({ page }) =>
 
   await expect(page.getByRole('link', { name: 'Clanes' }).first()).toBeVisible();
 });
+
+test('should not show the leave notice again after reloading the list', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockClansApi(page, { details: { 'clan-eco': MEMBER_DETAIL } });
+  await page.goto('/clans/clan-eco');
+
+  await page.getByRole('button', { name: 'Salir del clan' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Salir del clan' }).click();
+  await expect(page.getByText('Saliste de Eco Warriors.')).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Clanes', exact: true })).toBeVisible();
+  await expect(page.getByText('Saliste de Eco Warriors.')).toHaveCount(0);
+});
+
+test('should send a single create request when submit is double clicked', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockClansApi(page);
+  let posts = 0;
+  // Registered after the shared mock, so it wins for POST /clans/ and answers slowly enough
+  // for the second click to arrive while the first request is still in flight.
+  await page.route(/\/api\/v1\/clans\/$/, async route => {
+    if (route.request().method() !== 'POST') {
+      await route.fallback();
+      return;
+    }
+    posts += 1;
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await route.fulfill({
+      status: 201,
+      headers: CORS_HEADERS,
+      contentType: 'application/json',
+      body: JSON.stringify({ ...ECO_CLAN, id: 'clan-new', name: 'Mi Clan' }),
+    });
+  });
+  await page.goto('/clans');
+
+  await page.getByRole('button', { name: 'Crear clan' }).first().click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Nombre').fill('Mi Clan');
+  await dialog.getByRole('button', { name: 'Crear clan' }).dblclick();
+
+  await expect(page).toHaveURL(/\/clans\/clan-new$/);
+  expect(posts).toBe(1);
+});

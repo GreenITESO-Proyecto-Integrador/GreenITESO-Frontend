@@ -1,5 +1,4 @@
-import { useCallback, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, CalendarDays, Star, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,13 +7,13 @@ import { WRAP_TEXT } from '@/components/campaigns/field-limits';
 import { useClanDetail } from '@/hooks/use-clan-detail';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useEcologicalProfile } from '@/hooks/use-ecological-profile';
+import { useRouteNotice } from '@/hooks/use-route-notice';
 import {
   PRIVACY_META,
   clanTypeLabel,
   formatMemberSince,
   formatPoints,
   getInitials,
-  readNoticeState,
   type ClanNoticeState,
 } from '@/lib/clan-meta';
 import type { ClanDetail } from '@/types/clan';
@@ -97,12 +96,10 @@ function ClanHeader({ clan }: { clan: ClanDetail }) {
 export function ClanProfilePage() {
   const { clanId } = useParams<{ clanId: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   const { user } = useCurrentUser();
   const { clan, status, errorMessage, reload } = useClanDetail(clanId);
   const profileData = useEcologicalProfile();
-  const [notice, setNotice] = useState<string | null>(() => readNoticeState(location.state));
-  const dismissNotice = useCallback(() => setNotice(null), []);
+  const { notice, setNotice, dismiss: dismissNotice } = useRouteNotice();
 
   const viewerId = user?.id ?? null;
   const isActiveClan = clan !== null && profileData.profile?.activePrivateClan?.id === clan.id;
