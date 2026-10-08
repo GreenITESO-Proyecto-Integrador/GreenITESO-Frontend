@@ -224,6 +224,63 @@ test('should not resurrect a deleted notification when it is pushed again', asyn
   await expect(page.getByText('Evidencia aprobada')).toHaveCount(0);
 });
 
+test('should not double-count or duplicate a notification pushed mid-pagination', async ({
+  page,
+}) => {
+  // Page 1 of the GET; page 2 repeats "Nuevo seguidor" the way DRF's
+  // offset pagination would once the push below shifts every later row.
+  const pageOneResults = [{ ...storedNotifications[0]!, is_read: true }, storedNotifications[1]];
+  const pageTwoResults = [
+    storedNotifications[1],
+    {
+      id: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+      title: 'Reto completado',
+      message: 'Terminaste el reto semanal.',
+      notification_type: 'MISSION_COMPLETED',
+      is_read: true,
+      created_at: '2026-09-29T12:00:00Z',
+    },
+  ];
+
+  const socket = await mockSocket(page);
+  await page.route(/\/api\/v1\/notifications\/(\?.*)?$/, async route => {
+    const url = new URL(route.request().url());
+    if (!url.search) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          count: 4,
+          unread_count: 0,
+          results: pageOneResults,
+          next: `${url.origin}${url.pathname}?offset=2`,
+        }),
+      });
+      return;
+    }
+
+    // A notification is created (and counted server-side) while this GET is
+    // still paginating, between the page 1 and page 2 requests.
+    socket.push(livePush);
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        count: 4,
+        unread_count: 1,
+        results: pageTwoResults,
+        next: null,
+      }),
+    });
+  });
+
+  await page.goto('/notifications');
+
+  await expect(page.getByText('Reto completado')).toBeVisible();
+  await expect(page.getByText('Nuevo seguidor')).toHaveCount(1);
+  await expect(page.getByText('Tienes 1 notificaciones sin leer.')).toBeVisible();
+});
+
 test('should show an error when the notification list fails to load', async ({ page }) => {
   await page.route(listUrl, route => route.fulfill({ status: 500, body: '{}' }));
   await mockSocket(page);
