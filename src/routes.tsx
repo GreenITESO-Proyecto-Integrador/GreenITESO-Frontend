@@ -12,6 +12,8 @@ import { LeaderboardPage } from './pages/Leaderboard/Leaderboard';
 import { MissionsPage } from './pages/Missions/Missions';
 import { FeedPage } from './pages/Feed/Feed';
 import { NotificationsPage } from './pages/Notifications/Notifications';
+import { ProfilePage } from './pages/Profile/Profile';
+import { StorePage } from './pages/Store/Store';
 import { ADMIN_ROLES, type UserRole } from './types/auth';
 
 function protectedElement(
@@ -32,6 +34,8 @@ export const routes = [
       element={protectedElement(<DesignSystemPage />)}
     />
     <Route key="missions" path="/missions" element={protectedElement(<MissionsPage />)} />
+    <Route key="store" path="/store" element={protectedElement(<StorePage />)} />
+    <Route key="shop" path="/shop" element={protectedElement(<StorePage />)} />
     <Route key="feed" path="/feed" element={protectedElement(<FeedPage />)} />
     <Route
       key="notifications"
@@ -50,6 +54,7 @@ export const routes = [
       element={protectedElement(<AuditReviewPage />, ADMIN_ROLES)}
     />
     <Route key="leaderboard" path="/leaderboard" element={protectedElement(<LeaderboardPage />)} />
+    <Route key="profile" path="/profile" element={protectedElement(<ProfilePage />)} />
     <Route key="catch-all" path="*" element={protectedElement(<DashboardPage />)} />
   </Route>,
 ];

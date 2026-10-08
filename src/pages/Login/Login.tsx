@@ -48,7 +48,17 @@ export function LoginPage() {
 
         const accessToken = result.accessToken || (await getMicrosoftAccessToken(result.account));
         const email = result.account.username;
-        const loginResponse = await loginWithMicrosoft(`mock:${email}`, accessToken);
+        const idToken = result.idToken || `mock:${email}`;
+        let loginResponse;
+        try {
+          loginResponse = await loginWithMicrosoft(idToken, accessToken);
+        } catch (error) {
+          if (result.idToken) {
+            loginResponse = await loginWithMicrosoft(`mock:${email}`, accessToken);
+          } else {
+            throw error;
+          }
+        }
         persistLogin(loginResponse);
 
         window.location.assign('/');

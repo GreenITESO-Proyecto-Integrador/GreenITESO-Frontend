@@ -1,4 +1,11 @@
-export type PostType = 'OFFICIAL_ANNOUNCEMENT' | 'COMMUNITY_MILESTONE' | 'SHARED_EVIDENCE';
+export type PostType =
+  | 'OFFICIAL_ANNOUNCEMENT'
+  | 'COMMUNITY_MILESTONE'
+  | 'SHARED_EVIDENCE'
+  | 'ACTION_LOG'
+  | 'MISSION_COMPLETED'
+  | 'ACHIEVEMENT'
+  | 'GENERAL';
 
 export interface AuthorInfo {
   id: string | number;
@@ -29,6 +36,19 @@ export interface FeedPost {
   relative_time?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface Post {
+  id: string | number;
+  author: {
+    id?: string | number;
+    nickname: string;
+    avatarUrl?: string;
+  };
+  createdAt: string;
+  content: string;
+  type: PostType;
+  imageUrl?: string | null;
 }
 
 export interface FeedResponse {

@@ -43,7 +43,9 @@ export function BottomNav({ unreadNotifications = 0 }: BottomNavProps) {
                   </span>
                 ) : null}
               </span>
-              <span className="text-xs font-semibold">{link.label}</span>
+              <span className="text-[10px] font-semibold truncate max-w-[60px] sm:text-xs text-center">
+                {link.label}
+              </span>
             </NavLink>
           ))}
 

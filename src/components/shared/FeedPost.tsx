@@ -10,8 +10,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatRelativeTime } from '@/lib/utils';
+import type { PostType } from '@/types/feed';
 
-export type SharedPostType = 'ACTION_LOG' | 'MISSION_COMPLETED' | 'ACHIEVEMENT' | 'GENERAL';
+export type SharedPostType = PostType;
 
 export interface Post {
   id: string;
@@ -22,7 +23,7 @@ export interface Post {
   };
   createdAt: string;
   content: string;
-  type: SharedPostType;
+  type: PostType;
   imageUrl?: string;
 }
 
@@ -32,7 +33,7 @@ interface FeedPostProps {
   onDelete?: (post: Post) => void;
 }
 
-const TYPE_META: Record<SharedPostType, { label: string; icon: typeof Sparkles }> = {
+const TYPE_META: Partial<Record<PostType, { label: string; icon: typeof Sparkles }>> = {
   ACTION_LOG: { label: 'Acción registrada', icon: Target },
   MISSION_COMPLETED: { label: 'Misión completada', icon: Award },
   ACHIEVEMENT: { label: 'Logro desbloqueado', icon: Sparkles },
@@ -44,7 +45,8 @@ function initialsFrom(nickname: string) {
 }
 
 export function FeedPost({ post, onEdit, onDelete }: FeedPostProps) {
-  const { label: typeLabel, icon: TypeIcon } = TYPE_META[post.type];
+  const meta = TYPE_META[post.type] ?? { label: 'Publicación', icon: Sparkles };
+  const { label: typeLabel, icon: TypeIcon } = meta;
   const canManage = Boolean(onEdit || onDelete);
 
   return (

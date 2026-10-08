@@ -61,7 +61,9 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
   const [editContent, setEditContent] = useState(post.content);
   const [isSaving, setIsSaving] = useState(false);
 
-  const config = typeConfig[post.post_type] || typeConfig.SHARED_EVIDENCE;
+  const config =
+    (typeConfig as Record<string, (typeof typeConfig)[keyof typeof typeConfig]>)[post.post_type] ||
+    typeConfig.SHARED_EVIDENCE;
   const TypeIcon = config.icon;
   const BadgeIcon = getBadgeIcon(post.badge_info?.icon_name);
 
