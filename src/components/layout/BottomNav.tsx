@@ -19,7 +19,9 @@ const tabClassName = (isActive: boolean) =>
 export function BottomNav({ unreadNotifications = 0 }: BottomNavProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
-  const isSecondaryActive = SECONDARY_NAV_LINKS.some(link => link.href === location.pathname);
+  const isSecondaryActive = SECONDARY_NAV_LINKS.some(
+    link => location.pathname === link.href || location.pathname.startsWith(`${link.href}/`),
+  );
 
   return (
     <>
