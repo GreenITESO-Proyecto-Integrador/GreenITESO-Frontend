@@ -11,6 +11,8 @@ import { AuditReviewPage } from './pages/AuditReview/AuditReview';
 import { LeaderboardPage } from './pages/Leaderboard/Leaderboard';
 import { MissionsPage } from './pages/Missions/Missions';
 import { FeedPage } from './pages/Feed/Feed';
+import { ClansPage } from './pages/Clans/Clans';
+import { ClanProfilePage } from './pages/Clans/ClanProfile';
 import { NotificationsPage } from './pages/Notifications/Notifications';
 import { ProfilePage } from './pages/Profile/Profile';
 import { StorePage } from './pages/Store/Store';
@@ -52,6 +54,12 @@ export const routes = [
       key="audit-review"
       path="/audit"
       element={protectedElement(<AuditReviewPage />, ADMIN_ROLES)}
+    />
+    <Route key="clans" path="/clans" element={protectedElement(<ClansPage />)} />
+    <Route
+      key="clan-profile"
+      path="/clans/:clanId"
+      element={protectedElement(<ClanProfilePage />)}
     />
     <Route key="leaderboard" path="/leaderboard" element={protectedElement(<LeaderboardPage />)} />
     <Route key="profile" path="/profile" element={protectedElement(<ProfilePage />)} />

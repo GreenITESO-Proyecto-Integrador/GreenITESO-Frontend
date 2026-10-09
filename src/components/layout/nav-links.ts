@@ -8,6 +8,7 @@ import {
   Target,
   Trophy,
   User,
+  Users,
 } from 'lucide-react';
 
 export interface NavLink {
@@ -27,6 +28,7 @@ export const PRIMARY_NAV_LINKS: NavLink[] = [
 export const SECONDARY_NAV_LINKS: NavLink[] = [
   { label: 'Mi perfil', href: '/profile', icon: User },
   { label: 'Catálogo de acciones', href: '/actions', icon: ListChecks },
+  { label: 'Clanes', href: '/clans', icon: Users },
   { label: 'Leaderboard', href: '/leaderboard', icon: Trophy },
   { label: 'Auditoría', href: '/audit', icon: ClipboardCheck },
 ];
