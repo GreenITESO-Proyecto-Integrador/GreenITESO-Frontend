@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -10,10 +11,12 @@ import { BadgesSection } from './components/BadgesSection';
 import { CampaignsSection } from './components/CampaignsSection';
 import { ProfileSkeleton } from './components/ProfileSkeleton';
 import { ProfileError } from './components/ProfileError';
+import { EditProfileDialog } from './components/EditProfileDialog';
 
 export function ProfilePage() {
   const navigate = useNavigate();
-  const { profile, status, errorMessage, reload } = useEcologicalProfile();
+  const { profile, status, errorMessage, reload, setProfile } = useEcologicalProfile();
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 space-y-8">
@@ -40,7 +43,7 @@ export function ProfilePage() {
 
       {status === 'success' && profile && (
         <div className="space-y-8">
-          <ProfileHeader profile={profile} />
+          <ProfileHeader profile={profile} onEditProfile={() => setIsEditDialogOpen(true)} />
           <ProgressSection profile={profile} />
           <ImpactMetricsSection metrics={profile.impactMetrics} />
           <ClansSection
@@ -49,6 +52,15 @@ export function ProfilePage() {
           />
           <BadgesSection badges={profile.badges} />
           <CampaignsSection finishedCampaigns={profile.finishedCampaigns} />
+
+          <EditProfileDialog
+            open={isEditDialogOpen}
+            onOpenChange={setIsEditDialogOpen}
+            profile={profile}
+            onProfileUpdated={updated => {
+              setProfile(updated);
+            }}
+          />
         </div>
       )}
     </div>

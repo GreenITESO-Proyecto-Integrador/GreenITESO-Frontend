@@ -4,9 +4,11 @@ import type {
   EcologicalProfile,
   FinishedCampaign,
   ImpactMetrics,
+  ProfileUpdatePayload,
   ProfileVisibility,
 } from '@/types/ecological-profile';
 import { apiFetch, getApiBaseUrl } from './client';
+import { readError } from './errors';
 
 export const ECOLOGICAL_PROFILE_PATH = '/api/v1/profile/me/';
 
@@ -138,6 +140,9 @@ export function mapEcologicalProfile(payload: unknown): EcologicalProfile {
     visibility,
     bio: readString(payload.bio),
     avatarUrl: readString(payload.avatar_url ?? payload.avatarUrl),
+    preferences: isRecord(payload.preferences)
+      ? (payload.preferences as Record<string, unknown>)
+      : {},
     totalPoints: readNumber(payload.total_points ?? payload.totalPoints),
     availablePoints: readNumber(payload.available_points ?? payload.availablePoints),
     currentStreak: readNumber(payload.current_streak ?? payload.currentStreak),
@@ -177,4 +182,48 @@ export async function fetchEcologicalProfile(): Promise<EcologicalProfile> {
   }
 
   return mapEcologicalProfile(payload);
+}
+
+/**
+ * Update the authenticated user's ecological profile. Only the fields present in
+ * `payload` are sent, matching the backend's partial update.
+ */
+export async function updateEcologicalProfile(
+  payload: ProfileUpdatePayload,
+): Promise<EcologicalProfile> {
+  const body: Record<string, unknown> = {};
+
+  if (payload.bio !== undefined) {
+    body.bio = payload.bio;
+  }
+  if (payload.visibility !== undefined) {
+    body.visibility = payload.visibility;
+  }
+  if (payload.preferences !== undefined) {
+    body.preferences = payload.preferences;
+  }
+  if (payload.avatarUrl !== undefined) {
+    body.avatar_url = payload.avatarUrl;
+  }
+
+  const response = await apiFetch(ECOLOGICAL_PROFILE_PATH, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw await readError(response, 'No se pudo actualizar el perfil.');
+  }
+
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error('La respuesta del servidor no es un JSON válido');
+  }
+
+  return mapEcologicalProfile(data);
 }

@@ -81,7 +81,17 @@ const emptyProfileData = {
   active_private_clan: null,
 };
 
+// 1×1 transparent PNG. The header drops an avatar that fails to load, so the
+// mocked avatar URL must resolve to a real image.
+const PIXEL_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+  'base64',
+);
+
 async function mockProfileEndpoint(page: Page, data: unknown, status = 200) {
+  await page.route('https://example.com/**', route =>
+    route.fulfill({ status: 200, contentType: 'image/png', body: PIXEL_PNG }),
+  );
   await page.route(profileUrl, async route => {
     await route.fulfill({
       status,

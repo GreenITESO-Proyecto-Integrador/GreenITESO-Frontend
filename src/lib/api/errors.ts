@@ -101,6 +101,17 @@ const MESSAGE_RULES: readonly {
     pattern: /no pending join request/i,
     message: 'Esta solicitud ya no está pendiente.',
   },
+  // Profile edit (PATCH /profile/me/).
+  { pattern: /avatar_url must use https/i, message: 'La URL de la foto debe usar https://.' },
+  {
+    pattern: /avatar_url must point to/i,
+    message: 'La URL de la foto debe terminar en .jpg, .jpeg, .png o .webp.',
+  },
+  { pattern: /enter a valid url/i, message: 'Ingresa una URL válida.' },
+  {
+    pattern: /preferences payload is too large/i,
+    message: 'Tus preferencias son demasiado grandes para guardarse.',
+  },
   {
     pattern: /no more than (\d+) characters/i,
     message: match => `Escribe máximo ${match[1]} caracteres.`,
