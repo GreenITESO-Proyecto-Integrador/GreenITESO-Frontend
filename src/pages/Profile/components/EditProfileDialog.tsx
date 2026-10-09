@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useDialogBusyGuard } from '@/hooks/use-dialog-busy-guard';
 import { updateEcologicalProfile } from '@/lib/api/ecological-profile';
 import { toFriendlyMessage } from '@/lib/api/errors';
 import type { EcologicalProfile, ProfileVisibility } from '@/types/ecological-profile';
@@ -73,8 +74,12 @@ export function EditProfileDialog({
   onProfileUpdated,
 }: EditProfileDialogProps) {
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Esc, the close button and a click outside are ignored while a save is in flight.
+  // Otherwise the modal could be reopened with the pre-save values and a later save
+  // would silently revert the one still in flight.
+  const { handleOpenChange, setBusy } = useDialogBusyGuard(onOpenChange);
   // Bumped each time the modal opens or closes, so a save that settles after the
-  // user closed (and maybe reopened) the modal can't touch the new session.
+  // modal moved on (e.g. the parent closed it) can't touch the new session.
   const sessionRef = useRef(0);
 
   // Form states
@@ -167,6 +172,7 @@ export function EditProfileDialog({
     }
 
     const session = sessionRef.current;
+    setBusy(true);
     setIsSubmitting(true);
 
     try {
@@ -204,12 +210,13 @@ export function EditProfileDialog({
         text: toFriendlyMessage(err, 'Ocurrió un error al actualizar el perfil.'),
       });
     } finally {
+      setBusy(false);
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <ModalContent className="sm:max-w-xl">
         <DialogHeader className="pr-10">
           <DialogTitle className="text-xl font-bold text-foreground">Editar perfil</DialogTitle>

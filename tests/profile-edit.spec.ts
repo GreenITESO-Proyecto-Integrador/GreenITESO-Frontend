@@ -320,7 +320,7 @@ test.describe('Profile Editing (T2-23)', () => {
     await expect(page.getByLabel('Biografía')).toHaveValue('Sigo escribiendo');
   });
 
-  test('should keep a save that lands after reopening out of the new session', async ({ page }) => {
+  test('should keep the modal open while a save is in flight', async ({ page }) => {
     let releasePatch!: () => void;
     const patchGate = new Promise<void>(resolve => {
       releasePatch = resolve;
@@ -328,25 +328,41 @@ test.describe('Profile Editing (T2-23)', () => {
     const { patches } = await setupProfile(page, { patchGate });
     await openEditor(page);
 
-    await page.getByLabel('Biografía').fill('Bio guardada tarde');
+    await page.getByText('Privado', { exact: true }).click();
     await page.getByRole('button', { name: 'Guardar cambios' }).click();
     await expect.poll(() => patches.length).toBe(1);
 
-    // Close while the PATCH is in flight, reopen, and start a new edit.
+    // Neither Esc nor a click outside can close it mid-save, so it can't be
+    // reopened with the pre-save values and revert this save on the next one.
     await page.keyboard.press('Escape');
-    await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
-    await openEditor(page);
-    await page.getByLabel('Biografía').fill('Nuevo borrador');
+    await page.mouse.click(5, 5);
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Guardando…' })).toBeDisabled();
 
     releasePatch();
-    // The page still reflects what the server saved (behind the modal, which hides
-    // the rest of the page from the accessibility tree, hence the CSS locator)...
-    await expect(page.locator('main').getByText('Bio guardada tarde')).toBeVisible();
-    // ...but the old save neither announces itself nor closes the new session.
-    await page.waitForTimeout(1000);
-    await expect(page.getByText('¡Perfil actualizado correctamente!')).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: 'Editar perfil' })).toBeVisible();
-    await expect(page.getByLabel('Biografía')).toHaveValue('Nuevo borrador');
+    await expect(page.getByText('¡Perfil actualizado correctamente!')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
+    await expect(page.getByText('Perfil Privado')).toBeVisible();
+  });
+
+  test('should open with the saved values after a save, so the next save keeps them', async ({
+    page,
+  }) => {
+    const { patches } = await setupProfile(page);
+    await openEditor(page);
+
+    await page.getByText('Privado', { exact: true }).click();
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
+
+    // Only flip a notification toggle in the next session.
+    await openEditor(page);
+    await page.getByText('Nuevas campañas').click();
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
+
+    expect(patches[1]).toMatchObject({ visibility: 'PRIVATE' });
+    await expect(page.getByText('Perfil Privado')).toBeVisible();
   });
 
   test('should count bio length the way the backend does', async ({ page }) => {
