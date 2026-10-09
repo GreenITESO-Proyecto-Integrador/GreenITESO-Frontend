@@ -80,7 +80,7 @@ docs/
 public/                 # Static assets
 ```
 
-Routes: `/` (home), `/design-system` (design showcase), `*` (fallback to home). Add pages via `src/routes.tsx`.
+Routes: `/` (home), `/login` (Microsoft login), `/design-system` (design showcase), `/actions`, `/actions/register`, `/audit`, `/leaderboard`, `*` (fallback to home). Add pages via `src/routes.tsx`.
 
 ## UI Components (shadcn/ui)
 
@@ -142,6 +142,13 @@ Dev server starts automatically if not running. Tests use `page.goto('/')` to hi
 Create `.env.local` with:
 
 ```
-VITE_API_BASE_URL=http://localhost:3001
+VITE_API_BASE_URL=http://localhost:8000
+VITE_MICROSOFT_CLIENT_ID=<Microsoft Entra application client ID>
+VITE_MICROSOFT_AUTHORITY=https://login.microsoftonline.com/organizations
 VITE_ENV=development
 ```
+
+The login screen uses Microsoft Entra ID through MSAL with authorization code + PKCE. The
+frontend sends the resulting `id_token` and Microsoft Graph `access_token` to
+`POST /api/v1/auth/login/`; no client secret is required. Configure the SPA redirect URI as
+`http://localhost:3000/login` for local development.

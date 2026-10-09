@@ -1,0 +1,272 @@
+import { useCallback, useState } from 'react';
+import { CalendarRange, Pencil, Plus, Users } from 'lucide-react';
+import { ModalContent } from '@/components/custom/ModalContent';
+import { MissionItem } from '@/components/shared/MissionItem';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useCampaignDetail } from '@/hooks/use-campaign-detail';
+import { useClanName } from '@/hooks/use-clan-name';
+import { useCurrentUser } from '@/hooks/use-current-user';
+import { joinCampaign } from '@/lib/api/campaigns';
+import { toFriendlyMessage } from '@/lib/api/errors';
+import { SCOPE_META, STATUS_META, formatDate } from '@/lib/campaign-meta';
+import type { Mission } from '@/types/mission';
+import { WRAP_TEXT } from './field-limits';
+import { AddMissionForm } from './AddMissionForm';
+import { EditCampaignForm } from './EditCampaignForm';
+import { SuccessBanner } from './SuccessBanner';
+
+interface CampaignDetailDialogProps {
+  /** Campaign to show; null keeps the dialog closed. */
+  campaignId: string | null;
+  onClose: () => void;
+  /** Called after joining or adding a mission, so the caller can refresh its lists. */
+  onChanged?: () => void;
+  /** Optional per-mission action, forwarded to MissionItem (e.g. log an action). */
+  onLogAction?: (mission: Mission) => void;
+}
+
+function DetailBody({
+  campaignId,
+  onChanged,
+  onLogAction,
+}: Omit<CampaignDetailDialogProps, 'campaignId' | 'onClose'> & { campaignId: string }) {
+  const { detail, status, errorMessage, reload, refresh } = useCampaignDetail(campaignId);
+  const { isAdmin } = useCurrentUser();
+  const [addingMission, setAddingMission] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const dismissNotice = useCallback(() => setNotice(null), []);
+
+  const clanName = useClanName(detail?.targetClanId ?? null);
+
+  async function handleJoin() {
+    setJoining(true);
+    setActionError(null);
+    try {
+      await joinCampaign(campaignId);
+      setNotice('¡Listo! Te uniste a la campaña. Ya puedes completar sus misiones.');
+      await refresh();
+      onChanged?.();
+    } catch (error) {
+      setActionError(toFriendlyMessage(error, 'No se pudo completar la inscripción.'));
+    } finally {
+      setJoining(false);
+    }
+  }
+
+  async function handleCampaignSaved() {
+    setEditing(false);
+    setNotice('¡Listo! Los cambios de la campaña se guardaron.');
+    await refresh();
+    onChanged?.();
+  }
+
+  async function handleMissionAdded() {
+    setAddingMission(false);
+    setNotice('Misión agregada a la campaña.');
+    await refresh();
+    onChanged?.();
+  }
+
+  if (!detail) {
+    if (status === 'error') {
+      return (
+        <section className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+          <DialogTitle className="text-lg font-semibold">No se pudo cargar la campaña</DialogTitle>
+          {errorMessage ? <p className="mt-2 text-sm">{errorMessage}</p> : null}
+          <Button
+            type="button"
+            onClick={() => void reload()}
+            className="mt-4 min-h-11 rounded-xl bg-primary-500 px-5 font-semibold text-white hover:bg-primary-600"
+          >
+            Reintentar
+          </Button>
+        </section>
+      );
+    }
+    return (
+      <>
+        <DialogTitle className="sr-only">Detalle de campaña</DialogTitle>
+        <p className="text-sm text-muted-foreground" role="status">
+          Cargando campaña…
+        </p>
+      </>
+    );
+  }
+
+  const { label: scopeLabel, icon: ScopeIcon } = SCOPE_META[detail.scope];
+  const statusMeta = STATUS_META[detail.status];
+  const isPromotion = detail.status === 'PROMOTION';
+  // Backend only allows editing and adding missions while in PROMOTION, for managers.
+  const canAddMission = detail.canManage && isPromotion;
+  const canEdit = canAddMission;
+  // Admins cannot join campaigns.
+  const canJoin = isPromotion && !detail.isParticipant && !isAdmin;
+  const existingCodes = new Set(detail.missions.map(mission => mission.action.id));
+
+  if (editing && canEdit) {
+    return (
+      <>
+        <DialogHeader className="pr-10">
+          <DialogTitle className="text-xl font-bold text-foreground">Editar campaña</DialogTitle>
+          <DialogDescription>
+            Puedes cambiar el título, la descripción y las fechas mientras la campaña esté en
+            promoción.
+          </DialogDescription>
+        </DialogHeader>
+        <EditCampaignForm
+          campaign={detail}
+          onCancel={() => setEditing(false)}
+          onSaved={handleCampaignSaved}
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <DialogHeader className="pr-10">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline" className="gap-1 border-border text-muted-foreground">
+            <ScopeIcon className="size-3.5" />
+            {scopeLabel}
+          </Badge>
+          <Badge variant="outline" className={statusMeta.className}>
+            {statusMeta.label}
+          </Badge>
+        </div>
+        <DialogTitle className={`text-xl font-bold text-foreground ${WRAP_TEXT}`}>
+          {detail.title}
+        </DialogTitle>
+        <DialogDescription className={`text-sm sm:text-base ${WRAP_TEXT}`}>
+          {detail.description}
+        </DialogDescription>
+      </DialogHeader>
+
+      {notice ? <SuccessBanner message={notice} onDismiss={dismissNotice} /> : null}
+
+      <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+        <div className="flex items-start gap-2">
+          <CalendarRange className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+          <div>
+            <dt className="text-xs text-muted-foreground">Fechas</dt>
+            <dd className="font-medium text-foreground">
+              {formatDate(detail.startDate)} – {formatDate(detail.endDate)}
+            </dd>
+          </div>
+        </div>
+        <div className="flex items-start gap-2">
+          <Users className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+          <div>
+            <dt className="text-xs text-muted-foreground">Participantes</dt>
+            <dd className="font-medium text-foreground tabular-nums">
+              {detail.participants.length}
+            </dd>
+          </div>
+        </div>
+        {detail.targetClanId ? (
+          <div className="sm:col-span-2">
+            <dt className="text-xs text-muted-foreground">Clan</dt>
+            <dd className={`font-medium text-foreground ${WRAP_TEXT}`}>{clanName ?? 'Clan'}</dd>
+          </div>
+        ) : null}
+      </dl>
+
+      <section className="flex flex-col gap-3">
+        <h3 className="text-lg font-semibold text-foreground">Misiones</h3>
+        {detail.missions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Esta campaña aún no tiene misiones.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {detail.missions.map(mission => (
+              <MissionItem
+                key={mission.id}
+                mission={mission}
+                userProgress={detail.progress[mission.id]}
+                onLogAction={detail.status === 'IN_PROGRESS' ? onLogAction : undefined}
+              />
+            ))}
+          </div>
+        )}
+
+        {canAddMission && addingMission ? (
+          <AddMissionForm
+            campaignId={detail.id}
+            existingActionCodes={existingCodes}
+            onAdded={handleMissionAdded}
+            onCancel={() => setAddingMission(false)}
+          />
+        ) : null}
+      </section>
+
+      {actionError ? (
+        <p className="text-sm text-red-700" role="alert">
+          {actionError}
+        </p>
+      ) : null}
+
+      {canJoin || canEdit || (canAddMission && !addingMission) ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+          {canEdit ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setNotice(null);
+                setAddingMission(false);
+                setEditing(true);
+              }}
+              className="min-h-11 cursor-pointer rounded-xl px-5 font-semibold"
+            >
+              <Pencil className="size-4" />
+              Editar campaña
+            </Button>
+          ) : null}
+          {canAddMission && !addingMission ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAddingMission(true)}
+              className="min-h-11 cursor-pointer rounded-xl px-5 font-semibold"
+            >
+              <Plus className="size-4" />
+              Agregar misión
+            </Button>
+          ) : null}
+          {canJoin ? (
+            <Button
+              type="button"
+              disabled={joining}
+              onClick={() => void handleJoin()}
+              className="min-h-11 cursor-pointer rounded-xl bg-primary-500 px-5 font-semibold text-white shadow-sm hover:bg-primary-600 disabled:opacity-50"
+            >
+              {joining ? 'Uniéndome…' : 'Unirme'}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Reusable modal with a campaign's scope, status, dates, clan, participants and missions
+ * (with the user's progress). Offers "Unirme" and "Agregar misión" when allowed.
+ */
+export function CampaignDetailDialog({
+  campaignId,
+  onClose,
+  ...bodyProps
+}: CampaignDetailDialogProps) {
+  return (
+    <Dialog open={campaignId !== null} onOpenChange={open => (open ? undefined : onClose())}>
+      <ModalContent>
+        {campaignId !== null ? <DetailBody campaignId={campaignId} {...bodyProps} /> : null}
+      </ModalContent>
+    </Dialog>
+  );
+}
