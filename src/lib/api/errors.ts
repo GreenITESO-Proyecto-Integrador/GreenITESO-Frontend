@@ -38,6 +38,73 @@ const MESSAGE_RULES: readonly {
   pattern: RegExp;
   message: string | ((match: RegExpMatchArray) => string);
 }[] = [
+  // Clan messages go first: several campaign rules below (`only .*private`, `already exists`)
+  // would otherwise capture them.
+  {
+    pattern: /a clan named .* already exists/i,
+    message: 'Ya existe un clan con ese nombre. Elige otro.',
+  },
+  {
+    pattern: /already leads a clan/i,
+    message: 'Ya eres líder de un clan. Solo puedes liderar uno a la vez.',
+  },
+  {
+    pattern: /belongs to (\d+) private clans/i,
+    message: match => `Ya perteneces a ${match[1]} clanes privados, el máximo permitido.`,
+  },
+  {
+    pattern: /only private clans can be joined/i,
+    message:
+      'Solo puedes unirte a clanes privados. Los institucionales se asignan automáticamente.',
+  },
+  {
+    pattern: /only private clans can be left/i,
+    message: 'Los clanes institucionales no se pueden abandonar.',
+  },
+  {
+    pattern: /only private clans can be selected as active/i,
+    message: 'Solo un clan privado puede ser tu clan activo.',
+  },
+  {
+    pattern: /only private clans can be dissolved/i,
+    message: 'Los clanes institucionales no se pueden disolver.',
+  },
+  {
+    pattern: /already has a pending request/i,
+    message: 'Ya enviaste una solicitud a este clan. Espera la respuesta del líder.',
+  },
+  {
+    pattern: /already has membership/i,
+    message: 'Ya eres miembro de este clan.',
+  },
+  {
+    pattern: /not a member of this clan/i,
+    message: 'No eres miembro de este clan.',
+  },
+  {
+    pattern: /transfer leadership to yourself/i,
+    message: 'No puedes transferirte el liderazgo a ti mismo.',
+  },
+  {
+    pattern: /successor must be a member/i,
+    message: 'La persona elegida debe ser miembro del clan.',
+  },
+  {
+    pattern: /successor already leads/i,
+    message: 'Esa persona ya lidera otro clan.',
+  },
+  {
+    pattern: /not a valid clan\.privacy/i,
+    message: 'Elige una privacidad válida para el clan.',
+  },
+  {
+    pattern: /no pending join request/i,
+    message: 'Esta solicitud ya no está pendiente.',
+  },
+  {
+    pattern: /no more than (\d+) characters/i,
+    message: match => `Escribe máximo ${match[1]} caracteres.`,
+  },
   {
     pattern: /only administrators can create global campaigns/i,
     message: 'Solo los administradores pueden crear campañas globales.',
@@ -141,6 +208,13 @@ function collectMessages(value: unknown): string[] {
 export async function readError(response: Response, fallback: string): Promise<ApiError> {
   try {
     const body: unknown = await response.json();
+    if (Array.isArray(body)) {
+      // DRF `ValidationError("text")` serializes as a bare list of messages.
+      const [first] = collectMessages(body).map(text =>
+        translateMessage(text, response.status, fallback),
+      );
+      if (first) return new ApiError(first, response.status);
+    }
     if (isRecord(body) && !Array.isArray(body)) {
       const fieldErrors: Record<string, string> = {};
       for (const [key, value] of Object.entries(body)) {

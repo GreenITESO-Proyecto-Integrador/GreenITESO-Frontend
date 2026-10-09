@@ -19,7 +19,9 @@ const tabClassName = (isActive: boolean) =>
 export function BottomNav({ unreadNotifications = 0 }: BottomNavProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
-  const isSecondaryActive = SECONDARY_NAV_LINKS.some(link => link.href === location.pathname);
+  const isSecondaryActive = SECONDARY_NAV_LINKS.some(
+    link => location.pathname === link.href || location.pathname.startsWith(`${link.href}/`),
+  );
 
   return (
     <>
@@ -43,7 +45,9 @@ export function BottomNav({ unreadNotifications = 0 }: BottomNavProps) {
                   </span>
                 ) : null}
               </span>
-              <span className="text-xs font-semibold">{link.label}</span>
+              <span className="text-[10px] font-semibold truncate max-w-[60px] sm:text-xs text-center">
+                {link.label}
+              </span>
             </NavLink>
           ))}
 
