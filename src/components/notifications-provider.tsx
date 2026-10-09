@@ -62,6 +62,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
 
   const load = useCallback(async () => {
     const requestId = ++requestSeqRef.current;
+    setIsLoading(true);
     const log: NotificationEvent[] = [...pendingWritesRef.current];
     activeLoadLogsRef.current.add(log);
     try {
@@ -104,6 +105,8 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       if (requestId === requestSeqRef.current) setHasError(true);
     } finally {
       activeLoadLogsRef.current.delete(log);
+      // Only the newest request may end loading; a superseded one is still waiting on it.
+      if (requestId === requestSeqRef.current) setIsLoading(false);
     }
   }, [setNotificationsState]);
 
@@ -131,8 +134,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       return;
     }
 
-    setIsLoading(true);
-    void load().finally(() => setIsLoading(false));
+    void load();
 
     return connectNotificationsSocket({
       // Reload on every (re)connect so anything missed while offline shows up.

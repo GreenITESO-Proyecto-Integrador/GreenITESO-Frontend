@@ -47,24 +47,40 @@ function toApiPath(nextUrl: string): string {
   return `${pathname}${search}`;
 }
 
+const NOTIFICATIONS_PATH = '/api/v1/notifications/';
+const MAX_WALK_RESTARTS = 3;
+
 /**
  * Walks every page so older notifications beyond the first 50 stay reachable.
- * DRF's pagination is offset-based, so a notification created while this is
- * paginating shifts every later page by one and duplicates whatever that
- * offset now points at; dedupe by id to drop the repeat. The per-page
+ * DRF's pagination is offset-based, so a row created or deleted while this is
+ * paginating shifts every later page: an insert repeats a row (dropped by the
+ * id dedupe) and a delete skips one. `count` changing between pages reveals
+ * either, so the walk restarts from page 1 (a few times at most). The per-page
  * `unread_count` is a point-in-time snapshot that can race the same insert,
- * so callers should count unread from the returned (deduped) list instead.
+ * so callers should count unread from the returned list instead.
  */
 export async function getNotifications(): Promise<{ notifications: Notification[] }> {
   const notifications: Notification[] = [];
   const seenIds = new Set<string>();
-  let path: string | null = '/api/v1/notifications/';
+  let path: string | null = NOTIFICATIONS_PATH;
+  let expectedCount: number | null = null;
+  let restarts = 0;
 
   while (path) {
     const response: Response = await apiFetch(path);
     if (!response.ok) throw new Error('Fallo al obtener las notificaciones');
 
     const payload = (await response.json()) as NotificationListResponse;
+    if (expectedCount !== null && payload.count !== expectedCount && restarts < MAX_WALK_RESTARTS) {
+      restarts += 1;
+      notifications.length = 0;
+      seenIds.clear();
+      expectedCount = null;
+      path = NOTIFICATIONS_PATH;
+      continue;
+    }
+    expectedCount = payload.count;
+
     for (const apiNotification of payload.results) {
       if (seenIds.has(apiNotification.id)) continue;
       seenIds.add(apiNotification.id);

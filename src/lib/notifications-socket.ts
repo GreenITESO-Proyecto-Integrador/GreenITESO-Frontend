@@ -1,5 +1,5 @@
 import { getApiBaseUrl } from '@/lib/api/client';
-import { ensureAccessToken } from '@/lib/auth/session';
+import { ensureAccessToken, refreshAccessToken } from '@/lib/auth/session';
 import type { ApiNotification } from '@/types/notification';
 
 const SOCKET_PATH = '/ws/notifications/';
@@ -32,6 +32,9 @@ export function connectNotificationsSocket(handlers: NotificationsSocketHandlers
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
   let retryDelay = INITIAL_RETRY_MS;
   let stopped = false;
+  // After a 4401 the client-side expiry check can't be trusted (clock skew, key
+  // rotation), so the next attempt must ask the server for a fresh token.
+  let forceRefresh = false;
 
   const scheduleReconnect = () => {
     if (stopped) return;
@@ -42,7 +45,8 @@ export function connectNotificationsSocket(handlers: NotificationsSocketHandlers
   const open = async () => {
     let token: string | null;
     try {
-      token = await ensureAccessToken();
+      token = forceRefresh ? await refreshAccessToken() : await ensureAccessToken();
+      forceRefresh = false;
     } catch {
       // Token refresh failed (e.g. network error): retry with backoff instead of
       // leaving the socket unconnected with no onclose to schedule a retry.
@@ -78,8 +82,7 @@ export function connectNotificationsSocket(handlers: NotificationsSocketHandlers
 
     current.onclose = event => {
       if (socket === current) socket = null;
-      // An expired token closes with 4401: retry right away with a refreshed one.
-      if (event.code === CLOSE_UNAUTHORIZED) retryDelay = INITIAL_RETRY_MS;
+      if (event.code === CLOSE_UNAUTHORIZED) forceRefresh = true;
       scheduleReconnect();
     };
   };

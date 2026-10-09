@@ -367,6 +367,107 @@ test('should keep a deleted notification gone when a reconnect GET lands before 
   );
 });
 
+test('should refresh the token and back off when the socket keeps answering 4401', async ({
+  page,
+}) => {
+  await mockNotificationApi(page);
+  let connections = 0;
+  let refreshCalls = 0;
+  await page.route('**/api/v1/auth/refresh/', async route => {
+    refreshCalls += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ access: MOCK_JWT_TOKEN }),
+    });
+  });
+  await page.routeWebSocket(/\/ws\/notifications\//, ws => {
+    connections += 1;
+    ws.onMessage(() => ws.close({ code: 4401, reason: 'unauthorized' }));
+  });
+
+  await page.goto('/notifications');
+  await page.waitForTimeout(4500);
+
+  // Backoff of 1s, 2s, 4s allows ~3 attempts in this window; a reset to 1s each
+  // time would allow 5. The server rejecting the token must also force a refresh.
+  expect(connections).toBeLessThanOrEqual(4);
+  expect(refreshCalls).toBeGreaterThan(0);
+});
+
+test('should not show the empty state while a superseded request has finished first', async ({
+  page,
+}) => {
+  let listRequests = 0;
+  await page.route(listUrl, async route => {
+    listRequests += 1;
+    await new Promise(resolve => setTimeout(resolve, listRequests === 1 ? 300 : 2000));
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ count: 2, results: storedNotifications, unread_count: 1 }),
+    });
+  });
+  await mockSocket(page);
+
+  await page.goto('/notifications');
+  // The first request has finished by now but the list is still loading. A plain
+  // count() (not toHaveCount) so a transient empty state can't be retried away.
+  await page.waitForTimeout(1000);
+  expect(await page.getByText('No tienes notificaciones.').count()).toBe(0);
+
+  await expect(page.getByText('Evidencia aprobada')).toBeVisible();
+});
+
+test('should not drop a notification when one is deleted while paginating', async ({ page }) => {
+  const item = (id: string, title: string, day: number) => ({
+    id: `${id}`.repeat(8) + '-0000-0000-0000-000000000000',
+    title,
+    message: `${title} message`,
+    notification_type: 'SYSTEM',
+    is_read: true,
+    created_at: `2026-09-${day}T12:00:00Z`,
+  });
+  const [alfa, bravo, charlie, delta] = [
+    item('a', 'Alfa', 28),
+    item('b', 'Bravo', 27),
+    item('c', 'Charlie', 26),
+    item('d', 'Delta', 25),
+  ];
+
+  // Page size 2. Alfa is deleted between the page 1 and page 2 requests, so
+  // every later row shifts up by one and page 2 skips Charlie.
+  let alfaDeleted = false;
+  await page.route(/\/api\/v1\/notifications\/(\?.*)?$/, async route => {
+    const url = new URL(route.request().url());
+    const nextPage = `${url.origin}${url.pathname}?offset=2`;
+    let body;
+    if (url.search) {
+      alfaDeleted = true;
+      body = { count: 3, results: [delta], next: null };
+    } else if (alfaDeleted) {
+      body = { count: 3, results: [bravo, charlie], next: nextPage };
+    } else {
+      body = { count: 4, results: [alfa, bravo], next: nextPage };
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ unread_count: 0, ...body }),
+    });
+  });
+  // No auth.ok: the reconnect reload would re-walk the (now stable) list and
+  // mask a skipped row, so only the initial walk decides what is shown.
+  await page.routeWebSocket(/\/ws\/notifications\//, () => {});
+
+  await page.goto('/notifications');
+
+  await expect(page.getByText('Delta', { exact: true })).toBeVisible();
+  await expect(page.getByText('Charlie', { exact: true })).toBeVisible();
+  await expect(page.getByText('Bravo', { exact: true })).toBeVisible();
+  await expect(page.getByText('Alfa', { exact: true })).toHaveCount(0);
+});
+
 test('should show an error when the notification list fails to load', async ({ page }) => {
   await page.route(listUrl, route => route.fulfill({ status: 500, body: '{}' }));
   await mockSocket(page);
