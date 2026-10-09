@@ -9,6 +9,7 @@ import { CharCounter } from '@/components/campaigns/CharCounter';
 import { FieldError } from '@/components/campaigns/FieldError';
 import { DESCRIPTION_MAX_LENGTH, TITLE_MAX_LENGTH } from '@/components/campaigns/field-limits';
 import { FilterChips } from '@/components/shared/FilterChips';
+import { useDialogBusyGuard } from '@/hooks/use-dialog-busy-guard';
 import { createClan } from '@/lib/api/clans';
 import { ApiError, toFriendlyMessage } from '@/lib/api/errors';
 import { PRIVACY_META, PRIVACY_OPTIONS } from '@/lib/clan-meta';
@@ -26,9 +27,11 @@ const FIELD_KEYS = ['name', 'description', 'privacy'];
 function CreateClanForm({
   onCreated,
   onCancel,
+  onBusyChange,
 }: {
   onCreated: (clan: ClanListItem) => void;
   onCancel: () => void;
+  onBusyChange: (busy: boolean) => void;
 }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -48,6 +51,7 @@ function CreateClanForm({
     if (Object.keys(found).length > 0 || inFlight.current) return;
 
     inFlight.current = true;
+    onBusyChange(true);
     setSubmitting(true);
     try {
       const clan = await createClan({
@@ -67,6 +71,7 @@ function CreateClanForm({
       }
     } finally {
       inFlight.current = false;
+      onBusyChange(false);
       setSubmitting(false);
     }
   }
@@ -149,8 +154,10 @@ function CreateClanForm({
  * Create a private clan. The creator becomes its leader (one leadership per user).
  */
 export function CreateClanDialog({ open, onOpenChange, onCreated }: CreateClanDialogProps) {
+  const { handleOpenChange, setBusy } = useDialogBusyGuard(onOpenChange);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <ModalContent>
         <DialogHeader>
           <DialogTitle>Crear clan</DialogTitle>
@@ -160,7 +167,11 @@ export function CreateClanDialog({ open, onOpenChange, onCreated }: CreateClanDi
         </DialogHeader>
         {/* Mounted only while open, so the form resets every time. */}
         {open ? (
-          <CreateClanForm onCreated={onCreated} onCancel={() => onOpenChange(false)} />
+          <CreateClanForm
+            onCreated={onCreated}
+            onCancel={() => onOpenChange(false)}
+            onBusyChange={setBusy}
+          />
         ) : null}
       </ModalContent>
     </Dialog>

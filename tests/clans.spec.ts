@@ -450,3 +450,85 @@ test('should send a single create request when submit is double clicked', async 
   await expect(page).toHaveURL(/\/clans\/clan-new$/);
   expect(posts).toBe(1);
 });
+
+test('should keep the profile when a background refresh fails', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockClansApi(page, { details: { 'clan-eco': MEMBER_DETAIL } });
+  let failRefresh = false;
+  // Registered after the shared mock, so it wins once `failRefresh` is switched on.
+  await page.route(/\/api\/v1\/clans\/clan-eco\/$/, async route => {
+    if (route.request().method() !== 'GET' || !failRefresh) {
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({
+      status: 500,
+      headers: CORS_HEADERS,
+      contentType: 'application/json',
+      body: JSON.stringify({ detail: 'boom' }),
+    });
+  });
+  await page.goto('/clans/clan-eco');
+  await expect(page.getByRole('heading', { name: 'Eco Warriors' })).toBeVisible();
+  failRefresh = true;
+
+  await page.getByRole('button', { name: 'Establecer como clan activo' }).click();
+
+  await expect(page.getByText('Eco Warriors es ahora tu clan activo.')).toBeVisible();
+  await expect(page.getByText(/No se pudo actualizar el clan/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Eco Warriors' })).toBeVisible();
+  await expect(page.getByText('Ana Líder')).toBeVisible();
+  await expect(page.getByText('No se pudo cargar el clan')).toHaveCount(0);
+});
+
+test('should not reload the clan when copying the invite link', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await mockStudentSession(page);
+  await mockClansApi(page, { details: { 'clan-eco': MEMBER_DETAIL } });
+  let detailLoads = 0;
+  await page.route(/\/api\/v1\/clans\/clan-eco\/$/, async route => {
+    if (route.request().method() === 'GET') detailLoads += 1;
+    await route.fallback();
+  });
+  await page.goto('/clans/clan-eco');
+  await expect(page.getByRole('heading', { name: 'Eco Warriors' })).toBeVisible();
+  const loadsBefore = detailLoads;
+
+  await page.getByRole('button', { name: 'Copiar enlace de invitación' }).click();
+
+  await expect(page.getByText(/Enlace copiado/)).toBeVisible();
+  expect(detailLoads).toBe(loadsBefore);
+});
+
+test('should keep the confirm dialog open while the request is in flight', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockClansApi(page, { details: { 'clan-eco': LEADER_DETAIL } });
+  let deletes = 0;
+  await page.route(/\/api\/v1\/clans\/clan-eco\/$/, async route => {
+    if (route.request().method() !== 'DELETE') {
+      await route.fallback();
+      return;
+    }
+    deletes += 1;
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    await route.fulfill({ status: 204, headers: CORS_HEADERS });
+  });
+  await page.goto('/clans/clan-eco');
+
+  await page.getByRole('button', { name: 'Disolver clan' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Disolver clan' }).click();
+  await expect(dialog.getByRole('button', { name: 'Disolviendo…' })).toBeDisabled();
+
+  // The disabled button loses focus, so put it back inside the dialog for Esc to reach it.
+  await dialog.focus();
+  await page.keyboard.press('Escape');
+  // A closing dialog stays in the DOM during its exit animation, so check that its body
+  // (still showing the pending state) was not unmounted.
+  await page.waitForTimeout(300);
+  await expect(dialog.getByRole('button', { name: 'Disolviendo…' })).toBeVisible();
+
+  await expect(page).toHaveURL(/\/clans$/);
+  await expect(page.getByText('Eco Warriors se disolvió.')).toBeVisible();
+  expect(deletes).toBe(1);
+});

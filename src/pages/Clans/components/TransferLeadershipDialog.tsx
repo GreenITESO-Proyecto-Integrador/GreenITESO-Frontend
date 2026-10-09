@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select';
 import { SELECT_ITEM_CLASS } from '@/components/campaigns/field-limits';
 import { useClanAction } from '@/hooks/use-clan-action';
+import { useDialogBusyGuard } from '@/hooks/use-dialog-busy-guard';
 import { transferClanLeadership } from '@/lib/api/clans';
 import { memberDisplayName } from '@/lib/clan-meta';
 import type { ClanMember } from '@/types/clan';
@@ -36,9 +37,13 @@ function TransferForm({
   candidates,
   onTransferred,
   onCancel,
-}: Omit<TransferLeadershipDialogProps, 'open' | 'onOpenChange'> & { onCancel: () => void }) {
+  onBusyChange,
+}: Omit<TransferLeadershipDialogProps, 'open' | 'onOpenChange'> & {
+  onCancel: () => void;
+  onBusyChange: (busy: boolean) => void;
+}) {
   const [successorId, setSuccessorId] = useState('');
-  const { busy, error, run } = useClanAction();
+  const { busy, error, run } = useClanAction(onBusyChange);
   const items = candidates.map(member => ({
     value: member.userId,
     label: memberDisplayName(member.nickname),
@@ -124,8 +129,10 @@ export function TransferLeadershipDialog({
   onOpenChange,
   ...form
 }: TransferLeadershipDialogProps) {
+  const { handleOpenChange, setBusy } = useDialogBusyGuard(onOpenChange);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <ModalContent>
         <DialogHeader>
           <DialogTitle>Transferir liderazgo</DialogTitle>
@@ -134,7 +141,9 @@ export function TransferLeadershipDialog({
             liderar un clan a la vez, así que debe ser alguien que no lidere otro.
           </DialogDescription>
         </DialogHeader>
-        {open ? <TransferForm {...form} onCancel={() => onOpenChange(false)} /> : null}
+        {open ? (
+          <TransferForm {...form} onCancel={() => onOpenChange(false)} onBusyChange={setBusy} />
+        ) : null}
       </ModalContent>
     </Dialog>
   );

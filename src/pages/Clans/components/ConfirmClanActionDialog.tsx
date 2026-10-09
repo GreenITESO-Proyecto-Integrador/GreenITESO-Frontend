@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useClanAction } from '@/hooks/use-clan-action';
+import { useDialogBusyGuard } from '@/hooks/use-dialog-busy-guard';
 
 interface ConfirmClanActionDialogProps {
   open: boolean;
@@ -31,10 +32,12 @@ function ConfirmBody({
   action,
   fallbackError,
   onDone,
+  onBusyChange,
 }: Omit<ConfirmClanActionDialogProps, 'open' | 'onOpenChange' | 'title' | 'description'> & {
   onCancel: () => void;
+  onBusyChange: (busy: boolean) => void;
 }) {
-  const { busy, error, run } = useClanAction();
+  const { busy, error, run } = useClanAction(onBusyChange);
 
   async function handleConfirm() {
     if (await run(action, fallbackError)) onDone();
@@ -88,14 +91,18 @@ export function ConfirmClanActionDialog({
   description,
   ...body
 }: ConfirmClanActionDialogProps) {
+  const { handleOpenChange, setBusy } = useDialogBusyGuard(onOpenChange);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <ModalContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        {open ? <ConfirmBody {...body} onCancel={() => onOpenChange(false)} /> : null}
+        {open ? (
+          <ConfirmBody {...body} onCancel={() => onOpenChange(false)} onBusyChange={setBusy} />
+        ) : null}
       </ModalContent>
     </Dialog>
   );

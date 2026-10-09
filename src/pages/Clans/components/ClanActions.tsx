@@ -15,6 +15,8 @@ interface ClanActionsProps {
   isActiveClan: boolean;
   /** The clan changed and the page should refresh; `notice` is the success message. */
   onChanged: (notice: string) => void;
+  /** Show a message without refreshing anything (a purely local action, like copying the link). */
+  onNotice: (notice: string) => void;
   /** The user left or dissolved the clan, so its page no longer applies. */
   onLeft: (notice: string) => void;
 }
@@ -27,7 +29,14 @@ const SECONDARY_BUTTON = 'min-h-11 cursor-pointer rounded-xl px-5 font-semibold'
  * What the current user can do on a clan page: join, set it as the active clan, share the link,
  * leave, and (leader only) transfer leadership or dissolve.
  */
-export function ClanActions({ clan, viewerId, isActiveClan, onChanged, onLeft }: ClanActionsProps) {
+export function ClanActions({
+  clan,
+  viewerId,
+  isActiveClan,
+  onChanged,
+  onNotice,
+  onLeft,
+}: ClanActionsProps) {
   const { busy, error, run } = useClanAction();
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [dissolveOpen, setDissolveOpen] = useState(false);
@@ -70,7 +79,7 @@ export function ClanActions({ clan, viewerId, isActiveClan, onChanged, onLeft }:
     setCopyFailed(false);
     try {
       await navigator.clipboard.writeText(buildInviteLink(clan.id));
-      onChanged('Enlace copiado. Compártelo con quien quieras invitar.');
+      onNotice('Enlace copiado. Compártelo con quien quieras invitar.');
     } catch {
       setCopyFailed(true);
     }

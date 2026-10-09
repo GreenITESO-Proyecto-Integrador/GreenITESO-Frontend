@@ -97,7 +97,7 @@ export function ClanProfilePage() {
   const { clanId } = useParams<{ clanId: string }>();
   const navigate = useNavigate();
   const { user } = useCurrentUser();
-  const { clan, status, errorMessage, reload } = useClanDetail(clanId);
+  const { clan, status, errorMessage, refreshError, reload } = useClanDetail(clanId);
   const profileData = useEcologicalProfile();
   const { notice, setNotice, dismiss: dismissNotice } = useRouteNotice();
 
@@ -150,6 +150,22 @@ export function ClanProfilePage() {
 
       {status === 'success' && clan ? (
         <>
+          {refreshError ? (
+            <div
+              role="alert"
+              className="flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <p>No se pudo actualizar el clan. {refreshError}</p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void reload({ silent: true })}
+                className="min-h-11 cursor-pointer rounded-xl px-5 font-semibold"
+              >
+                Reintentar
+              </Button>
+            </div>
+          ) : null}
           <ClanHeader clan={clan} />
           <ClanActions
             clan={clan}
@@ -160,6 +176,7 @@ export function ClanProfilePage() {
               void reload({ silent: true });
               void profileData.reload();
             }}
+            onNotice={setNotice}
             onLeft={goToClans}
           />
           <ClanMembersList members={clan.members} viewerId={viewerId} />
