@@ -45,6 +45,8 @@ interface MockProfileOptions {
   profile?: Partial<ProfilePayload>;
   /** Respond to PATCH with this status and body instead of applying the change. */
   patchError?: { status: number; body: unknown };
+  /** Hold every PATCH until this settles, to test saves that land late. */
+  patchGate?: Promise<void>;
 }
 
 /**
@@ -75,6 +77,7 @@ async function setupProfile(page: Page, options: MockProfileOptions = {}) {
     if (method === 'PATCH') {
       const body = JSON.parse(route.request().postData() || '{}') as Record<string, unknown>;
       patches.push(body);
+      await options.patchGate;
       if (options.patchError) {
         await route.fulfill({
           status: options.patchError.status,
@@ -299,5 +302,77 @@ test.describe('Profile Editing (T2-23)', () => {
       'Comprometida con el reciclaje y la movilidad activa',
     );
     await expect(page.getByLabel('Foto de perfil')).toHaveValue(`${imageHost}/current.jpg`);
+  });
+
+  test('should not let an earlier save close a reopened modal', async ({ page }) => {
+    await setupProfile(page);
+    await openEditor(page);
+
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(page.getByText('¡Perfil actualizado correctamente!')).toBeVisible();
+    // Close and reopen before the 700ms auto-close fires.
+    await page.getByRole('button', { name: 'Cancelar' }).click();
+    await openEditor(page);
+    await page.getByLabel('Biografía').fill('Sigo escribiendo');
+
+    await page.waitForTimeout(1000);
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).toBeVisible();
+    await expect(page.getByLabel('Biografía')).toHaveValue('Sigo escribiendo');
+  });
+
+  test('should keep a save that lands after reopening out of the new session', async ({ page }) => {
+    let releasePatch!: () => void;
+    const patchGate = new Promise<void>(resolve => {
+      releasePatch = resolve;
+    });
+    const { patches } = await setupProfile(page, { patchGate });
+    await openEditor(page);
+
+    await page.getByLabel('Biografía').fill('Bio guardada tarde');
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect.poll(() => patches.length).toBe(1);
+
+    // Close while the PATCH is in flight, reopen, and start a new edit.
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
+    await openEditor(page);
+    await page.getByLabel('Biografía').fill('Nuevo borrador');
+
+    releasePatch();
+    // The page still reflects what the server saved (behind the modal, which hides
+    // the rest of the page from the accessibility tree, hence the CSS locator)...
+    await expect(page.locator('main').getByText('Bio guardada tarde')).toBeVisible();
+    // ...but the old save neither announces itself nor closes the new session.
+    await page.waitForTimeout(1000);
+    await expect(page.getByText('¡Perfil actualizado correctamente!')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).toBeVisible();
+    await expect(page.getByLabel('Biografía')).toHaveValue('Nuevo borrador');
+  });
+
+  test('should count bio length the way the backend does', async ({ page }) => {
+    const { patches } = await setupProfile(page);
+    await openEditor(page);
+
+    const bio = page.getByLabel('Biografía');
+    const saveButton = page.getByRole('button', { name: 'Guardar cambios' });
+
+    // 260 emoji are 260 characters for the backend (520 UTF-16 units in JS).
+    await bio.fill('🌱'.repeat(260));
+    await expect(page.getByText('260 / 500')).toBeVisible();
+    await expect(saveButton).toBeEnabled();
+
+    // Surrounding whitespace is trimmed before both the check and the save.
+    await bio.fill(`  ${'a'.repeat(500)}  `);
+    await expect(page.getByText('500 / 500')).toBeVisible();
+    await expect(saveButton).toBeEnabled();
+
+    await bio.fill('🌱'.repeat(501));
+    await expect(page.getByText('501 / 500')).toBeVisible();
+    await expect(saveButton).toBeDisabled();
+
+    await bio.fill('🌱'.repeat(260));
+    await saveButton.click();
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
+    expect(patches[0]).toMatchObject({ bio: '🌱'.repeat(260) });
   });
 });

@@ -51,6 +51,14 @@ function validateAvatarUrl(value: string): string | null {
   return null;
 }
 
+/**
+ * Bio length as the backend measures it: DRF trims whitespace, then Python's len()
+ * counts code points, so an emoji is one character rather than two UTF-16 units.
+ */
+function getBioLength(value: string): number {
+  return [...value.trim()].length;
+}
+
 interface EditProfileDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -65,6 +73,9 @@ export function EditProfileDialog({
   onProfileUpdated,
 }: EditProfileDialogProps) {
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Bumped each time the modal opens or closes, so a save that settles after the
+  // user closed (and maybe reopened) the modal can't touch the new session.
+  const sessionRef = useRef(0);
 
   // Form states
   const [bio, setBio] = useState(profile.bio ?? '');
@@ -95,6 +106,9 @@ export function EditProfileDialog({
   const profileRef = useRef(profile);
   profileRef.current = profile;
   useEffect(() => {
+    sessionRef.current += 1;
+    // A close scheduled by an earlier save must not close a reopened modal.
+    clearTimeout(closeTimerRef.current);
     if (!open) return;
     const current = profileRef.current;
     setBio(current.bio ?? '');
@@ -128,11 +142,12 @@ export function EditProfileDialog({
     trimmedAvatarUrl !== '' &&
     (avatarFormatError !== null || previewStatus !== 'loaded');
   const showPreviewImage = trimmedAvatarUrl !== '' && avatarFormatError === null;
+  const bioLength = getBioLength(bio);
 
   const handleBioChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setBio(value);
-    if (value.length > MAX_BIO_LENGTH) {
+    if (getBioLength(value) > MAX_BIO_LENGTH) {
       setBioError(`La biografía no puede exceder los ${MAX_BIO_LENGTH} caracteres.`);
     } else {
       setBioError(null);
@@ -143,7 +158,7 @@ export function EditProfileDialog({
     e.preventDefault();
     setStatusMessage(null);
 
-    if (bio.length > MAX_BIO_LENGTH) {
+    if (bioLength > MAX_BIO_LENGTH) {
       setBioError(`La biografía no puede exceder los ${MAX_BIO_LENGTH} caracteres.`);
       return;
     }
@@ -151,6 +166,7 @@ export function EditProfileDialog({
       return;
     }
 
+    const session = sessionRef.current;
     setIsSubmitting(true);
 
     try {
@@ -168,18 +184,21 @@ export function EditProfileDialog({
         avatarUrl: avatarChanged ? trimmedAvatarUrl : undefined,
       });
 
+      // The saved profile is still the latest server state, even if the modal moved on.
+      onProfileUpdated(updated);
+      if (session !== sessionRef.current) return;
+
       setStatusMessage({
         type: 'success',
         text: '¡Perfil actualizado correctamente!',
       });
-
-      onProfileUpdated(updated);
 
       clearTimeout(closeTimerRef.current);
       closeTimerRef.current = setTimeout(() => {
         onOpenChange(false);
       }, CLOSE_AFTER_SAVE_MS);
     } catch (err) {
+      if (session !== sessionRef.current) return;
       setStatusMessage({
         type: 'error',
         text: toFriendlyMessage(err, 'Ocurrió un error al actualizar el perfil.'),
@@ -303,12 +322,12 @@ export function EditProfileDialog({
               </Label>
               <span
                 className={`text-xs font-medium ${
-                  bio.length > MAX_BIO_LENGTH
+                  bioLength > MAX_BIO_LENGTH
                     ? 'text-destructive font-bold'
                     : 'text-muted-foreground'
                 }`}
               >
-                {bio.length} / {MAX_BIO_LENGTH}
+                {bioLength} / {MAX_BIO_LENGTH}
               </span>
             </div>
             <Textarea
