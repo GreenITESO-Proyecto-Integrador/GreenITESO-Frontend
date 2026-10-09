@@ -8,13 +8,21 @@ import {
   YAxis,
 } from 'recharts';
 import { useTheme } from '@/hooks/use-theme';
-import type { ImpactTrendPoint } from '@/types/profile';
+import type { ImpactTrendPoint } from '@/types/impact-trend';
 
 interface ImpactTrendChartProps {
   points: ImpactTrendPoint[];
 }
 
-const dateFormatter = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short' });
+// `week_start` is a bare 'YYYY-MM-DD' (DRF DateField, no time/offset), which
+// `new Date(...)` parses as UTC midnight (ECMA-262). Pin the formatter to
+// UTC too, or the browser's local timezone (e.g. America/Mexico_City,
+// UTC-6) would render the day before for every point, every time.
+const dateFormatter = new Intl.DateTimeFormat('es-MX', {
+  day: '2-digit',
+  month: 'short',
+  timeZone: 'UTC',
+});
 const numberFormatter = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 1 });
 
 interface SeriesConfig {

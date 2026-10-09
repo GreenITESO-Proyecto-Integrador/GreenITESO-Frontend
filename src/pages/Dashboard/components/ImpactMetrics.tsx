@@ -1,6 +1,6 @@
 import { Droplets, Flame, Leaf, Recycle, Trophy } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import type { EcologicalProfile } from '@/types/profile';
+import type { EcologicalProfile } from '@/types/ecological-profile';
 
 interface ImpactMetricsProps {
   profile: EcologicalProfile;

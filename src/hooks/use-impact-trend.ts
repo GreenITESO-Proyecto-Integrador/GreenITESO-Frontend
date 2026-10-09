@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toFriendlyMessage } from '@/lib/api/errors';
-import { fetchImpactTrend } from '@/lib/api/profile';
-import type { ImpactTrendPoint } from '@/types/profile';
+import { fetchImpactTrend } from '@/lib/api/impact-trend';
+import type { ImpactTrendPoint } from '@/types/impact-trend';
 
 export type ImpactTrendStatus = 'loading' | 'success' | 'error';
 
