@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getFeed, deletePost, updatePost } from '@/lib/api/feed';
+import { getStoredUser } from '@/lib/auth/session';
 import { FeedPost } from './components/FeedPost';
 import { CreatePostForm } from './components/CreatePostForm';
 import type { FeedPost as FeedPostType } from '@/types/feed';
@@ -8,6 +9,9 @@ export function FeedPage() {
   const [posts, setPosts] = useState<FeedPostType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const currentUser = getStoredUser();
+  const currentUserId = currentUser?.id;
 
   useEffect(() => {
     async function loadFeed() {
@@ -33,7 +37,6 @@ export function FeedPage() {
 
     try {
       await deletePost(postId);
-      // Removemos el post del estado local para que desaparezca de la pantalla
       setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
     } catch (err) {
       alert('No se pudo eliminar la publicación.');
@@ -44,11 +47,10 @@ export function FeedPage() {
   const handlePostUpdated = async (postId: number, newContent: string) => {
     try {
       const updatedPost = await updatePost(postId, { content: newContent });
-      // Reemplazamos el post antiguo con la versión actualizada que nos devuelve el backend
       setPosts(prevPosts => prevPosts.map(post => (post.id === postId ? updatedPost : post)));
     } catch (err) {
       console.error(err);
-      throw err; // Lanzamos el error para que FeedPost lo atrape y muestre la alerta
+      throw err;
     }
   };
 
@@ -82,7 +84,7 @@ export function FeedPage() {
               <FeedPost
                 key={post.id}
                 post={post}
-                currentUserId="58b92fca-dceb-468a-baa5-ec3eceacedc2" // TODO: Extraer el ID real de la sesión o contexto de autenticación
+                currentUserId={currentUserId}
                 onDelete={handlePostDeleted}
                 onUpdate={handlePostUpdated}
               />

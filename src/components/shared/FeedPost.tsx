@@ -10,7 +10,22 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatRelativeTime } from '@/lib/utils';
-import type { Post, PostType } from '@/types/feed';
+import type { PostType } from '@/types/feed';
+
+export type SharedPostType = PostType;
+
+export interface Post {
+  id: string;
+  author: {
+    id?: string;
+    nickname: string;
+    avatarUrl?: string;
+  };
+  createdAt: string;
+  content: string;
+  type: PostType;
+  imageUrl?: string;
+}
 
 interface FeedPostProps {
   post: Post;

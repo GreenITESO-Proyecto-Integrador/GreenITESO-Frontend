@@ -1,5 +1,20 @@
 import { useState } from 'react';
-import { Megaphone, Trophy, Camera, Clock, Trash2, Edit2, X, Check } from 'lucide-react';
+import {
+  Megaphone,
+  Trophy,
+  Camera,
+  Clock,
+  Trash2,
+  Edit2,
+  X,
+  Check,
+  Award,
+  Leaf,
+  Recycle,
+  TreePine,
+  ShieldCheck,
+  type LucideIcon,
+} from 'lucide-react';
 import type { FeedPost as FeedPostType } from '@/types/feed';
 
 interface FeedPostProps {
@@ -27,6 +42,20 @@ const typeConfig = {
   },
 };
 
+const BADGE_ICONS = new Map<string, LucideIcon>([
+  ['leaf', Leaf],
+  ['recycle', Recycle],
+  ['tree', TreePine],
+  ['tree-pine', TreePine],
+  ['trophy', Trophy],
+  ['shield', ShieldCheck],
+]);
+
+function getBadgeIcon(iconName?: string): LucideIcon {
+  if (!iconName) return Award;
+  return BADGE_ICONS.get(iconName.toLowerCase()) ?? Award;
+}
+
 export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
@@ -35,7 +64,13 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
   const config =
     (typeConfig as Record<string, (typeof typeConfig)[keyof typeof typeConfig]>)[post.post_type] ||
     typeConfig.SHARED_EVIDENCE;
-  const Icon = config.icon;
+  const TypeIcon = config.icon;
+  const BadgeIcon = getBadgeIcon(post.badge_info?.icon_name);
+
+  const authorName =
+    [post.author?.first_name, post.author?.last_name].filter(Boolean).join(' ') ||
+    post.author?.nickname ||
+    'Usuario Ecológico';
 
   const dateObj = new Date(post.created_at);
   const formattedDate = dateObj.toLocaleDateString('es-MX', {
@@ -45,8 +80,11 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
     hour: '2-digit',
     minute: '2-digit',
   });
+  const timeLabel = post.relative_time || formattedDate;
 
-  const isAuthor = currentUserId === post.author_id;
+  const isAuthor = Boolean(
+    currentUserId && post.author_id && String(currentUserId) === String(post.author_id),
+  );
 
   const handleSave = async () => {
     if (!onUpdate || !editContent.trim() || editContent === post.content) {
@@ -58,7 +96,7 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
     try {
       await onUpdate(post.id, editContent);
       setIsEditing(false);
-    } catch (error) {
+    } catch {
       alert('Error al guardar los cambios.');
     } finally {
       setIsSaving(false);
@@ -77,22 +115,32 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
           {post.author?.avatar_url ? (
             <img
               src={post.author.avatar_url}
-              alt={post.author.nickname}
+              alt={authorName}
               className="w-full h-full object-cover"
             />
           ) : (
             <span className="text-green-700 font-bold text-lg">
-              {post.author?.nickname?.charAt(0).toUpperCase() || 'U'}
+              {authorName.charAt(0).toUpperCase()}
             </span>
           )}
         </div>
-        <div className="flex-1">
-          <h3 className="font-semibold text-gray-900">
-            {post.author?.nickname || 'Usuario Ecológico'}
-          </h3>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="font-semibold text-gray-900 truncate">{authorName}</h3>
+            {post.badge_info && (
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200"
+                title={post.badge_info.description}
+              >
+                <BadgeIcon className="w-3 h-3 text-emerald-600" />
+                {post.badge_info.name}
+              </span>
+            )}
+          </div>
           <div className="flex items-center text-xs text-gray-500 mt-1">
-            <Clock className="w-3 h-3 mr-1" />
-            {formattedDate}
+            <Clock className="w-3 h-3 mr-1 shrink-0" />
+            {timeLabel}
             {post.updated_at !== post.created_at && <span className="ml-1 italic">(Editado)</span>}
           </div>
         </div>
@@ -101,7 +149,7 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
           <div
             className={`px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 ${config.color}`}
           >
-            <Icon className="w-3.5 h-3.5" />
+            <TypeIcon className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{config.label}</span>
           </div>
 
