@@ -161,6 +161,9 @@ export function EditProfileDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // A click that lands while the modal is already closing must not start a save
+    // the user can no longer see (and could reopen over with stale values).
+    if (!open) return;
     setStatusMessage(null);
 
     if (bioLength > MAX_BIO_LENGTH) {
@@ -172,6 +175,9 @@ export function EditProfileDialog({
     }
 
     const session = sessionRef.current;
+    // A new save cancels the auto-close scheduled by a previous one, which would
+    // otherwise close the modal while this save is still in flight.
+    clearTimeout(closeTimerRef.current);
     setBusy(true);
     setIsSubmitting(true);
 
@@ -201,7 +207,7 @@ export function EditProfileDialog({
 
       clearTimeout(closeTimerRef.current);
       closeTimerRef.current = setTimeout(() => {
-        onOpenChange(false);
+        handleOpenChange(false);
       }, CLOSE_AFTER_SAVE_MS);
     } catch (err) {
       if (session !== sessionRef.current) return;

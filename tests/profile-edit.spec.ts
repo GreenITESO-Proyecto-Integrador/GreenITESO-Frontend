@@ -345,6 +345,50 @@ test.describe('Profile Editing (T2-23)', () => {
     await expect(page.getByText('Perfil Privado')).toBeVisible();
   });
 
+  test('should not auto-close during a second save started right after the first', async ({
+    page,
+  }) => {
+    let releaseSecondPatch!: () => void;
+    const secondPatchGate = new Promise<void>(resolve => {
+      releaseSecondPatch = resolve;
+    });
+    // Fake timers so the 700ms auto-close only fires when the test advances time,
+    // instead of racing slow clicks under load.
+    await page.clock.install();
+    const { patches } = await setupProfile(page);
+    // Hold only the second PATCH; the first one completes right away.
+    await page.route(profileUrl, async route => {
+      if (route.request().method() === 'PATCH' && patches.length === 1) {
+        await secondPatchGate;
+      }
+      await route.fallback();
+    });
+    await openEditor(page);
+    await page.clock.pauseAt(Date.now() + 1000);
+
+    await page.getByLabel('Biografía').fill('Bio A');
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(page.getByText('¡Perfil actualizado correctamente!')).toBeVisible();
+
+    // Still inside the success window: one more edit and another save.
+    await page.getByText('Privado', { exact: true }).click();
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(page.getByRole('button', { name: 'Guardando…' })).toBeDisabled();
+
+    // Run past the first save's auto-close: it must not close the modal mid-save.
+    await page.clock.runFor(1000);
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).toBeVisible();
+
+    releaseSecondPatch();
+    await expect(page.getByText('¡Perfil actualizado correctamente!')).toBeVisible();
+    // Let time flow again: this save's own auto-close and the exit animation run.
+    await page.clock.resume();
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
+    expect(patches).toHaveLength(2);
+    expect(patches[1]).toMatchObject({ bio: 'Bio A', visibility: 'PRIVATE' });
+    await expect(page.getByText('Perfil Privado')).toBeVisible();
+  });
+
   test('should open with the saved values after a save, so the next save keeps them', async ({
     page,
   }) => {
