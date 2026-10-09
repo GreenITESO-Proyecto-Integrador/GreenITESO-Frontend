@@ -4,9 +4,11 @@ import type {
   EcologicalProfile,
   FinishedCampaign,
   ImpactMetrics,
+  ProfileUpdatePayload,
   ProfileVisibility,
 } from '@/types/ecological-profile';
 import { apiFetch, getApiBaseUrl } from './client';
+import { readError } from './errors';
 
 export const ECOLOGICAL_PROFILE_PATH = '/api/v1/profile/me/';
 
@@ -183,10 +185,11 @@ export async function fetchEcologicalProfile(): Promise<EcologicalProfile> {
 }
 
 /**
- * Update the authenticated user's ecological profile.
+ * Update the authenticated user's ecological profile. Only the fields present in
+ * `payload` are sent, matching the backend's partial update.
  */
 export async function updateEcologicalProfile(
-  payload: import('@/types/ecological-profile').ProfileUpdatePayload,
+  payload: ProfileUpdatePayload,
 ): Promise<EcologicalProfile> {
   const body: Record<string, unknown> = {};
 
@@ -212,27 +215,7 @@ export async function updateEcologicalProfile(
   });
 
   if (!response.ok) {
-    let message = `Error al actualizar perfil (${response.status})`;
-    try {
-      const errorJson = (await response.json()) as Record<string, unknown>;
-      if (isRecord(errorJson)) {
-        if (isRecord(errorJson.error) && typeof errorJson.error.message === 'string') {
-          message = errorJson.error.message;
-        } else if (typeof errorJson.detail === 'string') {
-          message = errorJson.detail;
-        } else if (isRecord(errorJson.field_errors)) {
-          message = Object.entries(errorJson.field_errors)
-            .map(
-              ([field, errs]) =>
-                `${field}: ${Array.isArray(errs) ? errs.join(', ') : String(errs)}`,
-            )
-            .join('; ');
-        }
-      }
-    } catch {
-      // Use fallback error message
-    }
-    throw new Error(message);
+    throw await readError(response, 'No se pudo actualizar el perfil.');
   }
 
   let data: unknown;

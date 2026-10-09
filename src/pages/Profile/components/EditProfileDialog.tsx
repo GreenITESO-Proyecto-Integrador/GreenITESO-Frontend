@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  Camera,
   Trash2,
   Globe,
   Lock,
@@ -13,14 +12,44 @@ import {
 import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ModalContent } from '@/components/custom/ModalContent';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { updateEcologicalProfile } from '@/lib/api/ecological-profile';
+import { toFriendlyMessage } from '@/lib/api/errors';
 import type { EcologicalProfile, ProfileVisibility } from '@/types/ecological-profile';
 
-const MAX_AVATAR_BYTES = 5 * 1024 * 1024; // 5 MB
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+// Mirrors the backend's avatar_url rules (accounts.serializers._validate_avatar_url).
+const ALLOWED_AVATAR_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
+const MAX_AVATAR_URL_LENGTH = 500;
 const MAX_BIO_LENGTH = 500;
+const CLOSE_AFTER_SAVE_MS = 700;
+
+type PreviewStatus = 'loading' | 'loaded' | 'failed';
+
+/**
+ * Validate an avatar URL the same way the backend does. Returns a Spanish error, or null.
+ */
+function validateAvatarUrl(value: string): string | null {
+  if (!value) return null;
+  if (value.length > MAX_AVATAR_URL_LENGTH) {
+    return `La URL no puede exceder los ${MAX_AVATAR_URL_LENGTH} caracteres.`;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return 'Ingresa una URL válida.';
+  }
+  if (parsed.protocol !== 'https:') {
+    return 'La URL de la foto debe usar https://.';
+  }
+  const path = parsed.pathname.toLowerCase();
+  if (!ALLOWED_AVATAR_EXTENSIONS.some(extension => path.endsWith(extension))) {
+    return 'La URL de la foto debe terminar en .jpg, .jpeg, .png o .webp.';
+  }
+  return null;
+}
 
 interface EditProfileDialogProps {
   open: boolean;
@@ -35,27 +64,24 @@ export function EditProfileDialog({
   profile,
   onProfileUpdated,
 }: EditProfileDialogProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Form states
   const [bio, setBio] = useState(profile.bio ?? '');
   const [visibility, setVisibility] = useState<ProfileVisibility>(profile.visibility);
   const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl ?? '');
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(profile.avatarUrl || null);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  // Load result of the preview image, tagged with the URL it belongs to so a stale
+  // result never applies to a newly typed URL.
+  const [preview, setPreview] = useState<{ url: string; status: PreviewStatus } | null>(null);
 
   // Preferences states
-  const initialPrefs = (profile.preferences ?? {}) as Record<string, unknown>;
+  const initialPrefs = profile.preferences ?? {};
   const [notifyImpact, setNotifyImpact] = useState<boolean>(initialPrefs.notify_impact !== false);
   const [notifyCampaigns, setNotifyCampaigns] = useState<boolean>(
     initialPrefs.notify_campaigns !== false,
   );
-  const [preferredTheme, setPreferredTheme] = useState<string>(
-    typeof initialPrefs.theme === 'string' ? initialPrefs.theme : 'system',
-  );
 
   // Validation & status states
-  const [avatarError, setAvatarError] = useState<string | null>(null);
   const [bioError, setBioError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<{
     type: 'success' | 'error';
@@ -63,65 +89,45 @@ export function EditProfileDialog({
   } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Reset form when modal opens or profile changes
+  // Reset the form each time the modal opens. Not on every profile change: saving
+  // updates the profile while the modal is still open, and that must not wipe the
+  // success message.
+  const profileRef = useRef(profile);
+  profileRef.current = profile;
   useEffect(() => {
-    if (open) {
-      setBio(profile.bio ?? '');
-      setVisibility(profile.visibility);
-      setAvatarUrl(profile.avatarUrl ?? '');
-      setAvatarPreview(profile.avatarUrl || null);
-      setAvatarFile(null);
-      setAvatarError(null);
-      setBioError(null);
-      setStatusMessage(null);
+    if (!open) return;
+    const current = profileRef.current;
+    setBio(current.bio ?? '');
+    setVisibility(current.visibility);
+    setAvatarUrl(current.avatarUrl ?? '');
+    setPreview(null);
+    setBioError(null);
+    setStatusMessage(null);
 
-      const prefs = (profile.preferences ?? {}) as Record<string, unknown>;
-      setNotifyImpact(prefs.notify_impact !== false);
-      setNotifyCampaigns(prefs.notify_campaigns !== false);
-      setPreferredTheme(typeof prefs.theme === 'string' ? prefs.theme : 'system');
-    }
-  }, [open, profile]);
+    const prefs = current.preferences ?? {};
+    setNotifyImpact(prefs.notify_impact !== false);
+    setNotifyCampaigns(prefs.notify_campaigns !== false);
+  }, [open]);
+
+  useEffect(() => () => clearTimeout(closeTimerRef.current), []);
 
   const initials =
     (profile.firstName?.[0] ?? '') + (profile.lastName?.[0] ?? '') ||
     profile.email?.[0]?.toUpperCase() ||
     'U';
 
-  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setAvatarError(null);
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-      setAvatarError('Formato no válido. Usa una imagen JPG, PNG o WEBP.');
-      return;
-    }
-
-    if (file.size > MAX_AVATAR_BYTES) {
-      setAvatarError('La imagen no puede exceder los 5 MB.');
-      return;
-    }
-
-    setAvatarFile(file);
-    const previewUrl = URL.createObjectURL(file);
-    setAvatarPreview(previewUrl);
-
-    // Prepare avatar url compliant with backend validation rules
-    const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-    setAvatarUrl(
-      `https://storage.googleapis.com/greeniteso-dev-objects/avatars/${profile.userId}.${extension}`,
-    );
-  };
-
-  const handleRemoveAvatar = () => {
-    setAvatarFile(null);
-    setAvatarPreview(null);
-    setAvatarUrl('');
-    setAvatarError(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
+  const trimmedAvatarUrl = avatarUrl.trim();
+  const avatarFormatError = validateAvatarUrl(trimmedAvatarUrl);
+  const previewStatus: PreviewStatus =
+    preview?.url === trimmedAvatarUrl ? preview.status : 'loading';
+  const avatarChanged = trimmedAvatarUrl !== (profile.avatarUrl ?? '');
+  // A new URL is only saved once the browser could actually load it, so a broken
+  // link never reaches other users. An unchanged URL never blocks other edits.
+  const avatarBlocksSave =
+    avatarChanged &&
+    trimmedAvatarUrl !== '' &&
+    (avatarFormatError !== null || previewStatus !== 'loaded');
+  const showPreviewImage = trimmedAvatarUrl !== '' && avatarFormatError === null;
 
   const handleBioChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -137,33 +143,29 @@ export function EditProfileDialog({
     e.preventDefault();
     setStatusMessage(null);
 
-    // Validate bio
     if (bio.length > MAX_BIO_LENGTH) {
       setBioError(`La biografía no puede exceder los ${MAX_BIO_LENGTH} caracteres.`);
       return;
     }
-
-    // Validate avatar url if manually entered
-    if (avatarUrl && !avatarUrl.startsWith('https://')) {
-      setAvatarError('La URL del avatar debe comenzar con https://');
+    if (avatarBlocksSave) {
       return;
     }
 
     setIsSubmitting(true);
 
     try {
+      // Spread the stored preferences so keys this form doesn't edit (e.g. theme) survive.
       const updatedPreferences: Record<string, unknown> = {
-        ...((profile.preferences ?? {}) as Record<string, unknown>),
+        ...(profile.preferences ?? {}),
         notify_impact: notifyImpact,
         notify_campaigns: notifyCampaigns,
-        theme: preferredTheme,
       };
 
       const updated = await updateEcologicalProfile({
         bio: bio.trim(),
         visibility,
         preferences: updatedPreferences,
-        avatarUrl: avatarUrl.trim(),
+        avatarUrl: avatarChanged ? trimmedAvatarUrl : undefined,
       });
 
       setStatusMessage({
@@ -173,13 +175,14 @@ export function EditProfileDialog({
 
       onProfileUpdated(updated);
 
-      setTimeout(() => {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = setTimeout(() => {
         onOpenChange(false);
-      }, 700);
+      }, CLOSE_AFTER_SAVE_MS);
     } catch (err) {
       setStatusMessage({
         type: 'error',
-        text: err instanceof Error ? err.message : 'Ocurrió un error al actualizar el perfil.',
+        text: toFriendlyMessage(err, 'Ocurrió un error al actualizar el perfil.'),
       });
     } finally {
       setIsSubmitting(false);
@@ -216,74 +219,78 @@ export function EditProfileDialog({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Avatar Upload with Live Preview */}
+          {/* Avatar URL with Live Preview */}
           <div className="space-y-3">
-            <Label className="text-sm font-semibold text-foreground">Foto de perfil</Label>
+            <Label htmlFor="profile-avatar-url" className="text-sm font-semibold text-foreground">
+              Foto de perfil
+            </Label>
             <div className="flex items-center gap-5">
               {/* Preview */}
               <div className="size-20 rounded-2xl bg-linear-to-br from-primary-500 to-primary-700 text-white font-extrabold text-2xl flex items-center justify-center shadow-md shrink-0 overflow-hidden border-2 border-border">
-                {avatarPreview ? (
+                {showPreviewImage ? (
                   <img
-                    src={avatarPreview}
+                    key={trimmedAvatarUrl}
+                    src={trimmedAvatarUrl}
                     alt="Previsualización"
-                    className="size-full object-cover"
+                    className={previewStatus === 'loaded' ? 'size-full object-cover' : 'hidden'}
+                    onLoad={() => setPreview({ url: trimmedAvatarUrl, status: 'loaded' })}
+                    onError={() => setPreview({ url: trimmedAvatarUrl, status: 'failed' })}
                   />
-                ) : (
-                  <span>{initials}</span>
-                )}
+                ) : null}
+                {!showPreviewImage || previewStatus !== 'loaded' ? (
+                  <span aria-hidden="true">{initials}</span>
+                ) : null}
               </div>
 
               {/* Actions */}
-              <div className="flex-1 space-y-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  onChange={handleAvatarFileChange}
-                  id="avatar-file-input"
-                />
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1.5 cursor-pointer rounded-xl font-medium"
-                  >
-                    <Camera className="size-4 text-primary-600" />
-                    <span>{avatarPreview ? 'Cambiar foto' : 'Subir foto'}</span>
-                  </Button>
-
-                  {avatarPreview && (
+              <div className="flex-1 min-w-0 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="profile-avatar-url"
+                    type="url"
+                    inputMode="url"
+                    value={avatarUrl}
+                    onChange={e => setAvatarUrl(e.target.value)}
+                    placeholder="https://…/mi-foto.jpg"
+                    aria-invalid={avatarChanged && avatarBlocksSave && previewStatus !== 'loading'}
+                    className="h-11 rounded-xl"
+                  />
+                  {avatarUrl ? (
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={handleRemoveAvatar}
-                      className="flex items-center gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer rounded-xl font-medium"
+                      onClick={() => setAvatarUrl('')}
+                      className="flex h-11 items-center gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer rounded-xl font-medium"
                     >
                       <Trash2 className="size-4" />
                       <span>Quitar</span>
                     </Button>
-                  )}
+                  ) : null}
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                  JPG, PNG o WEBP. Tamaño máximo 5 MB.
+                  Pega el enlace https de una imagen JPG, PNG o WEBP. La subida de archivos llegará
+                  cuando se habilite el almacenamiento en la nube.
                 </p>
-                {avatarFile && (
-                  <p className="text-xs text-primary-600 dark:text-primary-400 font-medium">
-                    {avatarFile.name} ({(avatarFile.size / 1024).toFixed(1)} KB)
-                  </p>
-                )}
-                {avatarError && (
+                {avatarChanged && avatarFormatError ? (
                   <p className="text-xs text-destructive font-medium flex items-center gap-1">
                     <AlertCircle className="size-3.5" />
-                    <span>{avatarError}</span>
+                    <span>{avatarFormatError}</span>
                   </p>
-                )}
+                ) : null}
+                {avatarChanged && showPreviewImage && previewStatus === 'loading' ? (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <LoaderCircle className="size-3.5 animate-spin" />
+                    <span>Cargando vista previa…</span>
+                  </p>
+                ) : null}
+                {avatarChanged && showPreviewImage && previewStatus === 'failed' ? (
+                  <p className="text-xs text-destructive font-medium flex items-center gap-1">
+                    <AlertCircle className="size-3.5" />
+                    <span>No se pudo cargar la imagen. Verifica que el enlace sea público.</span>
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>
@@ -445,7 +452,7 @@ export function EditProfileDialog({
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting || Boolean(bioError) || Boolean(avatarError)}
+              disabled={isSubmitting || Boolean(bioError) || avatarBlocksSave}
               className="rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-semibold cursor-pointer min-w-32"
             >
               {isSubmitting ? (

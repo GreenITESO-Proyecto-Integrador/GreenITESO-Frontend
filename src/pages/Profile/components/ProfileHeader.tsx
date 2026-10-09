@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Globe, Lock, Pencil } from 'lucide-react';
 import type { EcologicalProfile } from '@/types/ecological-profile';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,9 @@ interface ProfileHeaderProps {
 }
 
 export function ProfileHeader({ profile, onEditProfile }: ProfileHeaderProps) {
+  // URL whose image failed to load; falls back to initials until the URL changes.
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
+  const showAvatar = Boolean(profile.avatarUrl) && failedAvatarUrl !== profile.avatarUrl;
   const isPublic = profile.visibility === 'PUBLIC';
   const fullName = `${profile.firstName} ${profile.lastName}`.trim() || profile.email;
   const initials =
@@ -27,14 +31,12 @@ export function ProfileHeader({ profile, onEditProfile }: ProfileHeaderProps) {
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
         {/* Avatar / Initials */}
         <div className="size-20 sm:size-24 rounded-2xl bg-linear-to-br from-primary-500 to-primary-700 text-white font-extrabold text-2xl sm:text-3xl flex items-center justify-center shadow-md shrink-0 overflow-hidden">
-          {profile.avatarUrl ? (
+          {showAvatar ? (
             <img
               src={profile.avatarUrl}
               alt={fullName}
               className="size-full object-cover"
-              onError={e => {
-                e.currentTarget.style.display = 'none';
-              }}
+              onError={() => setFailedAvatarUrl(profile.avatarUrl ?? null)}
             />
           ) : (
             <span aria-hidden="true">{initials}</span>
