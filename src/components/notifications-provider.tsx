@@ -37,6 +37,10 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   // delete) append to every open log so that log can be replayed on top of that
   // request's response instead of diffing stale snapshots.
   const activeLoadLogsRef = useRef(new Set<NotificationEvent[]>());
+  // Optimistic read/delete events whose PATCH/DELETE hasn't settled yet. A load()
+  // that starts while one is pending may get a response that predates the write,
+  // so every load() log is seeded with these and replays them over its response.
+  const pendingWritesRef = useRef(new Set<NotificationEvent>());
 
   const setNotificationsState = useCallback((next: Notification[]) => {
     notificationsRef.current = next;
@@ -58,7 +62,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
 
   const load = useCallback(async () => {
     const requestId = ++requestSeqRef.current;
-    const log: NotificationEvent[] = [];
+    const log: NotificationEvent[] = [...pendingWritesRef.current];
     activeLoadLogsRef.current.add(log);
     try {
       const result = await getNotifications();
@@ -103,6 +107,22 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     }
   }, [setNotificationsState]);
 
+  const trackWrite = useCallback(
+    (events: NotificationEvent[], write: Promise<void>) => {
+      events.forEach(event => {
+        pendingWritesRef.current.add(event);
+        recordEvent(event);
+      });
+      const settle = () => events.forEach(event => pendingWritesRef.current.delete(event));
+      // On failure the server state wins: drop the pending events, then reload.
+      void write.then(settle, () => {
+        settle();
+        void load();
+      });
+    },
+    [load, recordEvent],
+  );
+
   useEffect(() => {
     if (!hasStoredSession) {
       replaceAll([], 0);
@@ -145,20 +165,19 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         ),
       );
       setUnreadCount(count => Math.max(count - 1, 0));
-      recordEvent({ type: 'read', id: notification.id });
-      void markNotificationRead(notification.id).catch(() => load());
+      trackWrite([{ type: 'read', id: notification.id }], markNotificationRead(notification.id));
     },
-    [load, recordEvent, setNotificationsState],
+    [setNotificationsState, trackWrite],
   );
 
   const markAllRead = useCallback(() => {
-    notificationsRef.current.forEach(item => {
-      if (!item.read) recordEvent({ type: 'read', id: item.id });
-    });
+    const events = notificationsRef.current
+      .filter(item => !item.read)
+      .map((item): NotificationEvent => ({ type: 'read', id: item.id }));
     setNotificationsState(notificationsRef.current.map(item => ({ ...item, read: true })));
     setUnreadCount(0);
-    void markAllNotificationsRead().catch(() => load());
-  }, [load, recordEvent, setNotificationsState]);
+    trackWrite(events, markAllNotificationsRead());
+  }, [setNotificationsState, trackWrite]);
 
   const remove = useCallback(
     (notification: Notification) => {
@@ -166,10 +185,9 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       // The id stays in knownIds so a late push of the same notification is not re-added.
       setNotificationsState(notificationsRef.current.filter(item => item.id !== notification.id));
       if (existing && !existing.read) setUnreadCount(count => Math.max(count - 1, 0));
-      recordEvent({ type: 'remove', id: notification.id });
-      void deleteNotification(notification.id).catch(() => load());
+      trackWrite([{ type: 'remove', id: notification.id }], deleteNotification(notification.id));
     },
-    [load, recordEvent, setNotificationsState],
+    [setNotificationsState, trackWrite],
   );
 
   const dismissIncoming = useCallback(() => setIncoming(null), []);

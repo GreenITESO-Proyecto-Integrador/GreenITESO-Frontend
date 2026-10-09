@@ -79,6 +79,7 @@ async function mockSocket(page: Page) {
 
   return {
     frames,
+    close: () => connection.route?.close(),
     push: (notification: unknown) =>
       connection.route?.send(JSON.stringify({ type: 'notification.created', notification })),
   };
@@ -279,6 +280,91 @@ test('should not double-count or duplicate a notification pushed mid-pagination'
   await expect(page.getByText('Reto completado')).toBeVisible();
   await expect(page.getByText('Nuevo seguidor')).toHaveCount(1);
   await expect(page.getByText('Tienes 1 notificaciones sin leer.')).toBeVisible();
+});
+
+/**
+ * Holds a write (PATCH/DELETE) open, forces the socket to reconnect so a fresh
+ * GET returns the pre-write state, then lets the write succeed. The optimistic
+ * UI must survive both the stale GET and the late write.
+ */
+async function expectOptimisticStateSurvivesReconnect(
+  page: Page,
+  writePattern: string,
+  act: () => Promise<void>,
+  assertState: () => Promise<void>,
+) {
+  let listResponses = 0;
+  page.on('response', response => {
+    if (
+      response.request().method() === 'GET' &&
+      /\/api\/v1\/notifications\/$/.test(response.url())
+    ) {
+      listResponses += 1;
+    }
+  });
+
+  let releaseWrite!: () => void;
+  const writeGate = new Promise<void>(resolve => {
+    releaseWrite = resolve;
+  });
+  await page.route(writePattern, async route => {
+    await writeGate;
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+  });
+
+  const socket = await mockSocket(page);
+  await page.goto('/notifications');
+  await expect.poll(() => listResponses).toBeGreaterThanOrEqual(2);
+
+  await act();
+  await assertState();
+
+  const responsesBeforeReconnect = listResponses;
+  socket.close();
+  await expect.poll(() => listResponses).toBeGreaterThan(responsesBeforeReconnect);
+  // Give the stale GET response time to be applied before asserting.
+  await page.waitForTimeout(250);
+  await assertState();
+
+  releaseWrite();
+  await page.waitForTimeout(250);
+  await assertState();
+}
+
+test('should keep a read notification read when a reconnect GET lands before the PATCH', async ({
+  page,
+}) => {
+  await mockNotificationApi(page);
+  await expectOptimisticStateSurvivesReconnect(
+    page,
+    '**/api/v1/notifications/*/',
+    () => page.getByRole('button', { name: 'Marcar como leída' }).click(),
+    () => expect(page.getByText('Estás al día.')).toBeVisible(),
+  );
+});
+
+test('should keep every notification read when a reconnect GET lands before mark-all-read', async ({
+  page,
+}) => {
+  await mockNotificationApi(page);
+  await expectOptimisticStateSurvivesReconnect(
+    page,
+    '**/api/v1/notifications/mark-all-read/',
+    () => page.getByRole('button', { name: 'Marcar todo' }).click(),
+    () => expect(page.getByText('Estás al día.')).toBeVisible(),
+  );
+});
+
+test('should keep a deleted notification gone when a reconnect GET lands before the DELETE', async ({
+  page,
+}) => {
+  await mockNotificationApi(page);
+  await expectOptimisticStateSurvivesReconnect(
+    page,
+    '**/api/v1/notifications/*/',
+    () => page.getByRole('button', { name: 'Eliminar notificación' }).first().click(),
+    () => expect(page.getByText('Evidencia aprobada')).toHaveCount(0),
+  );
 });
 
 test('should show an error when the notification list fails to load', async ({ page }) => {
