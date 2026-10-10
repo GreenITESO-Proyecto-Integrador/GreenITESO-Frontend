@@ -1,8 +1,14 @@
 import { useState } from 'react';
+import { BarChart3 } from 'lucide-react';
 import { CampaignDetailDialog } from '@/components/campaigns/CampaignDetailDialog';
+import { SectionState } from '@/components/shared/SectionState';
 import { useCampaigns } from '@/hooks/use-campaigns';
+import { useEcologicalProfile } from '@/hooks/use-ecological-profile';
+import { useImpactTrend } from '@/hooks/use-impact-trend';
 import type { Mission } from '@/types/mission';
 import { ActiveMissionsSection } from './ActiveMissionsSection';
+import { ImpactMetrics } from './ImpactMetrics';
+import { ImpactTrendChart } from './ImpactTrendChart';
 import { MyCampaignsSection } from './MyCampaignsSection';
 
 // Stable reference: the hook only reads primitives, but a constant avoids re-creating it.
@@ -14,6 +20,18 @@ const PARTICIPATING = { participating: true } as const;
 export function UserDashboard() {
   const { campaigns, missions, progress, status, errorMessage, reload } =
     useCampaigns(PARTICIPATING);
+  const {
+    profile,
+    status: profileStatus,
+    errorMessage: profileErrorMessage,
+    reload: reloadProfile,
+  } = useEcologicalProfile();
+  const {
+    points: trendPoints,
+    status: trendStatus,
+    errorMessage: trendErrorMessage,
+    reload: reloadTrend,
+  } = useImpactTrend();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   function handleLogAction(mission: Mission) {
@@ -23,15 +41,33 @@ export function UserDashboard() {
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 pt-8 pb-24">
-      {/* TASK: reemplazar este placeholder por el componente de impacto del dashboard. */}
-      <section
-        aria-label="Dashboard Impact"
-        className="flex min-h-48 items-center justify-center rounded-2xl border-2 border-dashed border-primary-300 bg-primary-50 p-8 text-center dark:border-primary-700 dark:bg-primary-900/20"
+      <SectionState
+        status={profileStatus}
+        errorMessage={profileErrorMessage}
+        onRetry={() => void reloadProfile()}
+        isEmpty={false}
+        loadingText="Cargando tu impacto…"
+        errorTitle="No se pudo cargar tu impacto"
+        emptyIcon={BarChart3}
+        emptyTitle=""
+        emptyText=""
       >
-        <p className="text-2xl font-bold text-primary-700 dark:text-primary-300">
-          Dashboard Impact
-        </p>
-      </section>
+        {profile ? <ImpactMetrics profile={profile} /> : null}
+      </SectionState>
+
+      <SectionState
+        status={trendStatus}
+        errorMessage={trendErrorMessage}
+        onRetry={() => void reloadTrend()}
+        isEmpty={false}
+        loadingText="Cargando tu tendencia…"
+        errorTitle="No se pudo cargar tu tendencia"
+        emptyIcon={BarChart3}
+        emptyTitle=""
+        emptyText=""
+      >
+        <ImpactTrendChart points={trendPoints} />
+      </SectionState>
 
       <MyCampaignsSection
         campaigns={campaigns}
