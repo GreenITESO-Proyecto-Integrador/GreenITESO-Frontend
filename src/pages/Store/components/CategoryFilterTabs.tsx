@@ -1,7 +1,7 @@
 import type React from 'react';
 import type { ExchangeableCategory } from '@/types/store';
 import { cn } from '@/lib/utils';
-import { Award, Frame, Grid, Palette, Sparkles, Type } from 'lucide-react';
+import { Frame, Grid, Palette, Sparkles } from 'lucide-react';
 
 interface CategoryFilterTabsProps {
   selectedCategory: ExchangeableCategory | 'ALL';

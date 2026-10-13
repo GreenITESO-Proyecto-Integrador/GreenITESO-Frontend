@@ -17,14 +17,14 @@ export function AuditReviewPage() {
   const showEvidence = tab === 'evidencias';
 
   return (
-    <main className="min-h-screen bg-secondary-50 px-4 pt-8 pb-24">
+    <main className="min-h-screen bg-background px-4 pt-8 pb-24">
       <div className="mx-auto max-w-5xl">
         <header className="mb-8">
-          <p className="text-xs font-semibold tracking-wider text-primary-600 uppercase">
+          <p className="text-xs font-semibold tracking-wider text-primary-600 uppercase dark:text-primary-400">
             Auditoría
           </p>
-          <h1 className="text-2xl font-bold text-secondary-500">Panel de revisión</h1>
-          <p className="mt-2 text-sm text-secondary-300 sm:text-base">
+          <h1 className="text-2xl font-bold text-foreground">Panel de revisión</h1>
+          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
             Evidencias fotográficas en PENDING_AUDIT. Aprobar o rechazar no calcula puntos en el
             cliente.
           </p>
@@ -38,19 +38,21 @@ export function AuditReviewPage() {
         {tab === 'propuestas' ? <ProposalsTab /> : null}
 
         {showEvidence && status === 'loading' ? (
-          <p className="text-sm text-secondary-300" role="status">
+          <p className="text-sm text-muted-foreground" role="status">
             Cargando cola de auditoría…
           </p>
         ) : null}
 
         {showEvidence && status === 'error' ? (
-          <section className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+          <section className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
             <h2 className="text-lg font-semibold">No se pudo cargar la cola de auditoría</h2>
             <p className="mt-2 text-sm">
               No fue posible obtener las evidencias pendientes. Intenta de nuevo cuando el servicio
               esté disponible.
             </p>
-            {errorMessage ? <p className="mt-2 text-xs text-red-600">{errorMessage}</p> : null}
+            {errorMessage ? (
+              <p className="mt-2 text-xs text-red-600 dark:text-red-400">{errorMessage}</p>
+            ) : null}
             <Button
               type="button"
               onClick={() => {
@@ -64,7 +66,7 @@ export function AuditReviewPage() {
         ) : null}
 
         {showEvidence && decisionError ? (
-          <p className="mb-4 text-sm text-red-700" role="alert">
+          <p className="mb-4 text-sm text-red-700 dark:text-red-300" role="alert">
             {decisionError}
           </p>
         ) : null}

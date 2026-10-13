@@ -147,7 +147,7 @@ function ProposalCard({
                   variant="outline"
                   disabled={controlsDisabled || !reason.trim()}
                   onClick={() => onReject(proposal.id, reason)}
-                  className="min-h-11 cursor-pointer rounded-xl border-red-200 bg-red-50 px-5 font-semibold text-red-700 hover:bg-red-50"
+                  className="min-h-11 cursor-pointer rounded-xl border-red-200 bg-red-50 px-5 font-semibold text-red-700 hover:bg-red-50 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/40"
                 >
                   Confirmar rechazo
                 </Button>
@@ -180,7 +180,7 @@ function ProposalCard({
                 variant="outline"
                 disabled={controlsDisabled}
                 onClick={() => setRejecting(true)}
-                className="min-h-11 cursor-pointer rounded-xl border-red-200 bg-red-50 px-5 font-semibold text-red-700 hover:bg-red-50"
+                className="min-h-11 cursor-pointer rounded-xl border-red-200 bg-red-50 px-5 font-semibold text-red-700 hover:bg-red-50 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/40"
               >
                 Rechazar
               </Button>
@@ -224,7 +224,7 @@ export function ProposalList({
       />
 
       {decisionError ? (
-        <p className="text-sm text-red-700" role="alert">
+        <p className="text-sm text-red-700 dark:text-red-300" role="alert">
           {decisionError}
         </p>
       ) : null}
