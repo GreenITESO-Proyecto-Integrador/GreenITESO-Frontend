@@ -1,5 +1,11 @@
 import { apiFetch } from '@/lib/api/client';
 
+declare global {
+  interface ErrorConstructor {
+    new (message?: string, options?: { cause?: unknown }): Error;
+  }
+}
+
 const UPLOAD_ENDPOINT = '/api/uploads/';
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -71,6 +77,7 @@ export async function uploadImage(file: File): Promise<string> {
     // En producción se propaga el error real para no falsificar la evidencia
     throw new Error(
       error instanceof Error ? error.message : 'Error al subir la imagen. Inténtalo de nuevo.',
+      { cause: error },
     );
   }
 }
