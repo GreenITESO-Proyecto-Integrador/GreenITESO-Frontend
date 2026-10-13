@@ -36,7 +36,7 @@ export function LeaderboardTabs({ activeTab, onChange }: LeaderboardTabsProps) {
             'focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:outline-none',
             activeTab === tab.id
               ? 'bg-primary-500 text-white shadow-sm'
-              : 'border border-secondary-100 bg-white text-secondary-500 hover:border-primary-200 hover:bg-primary-50',
+              : 'border border-border bg-card text-foreground hover:border-primary-200 hover:bg-primary-50 dark:hover:border-primary-800 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
           )}
         >
           {tab.label}
