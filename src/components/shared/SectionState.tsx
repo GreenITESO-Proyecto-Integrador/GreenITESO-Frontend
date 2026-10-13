@@ -41,10 +41,12 @@ export function SectionState({
 
   if (status === 'error') {
     return (
-      <section className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+      <section className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
         <h3 className="text-lg font-semibold">{errorTitle}</h3>
         <p className="mt-2 text-sm">Intenta de nuevo cuando el servicio esté disponible.</p>
-        {errorMessage ? <p className="mt-2 text-xs text-red-600">{errorMessage}</p> : null}
+        {errorMessage ? (
+          <p className="mt-2 text-xs text-red-600 dark:text-red-400">{errorMessage}</p>
+        ) : null}
         <Button
           type="button"
           onClick={onRetry}

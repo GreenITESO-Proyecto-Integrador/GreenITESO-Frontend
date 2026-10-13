@@ -14,32 +14,34 @@ export function LeaderboardPage() {
   const tabId = `tab-${tab}`;
 
   return (
-    <main className="min-h-screen bg-secondary-50 px-4 pt-8 pb-24">
+    <main className="min-h-screen bg-background px-4 pt-8 pb-24">
       <div className="mx-auto max-w-5xl">
         <header className="mb-8">
-          <p className="text-xs font-semibold tracking-wider text-primary-600 uppercase">
+          <p className="text-xs font-semibold tracking-wider text-primary-600 uppercase dark:text-primary-400">
             Rankings
           </p>
-          <h1 className="text-2xl font-bold text-secondary-500">Tablas de clasificación</h1>
+          <h1 className="text-2xl font-bold text-foreground">Tablas de clasificación</h1>
         </header>
 
         <LeaderboardTabs activeTab={tab} onChange={setTab} />
 
         <section role="tabpanel" id={panelId} aria-labelledby={tabId} className="rounded-2xl">
           {status === 'loading' ? (
-            <p className="text-sm text-secondary-300" role="status">
+            <p className="text-sm text-muted-foreground" role="status">
               Cargando clasificación…
             </p>
           ) : null}
 
           {status === 'error' ? (
-            <section className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+            <section className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
               <h2 className="text-lg font-semibold">No se pudo cargar la clasificación</h2>
               <p className="mt-2 text-sm">
                 No fue posible obtener el ranking. Intenta de nuevo cuando el servicio esté
                 disponible.
               </p>
-              {errorMessage ? <p className="mt-2 text-xs text-red-600">{errorMessage}</p> : null}
+              {errorMessage ? (
+                <p className="mt-2 text-xs text-red-600 dark:text-red-400">{errorMessage}</p>
+              ) : null}
               <Button
                 type="button"
                 onClick={() => {
