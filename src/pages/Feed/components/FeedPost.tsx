@@ -27,17 +27,19 @@ interface FeedPostProps {
 const typeConfig = {
   OFFICIAL_ANNOUNCEMENT: {
     icon: Megaphone,
-    color: 'bg-blue-100 text-blue-800',
+    color: 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-900',
     label: 'Anuncio Oficial',
   },
   COMMUNITY_MILESTONE: {
     icon: Trophy,
-    color: 'bg-yellow-100 text-yellow-800',
+    color:
+      'bg-yellow-100 text-yellow-800 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-900',
     label: 'Hito Comunitario',
   },
   SHARED_EVIDENCE: {
     icon: Camera,
-    color: 'bg-green-100 text-green-800',
+    color:
+      'bg-green-100 text-green-800 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-900',
     label: 'Evidencia Compartida',
   },
 };
@@ -109,9 +111,9 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
   };
 
   return (
-    <div className="mb-6 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="p-4 flex flex-row items-center gap-4 border-b border-gray-50">
-        <div className="w-12 h-12 rounded-full bg-green-100 overflow-hidden flex items-center justify-center shrink-0">
+    <div className="mb-6 bg-card text-card-foreground rounded-xl border border-border shadow-sm overflow-hidden transition-colors">
+      <div className="p-4 flex flex-row items-center gap-4 border-b border-border/60">
+        <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 overflow-hidden flex items-center justify-center shrink-0">
           {post.author?.avatar_url ? (
             <img
               src={post.author.avatar_url}
@@ -119,7 +121,7 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
               className="w-full h-full object-cover"
             />
           ) : (
-            <span className="text-green-700 font-bold text-lg">
+            <span className="text-emerald-700 dark:text-emerald-400 font-bold text-lg">
               {authorName.charAt(0).toUpperCase()}
             </span>
           )}
@@ -127,18 +129,18 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold text-gray-900 truncate">{authorName}</h3>
+            <h3 className="font-semibold text-foreground truncate">{authorName}</h3>
             {post.badge_info && (
               <span
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/80"
                 title={post.badge_info.description}
               >
-                <BadgeIcon className="w-3 h-3 text-emerald-600" />
+                <BadgeIcon className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                 {post.badge_info.name}
               </span>
             )}
           </div>
-          <div className="flex items-center text-xs text-gray-500 mt-1">
+          <div className="flex items-center text-xs text-muted-foreground mt-1">
             <Clock className="w-3 h-3 mr-1 shrink-0" />
             {timeLabel}
             {post.updated_at !== post.created_at && <span className="ml-1 italic">(Editado)</span>}
@@ -147,18 +149,18 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
 
         <div className="flex items-center gap-2">
           <div
-            className={`px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 ${config.color}`}
+            className={`px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 border ${config.color}`}
           >
             <TypeIcon className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{config.label}</span>
           </div>
 
           {isAuthor && !isEditing && (
-            <div className="flex items-center ml-1 border-l border-gray-200 pl-2 gap-1">
+            <div className="flex items-center ml-1 border-l border-border pl-2 gap-1">
               {onUpdate && (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
                   title="Editar publicación"
                 >
                   <Edit2 className="w-4 h-4" />
@@ -167,7 +169,7 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
               {onDelete && (
                 <button
                   onClick={() => onDelete(post.id)}
-                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                  className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
                   title="Eliminar publicación"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -184,32 +186,32 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
             <textarea
               value={editContent}
               onChange={e => setEditContent(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none min-h-[80px]"
+              className="w-full bg-muted/50 border border-input rounded-lg p-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none min-h-[80px]"
               disabled={isSaving}
             />
             <div className="flex justify-end gap-2">
               <button
                 onClick={handleCancel}
                 disabled={isSaving}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors"
               >
                 <X className="w-4 h-4" /> Cancelar
               </button>
               <button
                 onClick={handleSave}
                 disabled={isSaving || !editContent.trim()}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 rounded-md transition-colors"
+                className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 disabled:opacity-50 rounded-md transition-colors"
               >
                 <Check className="w-4 h-4" /> {isSaving ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
           </div>
         ) : (
-          <p className="text-gray-800 whitespace-pre-wrap">{post.content}</p>
+          <p className="text-foreground whitespace-pre-wrap">{post.content}</p>
         )}
 
         {post.image_url && !isEditing && (
-          <div className="mt-4 rounded-lg overflow-hidden border border-gray-100 bg-gray-50">
+          <div className="mt-4 rounded-lg overflow-hidden border border-border bg-muted/40">
             <img
               src={post.image_url}
               alt="Evidencia"
