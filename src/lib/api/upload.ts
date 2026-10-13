@@ -1,17 +1,16 @@
-import { apiFetch } from './client';
+import { apiFetch } from '@/lib/api/client';
 
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB (regla acordada del equipo)
+const UPLOAD_ENDPOINT = '/api/uploads/';
+
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
-export interface UploadValidationResult {
+export interface ImageValidationResult {
   valid: boolean;
   error?: string;
 }
 
-/**
- * Valida formato y tamaño del archivo en el cliente antes de transmitir.
- */
-export function validateImageFile(file: File): UploadValidationResult {
+export function validateImageFile(file: File): ImageValidationResult {
   if (!ALLOWED_MIME_TYPES.includes(file.type)) {
     return {
       valid: false,
@@ -29,43 +28,49 @@ export function validateImageFile(file: File): UploadValidationResult {
   return { valid: true };
 }
 
-/**
- * Sube una imagen utilizando la configuración de variables de entorno.
- * Si no hay endpoint configurado, genera una URL segura para modo demo/desarrollo.
- */
+interface UploadResponse {
+  url: string;
+}
+
 export async function uploadImage(file: File): Promise<string> {
   const validation = validateImageFile(file);
   if (!validation.valid) {
-    throw new Error(validation.error);
+    throw new Error(validation.error || 'Archivo no válido.');
   }
 
-  const uploadEndpoint = import.meta.env.VITE_STORAGE_UPLOAD_URL;
-
-  // Si existe endpoint configurado en las variables de entorno, enviamos el archivo
-  if (uploadEndpoint) {
+  try {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('image', file);
 
-    const response = await apiFetch(uploadEndpoint, {
+    const response = await apiFetch(UPLOAD_ENDPOINT, {
       method: 'POST',
       body: formData,
     });
 
     if (!response.ok) {
-      throw new Error('Error al subir la imagen al servidor de almacenamiento');
+      throw new Error('Error al subir la imagen al servidor.');
     }
 
-    const data = await response.json();
-    return data.url || data.image_url;
+    const data = (await response.json()) as UploadResponse;
+
+    if (!data?.url) {
+      throw new Error('Respuesta inválida del servidor de subida.');
+    }
+
+    return data.url;
+  } catch (error) {
+    // El fallback de prueba únicamente se permite en entorno de desarrollo local
+    if (import.meta.env.DEV) {
+      console.warn(
+        '[DEV] Endpoint de subida no disponible o falló. Usando imagen mock de desarrollo.',
+        error,
+      );
+      return 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&w=1200&q=80';
+    }
+
+    // En producción se propaga el error real para no falsificar la evidencia
+    throw new Error(
+      error instanceof Error ? error.message : 'Error al subir la imagen. Inténtalo de nuevo.',
+    );
   }
-
-  // Fallback controlado para desarrollo local y demo:
-  // Retorna una URL representativa válida para que el flujo del Feed no se detenga.
-  console.info('[Storage] VITE_STORAGE_UPLOAD_URL no configurado. Usando URL mock de desarrollo.');
-
-  // Simulamos una ligera latencia de red para reflejar la experiencia real
-  await new Promise(resolve => setTimeout(resolve, 600));
-
-  // Generamos una URL pública válida compatible con las restricciones de URLField
-  return `https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&w=800&q=80`;
 }
