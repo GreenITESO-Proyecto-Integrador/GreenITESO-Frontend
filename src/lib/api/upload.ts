@@ -62,9 +62,9 @@ export async function uploadImage(file: File): Promise<string> {
   // Fallback controlado para desarrollo local y demo:
   // Retorna una URL representativa válida para que el flujo del Feed no se detenga.
   console.info('[Storage] VITE_STORAGE_UPLOAD_URL no configurado. Usando URL mock de desarrollo.');
-  
+
   // Simulamos una ligera latencia de red para reflejar la experiencia real
-  await new Promise((resolve) => setTimeout(resolve, 600));
+  await new Promise(resolve => setTimeout(resolve, 600));
 
   // Generamos una URL pública válida compatible con las restricciones de URLField
   return `https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&w=800&q=80`;

@@ -210,11 +210,11 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
                   />
                   <p className="text-sm font-medium text-foreground text-center">
                     Arrastra tu foto de evidencia aquí o{' '}
-                    <span className="text-primary-500 underline font-semibold">explora archivos</span>
+                    <span className="text-primary-500 underline font-semibold">
+                      explora archivos
+                    </span>
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    JPG, PNG o WebP (Máx. 5 MB)
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">JPG, PNG o WebP (Máx. 5 MB)</p>
                 </div>
               )}
             </div>

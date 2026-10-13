@@ -69,12 +69,11 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
   const TypeIcon = config.icon;
   const BadgeIcon = getBadgeIcon(post.badge_info?.icon_name);
 
-  const fullName = [post.author?.first_name, post.author?.last_name].filter(Boolean).join(' ').trim();
-  const authorName =
-    fullName ||
-    post.author?.nickname ||
-    post.author?.email ||
-    'Usuario Ecológico';
+  const fullName = [post.author?.first_name, post.author?.last_name]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  const authorName = fullName || post.author?.nickname || post.author?.email || 'Usuario Ecológico';
 
   const dateObj = new Date(post.created_at);
   const formattedDate = dateObj.toLocaleDateString('es-MX', {
@@ -87,8 +86,8 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
   const timeLabel = post.relative_time || formattedDate;
   const isEdited = Boolean(
     post.updated_at &&
-      post.created_at &&
-      new Date(post.updated_at).getTime() - new Date(post.created_at).getTime() > 3000,
+    post.created_at &&
+    new Date(post.updated_at).getTime() - new Date(post.created_at).getTime() > 3000,
   );
 
   const isAuthor = Boolean(
