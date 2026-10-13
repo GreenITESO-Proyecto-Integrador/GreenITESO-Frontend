@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CampaignDetailDialog } from '@/components/campaigns/CampaignDetailDialog';
 import { useCampaigns } from '@/hooks/use-campaigns';
 import type { Mission } from '@/types/mission';
@@ -12,13 +13,14 @@ const PARTICIPATING = { participating: true } as const;
  * Dashboard body for STUDENT/STAFF: their campaigns and active missions.
  */
 export function UserDashboard() {
+  const navigate = useNavigate();
   const { campaigns, missions, progress, status, errorMessage, reload } =
     useCampaigns(PARTICIPATING);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   function handleLogAction(mission: Mission) {
-    // TASK: conectar con el endpoint de registro de acciones cuando exista.
-    console.info('Registrar acción (pendiente de endpoint):', mission.id, mission.action.name);
+    const params = new URLSearchParams({ action: mission.action.id });
+    navigate(`/actions/register?${params.toString()}`);
   }
 
   return (
