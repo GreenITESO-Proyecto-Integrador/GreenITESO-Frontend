@@ -69,9 +69,11 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
   const TypeIcon = config.icon;
   const BadgeIcon = getBadgeIcon(post.badge_info?.icon_name);
 
+  const fullName = [post.author?.first_name, post.author?.last_name].filter(Boolean).join(' ').trim();
   const authorName =
-    [post.author?.first_name, post.author?.last_name].filter(Boolean).join(' ') ||
+    fullName ||
     post.author?.nickname ||
+    post.author?.email ||
     'Usuario Ecológico';
 
   const dateObj = new Date(post.created_at);
@@ -83,6 +85,11 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
     minute: '2-digit',
   });
   const timeLabel = post.relative_time || formattedDate;
+  const isEdited = Boolean(
+    post.updated_at &&
+      post.created_at &&
+      new Date(post.updated_at).getTime() - new Date(post.created_at).getTime() > 3000,
+  );
 
   const isAuthor = Boolean(
     currentUserId && post.author_id && String(currentUserId) === String(post.author_id),
@@ -143,7 +150,7 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
           <div className="flex items-center text-xs text-muted-foreground mt-1">
             <Clock className="w-3 h-3 mr-1 shrink-0" />
             {timeLabel}
-            {post.updated_at !== post.created_at && <span className="ml-1 italic">(Editado)</span>}
+            {isEdited && <span className="ml-1 italic">(Editado)</span>}
           </div>
         </div>
 
