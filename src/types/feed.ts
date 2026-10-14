@@ -9,6 +9,7 @@ export type PostType =
 
 export interface AuthorInfo {
   id: string | number;
+  email?: string;
   first_name?: string;
   last_name?: string;
   nickname?: string;
