@@ -26,7 +26,7 @@ export function ProposalsTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-secondary-300 sm:text-base">
+      <p className="text-sm text-muted-foreground sm:text-base">
         Campañas propuestas por la comunidad. Al aprobar una, se publica como campaña global.
       </p>
       {notice ? <SuccessBanner message={notice} onDismiss={dismissNotice} /> : null}
