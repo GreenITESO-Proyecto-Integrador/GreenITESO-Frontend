@@ -17,10 +17,7 @@ export function ActionSelect({ actions, value, error, disabled, onChange }: Acti
 
   return (
     <div>
-      <label
-        htmlFor="action-select"
-        className="mb-2 block text-sm font-semibold text-foreground"
-      >
+      <label htmlFor="action-select" className="mb-2 block text-sm font-semibold text-foreground">
         Acción
       </label>
       <select
@@ -46,9 +43,7 @@ export function ActionSelect({ actions, value, error, disabled, onChange }: Acti
         ))}
       </select>
       {error ? (
-        <p id={errorId} className="mt-2 text-sm text-red-700 dark:text-red-300">
-          {error}
-        </p>
+        <p id={errorId} className="mt-2 text-sm text-red-700 dark:text-red-300">{error}</p>
       ) : null}
     </div>
   );

@@ -54,7 +54,9 @@ export function LeaderboardTable({ entries, tab }: LeaderboardTableProps) {
               <td className="px-4 py-3 text-sm font-bold text-foreground tabular-nums">
                 {entry.rank}
               </td>
-              <td className="px-4 py-3 text-sm font-semibold text-foreground">{entry.displayName}</td>
+              <td className="px-4 py-3 text-sm font-semibold text-foreground">
+                {entry.displayName}
+              </td>
               <td className="px-4 py-3 text-right text-sm font-bold text-primary-600 tabular-nums dark:text-primary-400">
                 {entry.totalPoints}
               </td>
