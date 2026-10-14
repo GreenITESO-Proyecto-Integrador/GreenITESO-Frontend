@@ -47,7 +47,7 @@ export function ActionCatalogCard({ action }: ActionCatalogCardProps) {
               <CardTitle className="text-lg font-semibold text-foreground">{action.name}</CardTitle>
             </div>
           </div>
-          <span className="shrink-0 rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700 tabular-nums dark:bg-primary-900/60 dark:text-primary-300">
+          <span className="shrink-0 rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700 tabular-nums dark:bg-primary-900/40 dark:text-primary-300">
             {action.points} pts
           </span>
         </div>
@@ -56,11 +56,11 @@ export function ActionCatalogCard({ action }: ActionCatalogCardProps) {
         <p className="text-sm text-muted-foreground sm:text-base">{action.description}</p>
         <div className="mt-auto flex flex-wrap gap-2">
           {requiresPhoto ? (
-            <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold tracking-wider text-sky-800 dark:bg-sky-950/60 dark:text-sky-300">
+            <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold tracking-wider text-sky-800 dark:bg-sky-900/40 dark:text-sky-200">
               FOTO
             </span>
           ) : (
-            <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold tracking-wider text-primary-700 dark:bg-primary-900/60 dark:text-primary-300">
+            <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold tracking-wider text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">
               SIN EVIDENCIA
             </span>
           )}
@@ -71,7 +71,7 @@ export function ActionCatalogCard({ action }: ActionCatalogCardProps) {
         {action.co2KgFactor > 0 || action.waterLitersFactor > 0 || action.plasticKgFactor > 0 ? (
           <div className="grid grid-cols-3 gap-2">
             {action.co2KgFactor > 0 ? (
-              <div className="rounded-xl border border-primary-200 bg-primary-50 px-2 py-2 text-center dark:border-primary-800 dark:bg-primary-900/40">
+              <div className="rounded-xl border border-primary-200 bg-primary-50 px-2 py-2 text-center dark:border-primary-800 dark:bg-primary-950/40">
                 <Leaf className="mx-auto mb-1 size-4 text-primary-700 dark:text-primary-400" />
                 <p className="text-xs font-bold text-primary-700 tabular-nums dark:text-primary-300">
                   {action.co2KgFactor} kg

@@ -39,7 +39,7 @@ export function LeaderboardTable({ entries, tab }: LeaderboardTableProps) {
               : 'Clasificación global'}
         </caption>
         <thead>
-          <tr className="border-b border-border bg-primary-50 text-xs font-semibold tracking-wider text-secondary-400 uppercase dark:bg-primary-900/40 dark:text-primary-200">
+          <tr className="border-b border-border bg-primary-50 text-xs font-semibold tracking-wider text-muted-foreground uppercase dark:bg-primary-900/30">
             <th className="px-4 py-3">Pos.</th>
             <th className="px-4 py-3">{nameHeading}</th>
             <th className="px-4 py-3 text-right">Puntos</th>
@@ -49,7 +49,7 @@ export function LeaderboardTable({ entries, tab }: LeaderboardTableProps) {
           {entries.map(entry => (
             <tr
               key={entry.id}
-              className="border-b border-border last:border-b-0 hover:bg-primary-50 dark:hover:bg-primary-900/30"
+              className="border-b border-border last:border-b-0 hover:bg-primary-50 dark:hover:bg-primary-900/20"
             >
               <td className="px-4 py-3 text-sm font-bold text-foreground tabular-nums">
                 {entry.rank}

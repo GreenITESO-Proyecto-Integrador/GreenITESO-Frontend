@@ -41,7 +41,7 @@ export function AuditLogCard({ log, busy, disabled, onApprove, onReject }: Audit
             </p>
             <CardTitle className="text-lg font-semibold text-foreground">{actionLabel}</CardTitle>
           </div>
-          <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold tracking-wider text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+          <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold tracking-wider text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
             PENDIENTE
           </span>
         </div>
@@ -83,7 +83,7 @@ export function AuditLogCard({ log, busy, disabled, onApprove, onReject }: Audit
             disabled={controlsDisabled}
             placeholder="Obligatorio al rechazar"
             onChange={event => setRejectionReason(event.target.value)}
-            className="h-11 min-h-11 rounded-xl"
+            className="h-11 min-h-11 rounded-xl border-border text-foreground placeholder:text-muted-foreground"
           />
         </div>
 
@@ -101,7 +101,7 @@ export function AuditLogCard({ log, busy, disabled, onApprove, onReject }: Audit
             variant="outline"
             disabled={controlsDisabled}
             onClick={() => onReject(log.id, rejectionReason)}
-            className="min-h-11 cursor-pointer rounded-xl border-red-200 bg-red-50 px-5 font-semibold text-red-700 hover:bg-red-50 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/40"
+            className="min-h-11 cursor-pointer rounded-xl border-red-200 bg-red-50 px-5 font-semibold text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
           >
             Rechazar
           </Button>
