@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { mockStudentSession } from './helpers/auth';
 
 const catalogEndpoint = '**/api/v1/actions/**';
 
@@ -59,6 +60,7 @@ async function mockCatalog(page: Page) {
 }
 
 test('should require an action before submitting the registration form', async ({ page }) => {
+  await mockStudentSession(page);
   await mockCatalog(page);
   await page.goto('/actions/register');
 
@@ -68,6 +70,7 @@ test('should require an action before submitting the registration form', async (
 });
 
 test('should reject photographic evidence larger than 5MB', async ({ page }) => {
+  await mockStudentSession(page);
   await mockCatalog(page);
   await page.goto('/actions/register');
   await expect(page.getByRole('option', { name: /Llegar en bicicleta/ })).toBeAttached();
@@ -84,6 +87,7 @@ test('should reject photographic evidence larger than 5MB', async ({ page }) => 
 });
 
 test('should require a photo when the selected action uses PHOTO validation', async ({ page }) => {
+  await mockStudentSession(page);
   await mockCatalog(page);
   await page.goto('/actions/register');
   await expect(page.getByRole('option', { name: /Usar termo reutilizable/ })).toBeAttached();
@@ -95,6 +99,7 @@ test('should require a photo when the selected action uses PHOTO validation', as
 });
 
 test('should show an error when the catalog GET fails', async ({ page }) => {
+  await mockStudentSession(page);
   await page.route(catalogEndpoint, async route => {
     await route.fulfill({
       status: 500,
@@ -106,4 +111,92 @@ test('should show an error when the catalog GET fails', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: 'No se pudo cargar el catálogo' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Reintentar' })).toBeVisible();
+});
+
+test('should register a catalog action and show the credited points', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockCatalog(page);
+  let body: unknown;
+  await page.route('**/api/v1/action-logs/**', async route => {
+    body = route.request().postDataJSON();
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        message: 'Action logged successfully.',
+        status: 'APPROVED',
+        log_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      }),
+    });
+  });
+  await page.goto('/actions/register');
+  await expect(page.getByRole('option', { name: /Llegar en bicicleta/ })).toBeAttached();
+
+  await page.getByLabel('Acción').selectOption('11111111-1111-1111-1111-111111111111');
+  await page.getByRole('button', { name: 'Registrar' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Acción registrada' })).toBeVisible();
+  await expect(page.getByText('Los puntos ya se acreditaron.')).toBeVisible();
+  expect(body).toMatchObject({
+    action_id: '11111111-1111-1111-1111-111111111111',
+  });
+  expect(body).toHaveProperty('idempotency_key');
+});
+
+test('should send the evidence key and mark a photo action as pending audit', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockCatalog(page);
+  let body: { evidence_object_key?: string } | undefined;
+  await page.route('**/api/v1/action-logs/**', async route => {
+    body = route.request().postDataJSON() as { evidence_object_key?: string };
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        message: 'Action logged successfully.',
+        status: 'PENDING_AUDIT',
+        log_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      }),
+    });
+  });
+  await page.goto('/actions/register');
+  await expect(page.getByRole('option', { name: /Usar termo reutilizable/ })).toBeAttached();
+
+  await page.getByLabel('Acción').selectOption('33333333-3333-3333-3333-333333333333');
+  await page.getByLabel(/Evidencia fotográfica/).setInputFiles({
+    name: 'termo.jpg',
+    mimeType: 'image/jpeg',
+    buffer: Buffer.from('photo'),
+  });
+  await page.getByRole('button', { name: 'Registrar' }).click();
+
+  await expect(page.getByText('Quedó pendiente de auditoría.')).toBeVisible();
+  expect(body?.evidence_object_key).toContain('termo.jpg');
+});
+
+test('should show the daily limit message when the API rejects the log', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockCatalog(page);
+  await page.route('**/api/v1/action-logs/**', async route => {
+    await route.fulfill({
+      status: 429,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'Daily limit reached for this action.' }),
+    });
+  });
+  await page.goto('/actions/register');
+  await expect(page.getByRole('option', { name: /Llegar en bicicleta/ })).toBeAttached();
+
+  await page.getByLabel('Acción').selectOption('11111111-1111-1111-1111-111111111111');
+  await page.getByRole('button', { name: 'Registrar' }).click();
+
+  await expect(page.getByText('Ya alcanzaste el límite diario de esta acción.')).toBeVisible();
+});
+
+test('should preselect the action from the query string', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockCatalog(page);
+  await page.goto('/actions/register?action=bike_to_campus');
+
+  await expect(page.getByLabel('Acción')).toHaveValue('11111111-1111-1111-1111-111111111111');
 });
