@@ -1,9 +1,9 @@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { parseAuditTab, type AuditTab } from './audit-tab';
 
-// Same look as the Leaderboard tabs: filled green when active, white with border otherwise.
+// Same look as the Leaderboard tabs: filled green when active, card surface otherwise.
 const TAB_CLASS =
-  'min-h-11 w-full rounded-xl border-secondary-100 bg-white px-5 text-sm font-semibold text-secondary-500 hover:border-primary-200 hover:bg-primary-50 data-active:border-primary-500 data-active:bg-primary-500 data-active:text-white data-active:shadow-sm data-active:hover:bg-primary-500';
+  'min-h-11 w-full rounded-xl border-border bg-card px-5 text-sm font-semibold text-foreground hover:border-primary-200 hover:bg-primary-50 data-active:border-primary-500 data-active:bg-primary-500 data-active:text-white data-active:shadow-sm data-active:hover:bg-primary-500 dark:hover:border-primary-800 dark:hover:bg-primary-900/40 dark:data-active:hover:bg-primary-500';
 
 interface AuditTabsProps {
   value: AuditTab;

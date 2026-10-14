@@ -16,19 +16,19 @@ export function AccessDenied({
   const navigate = useNavigate();
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-secondary-50 px-4 text-center">
-      <div className="mx-auto max-w-md rounded-2xl bg-white p-8 shadow-sm border border-secondary-200">
-        <div className="mx-auto mb-6 flex size-16 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 text-center">
+      <div className="mx-auto max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
+        <div className="mx-auto mb-6 flex size-16 items-center justify-center rounded-2xl bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-300">
           <ShieldAlert className="size-8" />
         </div>
 
-        <span className="inline-block rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700 mb-3">
+        <span className="mb-3 inline-block rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700 dark:bg-red-950/60 dark:text-red-300">
           Error 403 · Prohibido
         </span>
 
-        <h1 className="text-2xl font-bold text-secondary-500 mb-3">{title}</h1>
+        <h1 className="mb-3 text-2xl font-bold text-foreground">{title}</h1>
 
-        <p className="text-sm text-secondary-400 mb-8 leading-relaxed">{message}</p>
+        <p className="mb-8 text-sm leading-relaxed text-muted-foreground">{message}</p>
 
         <Button
           onClick={() => navigate(returnTo)}

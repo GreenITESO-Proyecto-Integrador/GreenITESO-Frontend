@@ -22,10 +22,12 @@ export function AuditLogList({
 }: AuditLogListProps) {
   if (logs.length === 0) {
     return (
-      <section className="rounded-2xl border border-sky-200 bg-sky-50 p-8 text-center">
-        <ClipboardList className="mx-auto mb-4 size-10 text-sky-700" />
-        <h2 className="text-lg font-semibold text-sky-800">No hay evidencias pendientes</h2>
-        <p className="mt-2 text-sm text-sky-700">
+      <section className="rounded-2xl border border-sky-200 bg-sky-50 p-8 text-center dark:border-sky-800 dark:bg-sky-900/30">
+        <ClipboardList className="mx-auto mb-4 size-10 text-sky-700 dark:text-sky-300" />
+        <h2 className="text-lg font-semibold text-sky-800 dark:text-sky-200">
+          No hay evidencias pendientes
+        </h2>
+        <p className="mt-2 text-sm text-sky-700 dark:text-sky-300">
           Cuando haya registros en PENDING_AUDIT, aparecerán aquí para aprobar o rechazar.
         </p>
       </section>
