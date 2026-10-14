@@ -59,7 +59,9 @@ export function EvidenceFileInput({
         </p>
       ) : null}
       {error ? (
-        <p id={errorId} className="mt-2 text-sm text-red-700 dark:text-red-300">{error}</p>
+        <p id={errorId} className="mt-2 text-sm text-red-700 dark:text-red-300">
+          {error}
+        </p>
       ) : null}
     </div>
   );
