@@ -178,6 +178,18 @@ const MESSAGE_RULES: readonly {
     message: 'Ya alcanzaste el límite diario de esta acción.',
   },
   {
+    pattern: /evidencia fotográfica/i,
+    message: 'Esta acción requiere evidencia fotográfica.',
+  },
+  {
+    pattern: /jpg, png o webp/i,
+    message: 'Usa una imagen JPG, PNG o WEBP.',
+  },
+  {
+    pattern: /no puede superar 5 mb/i,
+    message: 'La evidencia no puede superar 5 MB.',
+  },
+  {
     pattern: /idempotency key/i,
     message: 'Esta solicitud ya se usó con otros datos. Inténtalo de nuevo.',
   },

@@ -47,6 +47,7 @@ test('should list pending evidence with approve and reject controls', async ({ p
 
   await expect(page.getByRole('heading', { name: 'Panel de revisión' })).toBeVisible();
   await expect(page.getByText('Usar termo reutilizable')).toBeVisible();
+  await expect(page.getByText('evidence/termo.jpg')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Aprobar' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Rechazar' })).toBeVisible();
 });
@@ -71,7 +72,11 @@ test('should require a rejection reason before rejecting evidence', async ({ pag
 
 test('should remove an item after a successful approve request', async ({ page }) => {
   await mockPendingQueue(page, { results: pendingLogs });
-  await page.route('**/api/v1/action-logs/**/approve/', async route => {
+  let method = '';
+  let auditBody: unknown;
+  await page.route('**/api/v1/action-logs/**/audit/', async route => {
+    method = route.request().method();
+    auditBody = route.request().postDataJSON();
     await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
   });
 
@@ -80,6 +85,8 @@ test('should remove an item after a successful approve request', async ({ page }
 
   await expect(page.getByText('Usar termo reutilizable')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'No hay evidencias pendientes' })).toBeVisible();
+  expect(method).toBe('PATCH');
+  expect(auditBody).toEqual({ status: 'APPROVED' });
 });
 
 test('should switch to the campaign proposals tab and reflect it in the URL', async ({ page }) => {
@@ -102,6 +109,97 @@ test('should switch to the campaign proposals tab and reflect it in the URL', as
   await expect(page).toHaveURL(/tab=propuestas/);
   await expect(page.getByRole('heading', { name: 'No hay propuestas' })).toBeVisible();
   await expect(page.getByText('Usar termo reutilizable')).toHaveCount(0);
+});
+
+const storedPhoto = {
+  ...pendingLogs[0],
+  evidence_object_key: 'action-evidence/user/photo.png',
+  evidence_url:
+    'http://localhost:8000/api/v1/action-logs/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/evidence/',
+};
+
+const pngBytes = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+test('should show the stored photograph instead of the object key', async ({ page }) => {
+  await mockPendingQueue(page, { results: [storedPhoto] });
+  let authorization = '';
+  await page.route('**/api/v1/action-logs/**/evidence/**', async route => {
+    authorization = route.request().headers()['authorization'] ?? '';
+    await route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: pngBytes,
+    });
+  });
+  await page.goto('/audit');
+
+  const image = page.getByRole('img', { name: 'Evidencia de Usar termo reutilizable' });
+  await expect(image).toBeVisible();
+  await expect(image).toHaveAttribute('src', /^blob:/);
+  expect(authorization).toMatch(/^Bearer /);
+  await expect(page.getByText('action-evidence/user/photo.png')).toHaveCount(0);
+});
+
+test('should blob an evidence image after the bucket redirect', async ({ page }) => {
+  await mockPendingQueue(page, { results: [storedPhoto] });
+  const signedUrl = 'https://storage.example/signed-photo.png';
+  await page.route('**/api/v1/action-logs/**/evidence/**', async route => {
+    await route.fulfill({
+      status: 302,
+      headers: {
+        location: signedUrl,
+        'access-control-allow-origin': 'http://localhost:3000',
+      },
+    });
+  });
+  await page.route(`${signedUrl}*`, async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      headers: { 'access-control-allow-origin': 'http://localhost:3000' },
+      body: pngBytes,
+    });
+  });
+  await page.goto('/audit');
+
+  const image = page.getByRole('img', { name: 'Evidencia de Usar termo reutilizable' });
+  await expect(image).toBeVisible();
+  await expect(image).toHaveAttribute('src', /^blob:/);
+});
+
+test('should use a signed evidence URL when the redirected body is not an image', async ({
+  page,
+}) => {
+  await mockPendingQueue(page, { results: [storedPhoto] });
+  const signedUrl = 'https://storage.example/signed-photo';
+  let signedAuthorization = 'unset';
+  await page.route('**/api/v1/action-logs/**/evidence/**', async route => {
+    await route.fulfill({
+      status: 302,
+      headers: {
+        location: signedUrl,
+        'access-control-allow-origin': 'http://localhost:3000',
+      },
+    });
+  });
+  await page.route(`${signedUrl}*`, async route => {
+    signedAuthorization = route.request().headers()['authorization'] ?? '';
+    await route.fulfill({
+      status: 200,
+      contentType: 'image/gif',
+      headers: { 'access-control-allow-origin': 'http://localhost:3000' },
+      body: Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'),
+    });
+  });
+  await page.goto('/audit');
+
+  const image = page.getByRole('img', { name: 'Evidencia de Usar termo reutilizable' });
+  await expect(image).toBeVisible();
+  await expect(image).toHaveAttribute('src', signedUrl);
+  expect(signedAuthorization).not.toMatch(/Bearer/);
 });
 
 test('should open the proposals tab directly from ?tab=propuestas', async ({ page }) => {
