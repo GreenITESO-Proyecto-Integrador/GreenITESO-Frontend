@@ -14,20 +14,6 @@ export interface ActionLogFormValues {
 }
 
 /**
- * Object key stored with the action log for the photo the user picked.
- * Object storage is not provisioned yet, so this names the file; it does not upload the bytes.
- */
-export function buildEvidenceObjectKey(file: File): string {
-  const sanitized = file.name
-    .normalize('NFKD')
-    .replace(/[^A-Za-z0-9._-]+/g, '_')
-    .replace(/^\.+/, '')
-    .slice(0, 120);
-  const name = sanitized || 'evidencia';
-  return `evidence/${crypto.randomUUID()}/${name}`.slice(0, 500);
-}
-
-/**
  * Format a byte size for helper text next to the evidence input.
  */
 export function formatFileSize(bytes: number): string {

@@ -141,14 +141,19 @@ test('should register a catalog action and show the credited points', async ({ p
     action_id: '11111111-1111-1111-1111-111111111111',
   });
   expect(body).toHaveProperty('idempotency_key');
+  expect(body).not.toHaveProperty('evidence_object_key');
 });
 
-test('should send the evidence key and mark a photo action as pending audit', async ({ page }) => {
+test('should upload the photo as multipart evidence and mark it pending audit', async ({
+  page,
+}) => {
   await mockStudentSession(page);
   await mockCatalog(page);
-  let body: { evidence_object_key?: string } | undefined;
+  let contentType = '';
+  let raw = '';
   await page.route('**/api/v1/action-logs/**', async route => {
-    body = route.request().postDataJSON() as { evidence_object_key?: string };
+    contentType = route.request().headers()['content-type'] ?? '';
+    raw = route.request().postDataBuffer()?.toString('latin1') ?? '';
     await route.fulfill({
       status: 201,
       contentType: 'application/json',
@@ -171,7 +176,42 @@ test('should send the evidence key and mark a photo action as pending audit', as
   await page.getByRole('button', { name: 'Registrar' }).click();
 
   await expect(page.getByText('Quedó pendiente de auditoría.')).toBeVisible();
-  expect(body?.evidence_object_key).toContain('termo.jpg');
+  expect(contentType).toMatch(/^multipart\/form-data;\s*boundary=/i);
+  expect(raw).toContain('name="action_id"');
+  expect(raw).toContain('33333333-3333-3333-3333-333333333333');
+  expect(raw).toContain('name="idempotency_key"');
+  expect(raw).toContain('name="evidence"');
+  expect(raw).toContain('filename="termo.jpg"');
+  expect(raw).toContain('photo');
+  expect(raw).not.toContain('evidence_object_key');
+});
+
+test('should show the photographic evidence error returned by the API', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockCatalog(page);
+  await page.route('**/api/v1/action-logs/**', async route => {
+    await route.fulfill({
+      status: 400,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        evidence: ['Esta acción requiere evidencia fotográfica.'],
+      }),
+    });
+  });
+  await page.goto('/actions/register');
+  await expect(page.getByRole('option', { name: /Usar termo reutilizable/ })).toBeAttached();
+
+  await page.getByLabel('Acción').selectOption('33333333-3333-3333-3333-333333333333');
+  await page.getByLabel(/Evidencia fotográfica/).setInputFiles({
+    name: 'termo.jpg',
+    mimeType: 'image/jpeg',
+    buffer: Buffer.from('photo'),
+  });
+  await page.getByRole('button', { name: 'Registrar' }).click();
+
+  await expect(page.locator('#evidence-file-error')).toHaveText(
+    'Esta acción requiere evidencia fotográfica.',
+  );
 });
 
 test('should show the daily limit message when the API rejects the log', async ({ page }) => {

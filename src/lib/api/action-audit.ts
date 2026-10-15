@@ -85,6 +85,7 @@ function mapPendingAuditLog(raw: unknown): PendingAuditLog | null {
     status,
     pointsAwarded: readNumber(raw.points_awarded),
     evidenceObjectKey: readString(raw.evidence_object_key),
+    evidenceUrl: readString(raw.evidence_url).trim(),
     createdAt: readString(raw.created_at),
     action: mapActionSummary(raw.action),
     user: mapUserSummary(raw.user),
@@ -127,30 +128,38 @@ export async function fetchPendingAuditLogs(): Promise<PendingAuditLog[]> {
 }
 
 /**
- * Ask the backend to approve a pending log. Point credits stay in the server transaction.
+ * Send one audit decision. The backend exposes a single PATCH, not approve/reject routes.
  */
-export async function approveAuditLog(logId: string): Promise<void> {
-  const response = await apiFetch(`${ACTION_LOGS_PATH}${logId}/approve/`, {
-    method: 'POST',
+async function submitAuditDecision(
+  logId: string,
+  body: { status: 'APPROVED' | 'REJECTED'; rejection_reason?: string },
+  failureMessage: string,
+): Promise<void> {
+  const response = await apiFetch(`${ACTION_LOGS_PATH}${logId}/audit/`, {
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to approve evidence (${response.status})`);
+    throw new Error(`${failureMessage} (${response.status})`);
   }
+}
+
+/**
+ * Ask the backend to approve a pending log. Point credits stay in the server transaction.
+ */
+export async function approveAuditLog(logId: string): Promise<void> {
+  await submitAuditDecision(logId, { status: 'APPROVED' }, 'Failed to approve evidence');
 }
 
 /**
  * Ask the backend to reject a pending log with an audit reason.
  */
 export async function rejectAuditLog(logId: string, rejectionReason: string): Promise<void> {
-  const response = await apiFetch(`${ACTION_LOGS_PATH}${logId}/reject/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ rejection_reason: rejectionReason }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to reject evidence (${response.status})`);
-  }
+  await submitAuditDecision(
+    logId,
+    { status: 'REJECTED', rejection_reason: rejectionReason },
+    'Failed to reject evidence',
+  );
 }

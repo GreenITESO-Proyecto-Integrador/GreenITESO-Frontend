@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createActionLog, type RegisteredActionLog } from '@/lib/api/action-logs';
 import { ApiError, toFriendlyMessage } from '@/lib/api/errors';
 import {
-  buildEvidenceObjectKey,
   type ActionLogFormErrors,
   type ActionLogFormValues,
   validateActionLogForm,
@@ -18,7 +17,6 @@ export type ActionLogSubmitStatus = 'idle' | 'submitting' | 'success' | 'error';
 export function useActionLogForm(actions: CatalogAction[], initialActionKey = '') {
   const [actionId, setActionId] = useState('');
   const [evidence, setEvidence] = useState<File | null>(null);
-  const [evidenceObjectKey, setEvidenceObjectKey] = useState('');
   const [errors, setErrors] = useState<ActionLogFormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitStatus, setSubmitStatus] = useState<ActionLogSubmitStatus>('idle');
@@ -68,7 +66,6 @@ export function useActionLogForm(actions: CatalogAction[], initialActionKey = ''
    */
   function selectEvidence(file: File | null) {
     setEvidence(file);
-    setEvidenceObjectKey(file ? buildEvidenceObjectKey(file) : '');
     clearSubmission();
     setErrors(current => ({ ...current, evidence: undefined }));
   }
@@ -96,7 +93,7 @@ export function useActionLogForm(actions: CatalogAction[], initialActionKey = ''
       const result = await createActionLog({
         actionId,
         idempotencyKey: idempotencyKey.current,
-        evidenceObjectKey: evidenceObjectKey || undefined,
+        evidence,
       });
       setRegisteredLog(result);
       setSubmitStatus('success');
@@ -106,7 +103,7 @@ export function useActionLogForm(actions: CatalogAction[], initialActionKey = ''
       if (error instanceof ApiError) {
         setErrors({
           actionId: error.fieldErrors.action_id,
-          evidence: error.fieldErrors.evidence_object_key,
+          evidence: error.fieldErrors.evidence ?? error.fieldErrors.evidence_object_key,
         });
       }
       setRegisteredLog(null);
@@ -122,7 +119,6 @@ export function useActionLogForm(actions: CatalogAction[], initialActionKey = ''
   function resetForm() {
     setActionId('');
     setEvidence(null);
-    setEvidenceObjectKey('');
     setErrors({});
     clearSubmission();
   }

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { PendingAuditLog } from '@/types/action-audit';
+import { AuditEvidencePreview } from './AuditEvidencePreview';
 
 interface AuditLogCardProps {
   log: PendingAuditLog;
@@ -58,12 +59,11 @@ export function AuditLogCard({ log, busy, disabled, onApprove, onReject }: Audit
               {log.pointsAwarded} pts
             </dd>
           </div>
-          <div className="sm:col-span-2">
-            <dt className="text-xs text-muted-foreground">Objeto de evidencia</dt>
-            <dd className="font-medium break-all text-muted-foreground">
-              {log.evidenceObjectKey || 'Sin clave de objeto'}
-            </dd>
-          </div>
+          <AuditEvidencePreview
+            evidenceUrl={log.evidenceUrl}
+            evidenceObjectKey={log.evidenceObjectKey}
+            actionName={actionLabel}
+          />
           <div className="sm:col-span-2">
             <dt className="text-xs text-muted-foreground">Registrado</dt>
             <dd className="text-muted-foreground">{formatCreatedAt(log.createdAt)}</dd>
