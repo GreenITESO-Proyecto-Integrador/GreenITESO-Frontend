@@ -6,7 +6,7 @@ import { ApiError, readError } from './errors';
 export interface CreateActionLogPayload {
   actionId: string;
   idempotencyKey: string;
-  evidenceObjectKey?: string;
+  evidence?: File | null;
 }
 
 export interface RegisteredActionLog {
@@ -29,25 +29,40 @@ function readStatus(value: unknown): ActionLogStatus | null {
 }
 
 /**
+ * Build the multipart body for a log that includes a photograph.
+ * Content-Type stays unset so the browser can add the multipart boundary.
+ */
+function actionLogFormData(payload: CreateActionLogPayload, evidence: File): FormData {
+  const body = new FormData();
+  body.append('action_id', payload.actionId);
+  body.append('idempotency_key', payload.idempotencyKey);
+  body.append('evidence', evidence);
+  return body;
+}
+
+/**
  * Register one catalog action for the signed-in user.
+ * A photo goes as multipart field `evidence`. The server stores the bytes and
+ * writes the real object key; this client does not choose disk or bucket.
  * A repeated idempotency key returns the existing log instead of creating another.
  */
 export async function createActionLog(
   payload: CreateActionLogPayload,
 ): Promise<RegisteredActionLog> {
-  const body: Record<string, string> = {
-    action_id: payload.actionId,
-    idempotency_key: payload.idempotencyKey,
-  };
-  if (payload.evidenceObjectKey) {
-    body.evidence_object_key = payload.evidenceObjectKey;
-  }
-
-  const response = await apiFetch(ACTION_LOGS_PATH, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  const evidence = payload.evidence ?? null;
+  const response = await apiFetch(
+    ACTION_LOGS_PATH,
+    evidence
+      ? { method: 'POST', body: actionLogFormData(payload, evidence) }
+      : {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action_id: payload.actionId,
+            idempotency_key: payload.idempotencyKey,
+          }),
+        },
+  );
 
   if (!response.ok) {
     throw await readError(response, 'No se pudo registrar la acción.');

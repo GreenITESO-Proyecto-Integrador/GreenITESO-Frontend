@@ -15,6 +15,7 @@ export interface PendingAuditLog {
   status: ActionLogStatus;
   pointsAwarded: number;
   evidenceObjectKey: string;
+  evidenceUrl: string;
   createdAt: string;
   action: AuditActionSummary;
   user: AuditUserSummary;
