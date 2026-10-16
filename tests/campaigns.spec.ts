@@ -292,7 +292,7 @@ test.describe('Usuario: campañas', () => {
 
   test('should list campaigns and open the detail of one', async ({ page }) => {
     await mockApi(page, { campaigns: [promotionCampaign, activeCampaign] });
-    await page.goto('/missions');
+    await page.goto('/campaigns');
 
     await expect(page.getByRole('heading', { name: 'Misiones y campañas' })).toBeVisible();
     await expect(campaignCard(page, 'Semana del Reciclaje')).toBeVisible();
@@ -311,7 +311,7 @@ test.describe('Usuario: campañas', () => {
     const api = await mockApi(page, {
       campaigns: [promotionCampaign, activeCampaign, finishedCampaign, privateCampaign],
     });
-    await page.goto('/missions');
+    await page.goto('/campaigns');
     await expect(campaignCard(page, 'Reto Verano')).toBeVisible();
 
     await statusFilter(page, 'Finalizadas').click();
@@ -332,7 +332,7 @@ test.describe('Usuario: campañas', () => {
 
   test('should join a campaign in promotion', async ({ page }) => {
     const api = await mockApi(page, { campaigns: [promotionCampaign] });
-    await page.goto('/missions');
+    await page.goto('/campaigns');
 
     await campaignCard(page, 'Semana del Reciclaje').click();
     await dialogOf(page).getByRole('button', { name: 'Unirme' }).click();
@@ -374,7 +374,7 @@ test.describe('Usuario: campañas', () => {
 
   test('should propose a campaign and list it as pending', async ({ page }) => {
     const api = await mockApi(page, { campaigns: [activeCampaign] });
-    await page.goto('/missions');
+    await page.goto('/campaigns');
 
     await page.getByRole('button', { name: 'Proponer campaña' }).click();
     const dialog = dialogOf(page);
@@ -404,7 +404,7 @@ test.describe('Líder: campaña privada', () => {
   test('should create a private campaign for a clan', async ({ page }) => {
     await mockStudentSession(page);
     const api = await mockApi(page);
-    await page.goto('/missions');
+    await page.goto('/campaigns');
 
     await page.getByRole('button', { name: 'Crear campaña de clan' }).click();
     const dialog = dialogOf(page);
@@ -432,7 +432,7 @@ test.describe('Líder: campaña privada', () => {
     await mockStudentSession(page);
     const api = await mockApi(page);
     api.fail('POST campaigns', 403, { detail: 'Only the clan leader can create campaigns.' });
-    await page.goto('/missions');
+    await page.goto('/campaigns');
 
     await page.getByRole('button', { name: 'Crear campaña de clan' }).click();
     const dialog = dialogOf(page);
@@ -455,7 +455,7 @@ test.describe('Admin: campañas', () => {
 
   test('should create a global campaign with a mission', async ({ page }) => {
     const api = await mockApi(page);
-    await page.goto('/missions');
+    await page.goto('/campaigns');
 
     await page.getByRole('button', { name: 'Crear campaña' }).click();
     const dialog = dialogOf(page);
@@ -524,7 +524,7 @@ test.describe('Admin: campañas', () => {
     const api = await mockApi(page, {
       campaigns: [{ ...promotionCampaign, can_manage: true }],
     });
-    await page.goto('/missions');
+    await page.goto('/campaigns');
 
     await campaignCard(page, 'Semana del Reciclaje').click();
     await dialogOf(page).getByRole('button', { name: 'Editar campaña' }).click();
@@ -543,7 +543,7 @@ test.describe('Admin: campañas', () => {
 
   test('should not offer editing once the campaign left promotion', async ({ page }) => {
     await mockApi(page, { campaigns: [{ ...activeCampaign, can_manage: true }] });
-    await page.goto('/missions');
+    await page.goto('/campaigns');
 
     await campaignCard(page, 'Cero Plástico').click();
     await expect(dialogOf(page).getByRole('heading', { name: 'Cero Plástico' })).toBeVisible();
@@ -552,7 +552,7 @@ test.describe('Admin: campañas', () => {
 
   test('should not let an admin join a campaign', async ({ page }) => {
     await mockApi(page, { campaigns: [promotionCampaign] });
-    await page.goto('/missions');
+    await page.goto('/campaigns');
 
     await campaignCard(page, 'Semana del Reciclaje').click();
     await expect(
@@ -569,7 +569,7 @@ test.describe('Estados de error y vacío', () => {
     await mockStudentSession(page);
     const api = await mockApi(page, { campaigns: [activeCampaign] });
     api.fail('GET campaigns');
-    await page.goto('/missions');
+    await page.goto('/campaigns');
 
     await expect(
       page.getByRole('heading', { name: 'No se pudieron cargar las campañas' }),
@@ -583,7 +583,7 @@ test.describe('Estados de error y vacío', () => {
   test('should show the empty state when there are no campaigns', async ({ page }) => {
     await mockStudentSession(page);
     await mockApi(page);
-    await page.goto('/missions');
+    await page.goto('/campaigns');
 
     await expect(page.getByRole('heading', { name: 'No hay campañas' })).toBeVisible();
     await expect(
@@ -609,7 +609,7 @@ test.describe('Estados de error y vacío', () => {
     await mockStudentSession(page);
     const api = await mockApi(page, { campaigns: [activeCampaign] });
     api.fail('GET campaign');
-    await page.goto('/missions');
+    await page.goto('/campaigns');
 
     await campaignCard(page, 'Cero Plástico').click();
     await expect(
@@ -622,7 +622,7 @@ test.describe('Estados de error y vacío', () => {
     await mockStudentSession(page);
     const api = await mockApi(page, { campaigns: [promotionCampaign] });
     api.fail('POST join', 400, { detail: 'User already joined this campaign.' });
-    await page.goto('/missions');
+    await page.goto('/campaigns');
 
     await campaignCard(page, 'Semana del Reciclaje').click();
     await dialogOf(page).getByRole('button', { name: 'Unirme' }).click();
@@ -635,7 +635,7 @@ test.describe('Estados de error y vacío', () => {
   test('should validate the required fields of the campaign form', async ({ page }) => {
     await mockAdminSession(page);
     const api = await mockApi(page);
-    await page.goto('/missions');
+    await page.goto('/campaigns');
 
     await page.getByRole('button', { name: 'Crear campaña' }).click();
     await dialogOf(page).getByRole('button', { name: 'Crear campaña' }).click();

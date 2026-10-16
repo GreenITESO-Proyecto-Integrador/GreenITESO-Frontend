@@ -19,7 +19,7 @@ export interface NavLink {
 
 export const PRIMARY_NAV_LINKS: NavLink[] = [
   { label: 'Inicio', href: '/', icon: Home },
-  { label: 'Misiones', href: '/missions', icon: Target },
+  { label: 'Campañas', href: '/campaigns', icon: Target },
   { label: 'Tienda', href: '/store', icon: Store },
   { label: 'Feed', href: '/feed', icon: Rss },
   { label: 'Notificaciones', href: '/notifications', icon: Bell },

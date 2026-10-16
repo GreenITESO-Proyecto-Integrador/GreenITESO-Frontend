@@ -24,8 +24,8 @@ const API_TYPE_TO_CATEGORY: Record<ApiNotificationType, NotificationType> = {
 const API_TYPE_TO_ROUTE: Partial<Record<ApiNotificationType, string>> = {
   AUDIT_APPROVED: '/leaderboard',
   AUDIT_REJECT: '/actions/register',
-  CAMPAIGN_INVITE: '/missions',
-  MISSION_COMPLETED: '/missions',
+  CAMPAIGN_INVITE: '/campaigns',
+  MISSION_COMPLETED: '/campaigns',
   SOCIAL_FOLLOW: '/feed',
 };
 
