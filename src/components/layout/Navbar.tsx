@@ -87,10 +87,6 @@ export function Navbar({ unreadNotifications = 0, userNickname = 'Usuario' }: Na
                 <UserIcon />
                 Perfil
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings />
-                Configuración
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 variant="destructive"

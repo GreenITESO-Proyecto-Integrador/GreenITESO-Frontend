@@ -40,7 +40,7 @@ export function UserMissionsView() {
     <>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Misiones y campañas</h1>
+          <h1 className="text-2xl font-bold text-foreground">Campañas</h1>
           <p className="text-sm text-muted-foreground sm:text-base">
             Participa en campañas activas y completa misiones para sumar puntos e impacto ambiental.
           </p>

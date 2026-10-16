@@ -35,7 +35,7 @@ export const routes = [
       path="/design-system"
       element={protectedElement(<DesignSystemPage />)}
     />
-    <Route key="missions" path="/missions" element={protectedElement(<MissionsPage />)} />
+    <Route key="campaigns" path="/campaigns" element={protectedElement(<MissionsPage />)} />
     <Route key="store" path="/store" element={protectedElement(<StorePage />)} />
     <Route key="shop" path="/shop" element={protectedElement(<StorePage />)} />
     <Route key="feed" path="/feed" element={protectedElement(<FeedPage />)} />

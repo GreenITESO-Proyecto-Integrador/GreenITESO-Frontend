@@ -84,7 +84,7 @@ export function MyCampaignsSection({
       </SectionState>
       {status === 'success' && campaigns.length === 0 ? (
         <Link
-          to="/missions"
+          to="/campaigns"
           className="inline-flex min-h-11 items-center justify-center self-start rounded-xl bg-primary-500 px-5 font-semibold text-white shadow-sm hover:bg-primary-600 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:outline-none"
         >
           Unirme a una campaña
