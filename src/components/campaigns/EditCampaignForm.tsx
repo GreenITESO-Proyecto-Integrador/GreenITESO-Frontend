@@ -3,10 +3,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { updateCampaign } from '@/lib/api/campaigns';
+import { updateCampaign, type CampaignUpdate } from '@/lib/api/campaigns';
 import { ApiError, toFriendlyMessage } from '@/lib/api/errors';
 import type { CampaignDetail } from '@/types/campaign';
-import { endOfDay, startOfDay, toDateInputValue, validateDates } from './campaign-dates';
+import {
+  getTomorrowInMexicoCity,
+  toDateInputValue,
+  toMxDateTime,
+  validateDates,
+} from './campaign-dates';
 import { DESCRIPTION_MAX_LENGTH, TITLE_MAX_LENGTH, WRAP_TEXT } from './field-limits';
 import { CharCounter } from './CharCounter';
 import { FieldError } from './FieldError';
@@ -27,29 +32,42 @@ const FIELD_KEYS = ['title', 'description', 'start_date', 'end_date'];
 export function EditCampaignForm({ campaign, onSaved, onCancel }: EditCampaignFormProps) {
   const [title, setTitle] = useState(campaign.title);
   const [description, setDescription] = useState(campaign.description);
-  const [startDate, setStartDate] = useState(toDateInputValue(campaign.startDate));
-  const [endDate, setEndDate] = useState(toDateInputValue(campaign.endDate));
+  const originalStart = toDateInputValue(campaign.startDate);
+  const originalEnd = toDateInputValue(campaign.endDate);
+  const tomorrow = getTomorrowInMexicoCity();
+  const [startDate, setStartDate] = useState(originalStart);
+  const [endDate, setEndDate] = useState(originalEnd);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const found: Record<string, string> = validateDates(startDate, endDate);
+    // Send only what changed: the backend validates `start_date` whenever it is in the body.
+    const changes: CampaignUpdate = {};
+    if (title.trim() !== campaign.title) changes.title = title.trim();
+    if (description.trim() !== campaign.description) changes.description = description.trim();
+    if (startDate !== originalStart) changes.startDate = toMxDateTime(startDate, 'start');
+    if (endDate !== originalEnd) changes.endDate = toMxDateTime(endDate, 'end');
+
+    // Start < end uses the effective values (edited, or the saved ones when untouched).
+    const found: Record<string, string> = validateDates(startDate, endDate, {
+      checkStartMin: changes.startDate !== undefined,
+    });
     if (!title.trim()) found.title = 'Escribe un título.';
     if (!description.trim()) found.description = 'Escribe una descripción.';
     setErrors(found);
     setSubmitError(null);
     if (Object.keys(found).length > 0) return;
 
+    if (Object.keys(changes).length === 0) {
+      onCancel();
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await updateCampaign(campaign.id, {
-        title: title.trim(),
-        description: description.trim(),
-        startDate: startOfDay(startDate).toISOString(),
-        endDate: endOfDay(endDate).toISOString(),
-      });
+      await updateCampaign(campaign.id, changes);
       await onSaved();
     } catch (error) {
       if (error instanceof ApiError) {
@@ -109,6 +127,7 @@ export function EditCampaignForm({ campaign, onSaved, onCancel }: EditCampaignFo
           <Input
             id="edit-campaign-start"
             type="date"
+            min={originalStart < tomorrow ? undefined : tomorrow}
             value={startDate}
             aria-invalid={errors.start_date ? true : undefined}
             onChange={event => setStartDate(event.target.value)}

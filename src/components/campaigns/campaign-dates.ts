@@ -1,39 +1,85 @@
+const MX_TIME_ZONE = 'America/Mexico_City';
+// Mexico City has no daylight saving time since 2022. Every campaign datetime sent to the
+// backend goes through `toMxDateTime`, so this is the only place the offset lives.
+const MX_OFFSET = '-06:00';
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const mxDateFormat = new Intl.DateTimeFormat('en-CA', {
+  timeZone: MX_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
 /**
- * Local start of day for a `YYYY-MM-DD` value.
+ * `YYYY-MM-DD` of an instant as seen in Mexico City.
+ */
+function toMxDate(date: Date): string {
+  return mxDateFormat.format(date);
+}
+
+/**
+ * ISO datetime for a `YYYY-MM-DD` value at the start (00:00:00) or end (23:59:59) of that day in
+ * Mexico City, e.g. `2026-10-21T00:00:00-06:00`. Use it for both `start_date` and `end_date`.
+ */
+export function toMxDateTime(value: string, edge: 'start' | 'end'): string {
+  return `${value}T${edge === 'start' ? '00:00:00' : '23:59:59'}${MX_OFFSET}`;
+}
+
+/**
+ * Start of day (Mexico City) for a `YYYY-MM-DD` value.
  */
 export function startOfDay(value: string): Date {
-  return new Date(`${value}T00:00:00`);
+  return new Date(toMxDateTime(value, 'start'));
 }
 
 /**
- * Local end of day for a `YYYY-MM-DD` value, so a same-day campaign is valid.
+ * End of day (Mexico City) for a `YYYY-MM-DD` value, so a same-day campaign is valid.
  */
 export function endOfDay(value: string): Date {
-  return new Date(`${value}T23:59:59`);
+  return new Date(toMxDateTime(value, 'end'));
 }
 
 /**
- * Backend datetime -> `YYYY-MM-DD` (local) for a date input. Empty when invalid.
+ * Tomorrow as `YYYY-MM-DD` in Mexico City: the earliest `start_date` the backend accepts.
+ */
+export function getTomorrowInMexicoCity(now: Date = new Date()): string {
+  const today = toMxDate(now);
+  return new Date(new Date(`${today}T12:00:00Z`).getTime() + DAY_MS).toISOString().slice(0, 10);
+}
+
+/**
+ * Backend datetime -> `YYYY-MM-DD` (Mexico City) for a date input. Empty when invalid.
  */
 export function toDateInputValue(value: string): string {
-  const datePart = value.slice(0, 10);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
 
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return '';
-  const month = String(parsed.getMonth() + 1).padStart(2, '0');
-  const day = String(parsed.getDate()).padStart(2, '0');
-  return `${parsed.getFullYear()}-${month}-${day}`;
+  return toMxDate(parsed);
+}
+
+interface ValidateDatesOptions {
+  /** Also require the start to be tomorrow or later (Mexico City). */
+  checkStartMin?: boolean;
 }
 
 /**
- * Client-side date checks: both required, end after start, end in the future.
- * Returns messages keyed by backend field name.
+ * Client-side date checks: both required, start tomorrow or later (when asked), end after
+ * start, end in the future. Returns messages keyed by backend field name.
  */
-export function validateDates(startDate: string, endDate: string): Record<string, string> {
+export function validateDates(
+  startDate: string,
+  endDate: string,
+  { checkStartMin = false }: ValidateDatesOptions = {},
+): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!startDate) errors.start_date = 'Elige la fecha de inicio.';
   if (!endDate) errors.end_date = 'Elige la fecha de fin.';
+
+  if (startDate && checkStartMin && startDate < getTomorrowInMexicoCity()) {
+    errors.start_date = 'La fecha de inicio debe ser mañana o después.';
+  }
 
   if (startDate && endDate) {
     if (endOfDay(endDate) <= startOfDay(startDate)) {

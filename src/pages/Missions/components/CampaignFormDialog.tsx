@@ -23,7 +23,11 @@ import {
   TITLE_MAX_LENGTH,
   WRAP_TEXT,
 } from '@/components/campaigns/field-limits';
-import { endOfDay, startOfDay, validateDates } from '@/components/campaigns/campaign-dates';
+import {
+  getTomorrowInMexicoCity,
+  toMxDateTime,
+  validateDates,
+} from '@/components/campaigns/campaign-dates';
 import { ActionPicker } from '@/components/campaigns/ActionPicker';
 import { CharCounter } from '@/components/campaigns/CharCounter';
 import { FieldError } from '@/components/campaigns/FieldError';
@@ -50,7 +54,7 @@ const MODE_COPY: Record<CampaignFormMode, { title: string; description: string }
   'create-admin': {
     title: 'Crear campaña',
     description:
-      'Sin clan, la campaña es global y se publica de inmediato. También puedes elegir un clan institucional.',
+      'Sin clan, la campaña es global y se publica en promoción para que los usuarios se unan antes de iniciar. También puedes elegir un clan institucional.',
   },
   'create-clan': {
     title: 'Crear campaña de clan',
@@ -91,6 +95,7 @@ function CampaignForm({
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const tomorrow = getTomorrowInMexicoCity();
   // TODO: cuando exista el endpoint "mis clanes" del Equipo 2, listar solo los clanes PRIVATE que
   // lidera el usuario. Por ahora se listan todos los PRIVATE y el backend valida el liderazgo.
   const [rows, setRows] = useState<MissionRow[]>([]);
@@ -113,7 +118,7 @@ function CampaignForm({
     if (mode === 'create-clan' && !clanId) found.target_clan = 'Elige un clan.';
     if (!title.trim()) found.title = 'Escribe un título.';
     if (!description.trim()) found.description = 'Escribe una descripción.';
-    Object.assign(found, validateDates(startDate, endDate));
+    Object.assign(found, validateDates(startDate, endDate, { checkStartMin: true }));
 
     if (rows.some(row => !row.actionId)) {
       found.missions = 'Selecciona una acción en cada misión.';
@@ -139,8 +144,8 @@ function CampaignForm({
       const payload = {
         title: title.trim(),
         description: description.trim(),
-        startDate: startOfDay(startDate).toISOString(),
-        endDate: endOfDay(endDate).toISOString(),
+        startDate: toMxDateTime(startDate, 'start'),
+        endDate: toMxDateTime(endDate, 'end'),
         missions: rows.map(row => ({
           actionId: row.actionId,
           targetCount: Number(row.targetCount),
@@ -298,6 +303,7 @@ function CampaignForm({
           <Input
             id="campaign-start"
             type="date"
+            min={tomorrow}
             value={startDate}
             aria-invalid={errors.start_date ? true : undefined}
             onChange={event => setStartDate(event.target.value)}

@@ -1,14 +1,20 @@
 import { useCallback, useState } from 'react';
-import { CalendarRange, Pencil, Plus, Users } from 'lucide-react';
+import { CalendarRange, Flag, Pencil, Play, Plus, Users } from 'lucide-react';
 import { ModalContent } from '@/components/custom/ModalContent';
 import { MissionItem } from '@/components/shared/MissionItem';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useCampaignDetail } from '@/hooks/use-campaign-detail';
 import { useClanName } from '@/hooks/use-clan-name';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { joinCampaign } from '@/lib/api/campaigns';
+import { finishCampaign, joinCampaign, startCampaign } from '@/lib/api/campaigns';
 import { toFriendlyMessage } from '@/lib/api/errors';
 import { SCOPE_META, STATUS_META, formatDate } from '@/lib/campaign-meta';
 import type { Mission } from '@/types/mission';
@@ -27,6 +33,30 @@ interface CampaignDetailDialogProps {
   onLogAction?: (mission: Mission) => void;
 }
 
+type LifecycleAction = 'start' | 'finish';
+
+const LIFECYCLE_COPY: Record<
+  LifecycleAction,
+  { title: string; description: string; confirm: string; busy: string; success: string }
+> = {
+  start: {
+    title: '¿Iniciar campaña?',
+    description:
+      'La campaña pasará a "En curso" y su fecha de inicio será ahora. Esta acción no se puede revertir: ya no podrás editarla y nadie más podrá unirse.',
+    confirm: 'Iniciar campaña',
+    busy: 'Iniciando…',
+    success: '¡Listo! La campaña ya está en curso.',
+  },
+  finish: {
+    title: '¿Finalizar campaña?',
+    description:
+      'La campaña pasará a "Finalizada" y su fecha de fin será ahora. Esta acción no se puede revertir.',
+    confirm: 'Finalizar campaña',
+    busy: 'Finalizando…',
+    success: 'La campaña se finalizó.',
+  },
+};
+
 function DetailBody({
   campaignId,
   onChanged,
@@ -37,6 +67,8 @@ function DetailBody({
   const [addingMission, setAddingMission] = useState(false);
   const [editing, setEditing] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [confirming, setConfirming] = useState<LifecycleAction | null>(null);
+  const [transitioning, setTransitioning] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const dismissNotice = useCallback(() => setNotice(null), []);
@@ -55,6 +87,23 @@ function DetailBody({
       setActionError(toFriendlyMessage(error, 'No se pudo completar la inscripción.'));
     } finally {
       setJoining(false);
+    }
+  }
+
+  async function handleTransition(action: LifecycleAction) {
+    setTransitioning(true);
+    setActionError(null);
+    try {
+      await (action === 'start' ? startCampaign(campaignId) : finishCampaign(campaignId));
+      setConfirming(null);
+      setNotice(LIFECYCLE_COPY[action].success);
+      await refresh();
+      onChanged?.();
+    } catch (error) {
+      setConfirming(null);
+      setActionError(toFriendlyMessage(error, 'No se pudo actualizar la campaña.'));
+    } finally {
+      setTransitioning(false);
     }
   }
 
@@ -106,6 +155,9 @@ function DetailBody({
   const canEdit = canAddMission;
   // Admins cannot join campaigns.
   const canJoin = isPromotion && !detail.isParticipant && !isAdmin;
+  // One-way transitions; the backend also requires an approved campaign to start.
+  const canStart = canEdit && detail.approvalStatus === 'APPROVED';
+  const canFinish = detail.canManage && detail.status === 'IN_PROGRESS';
   const existingCodes = new Set(detail.missions.map(mission => mission.action.id));
 
   if (editing && canEdit) {
@@ -209,8 +261,36 @@ function DetailBody({
         </p>
       ) : null}
 
-      {canJoin || canEdit || (canAddMission && !addingMission) ? (
+      {canJoin || canEdit || canStart || canFinish || (canAddMission && !addingMission) ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+          {canFinish ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setActionError(null);
+                setConfirming('finish');
+              }}
+              className="min-h-11 cursor-pointer rounded-xl px-5 font-semibold"
+            >
+              <Flag className="size-4" />
+              Finalizar campaña
+            </Button>
+          ) : null}
+          {canStart ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setActionError(null);
+                setConfirming('start');
+              }}
+              className="min-h-11 cursor-pointer rounded-xl px-5 font-semibold"
+            >
+              <Play className="size-4" />
+              Iniciar campaña
+            </Button>
+          ) : null}
           {canEdit ? (
             <Button
               type="button"
@@ -249,6 +329,45 @@ function DetailBody({
           ) : null}
         </div>
       ) : null}
+
+      <Dialog
+        open={confirming !== null}
+        onOpenChange={open => (open || transitioning ? undefined : setConfirming(null))}
+      >
+        <ModalContent>
+          {confirming ? (
+            <>
+              <DialogHeader className="pr-10">
+                <DialogTitle className="text-xl font-bold text-foreground">
+                  {LIFECYCLE_COPY[confirming].title}
+                </DialogTitle>
+                <DialogDescription>{LIFECYCLE_COPY[confirming].description}</DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={transitioning}
+                  onClick={() => setConfirming(null)}
+                  className="min-h-11 cursor-pointer rounded-xl px-5 font-semibold"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  disabled={transitioning}
+                  onClick={() => void handleTransition(confirming)}
+                  className="min-h-11 cursor-pointer rounded-xl bg-primary-500 px-5 font-semibold text-white shadow-sm hover:bg-primary-600 disabled:opacity-50"
+                >
+                  {transitioning
+                    ? LIFECYCLE_COPY[confirming].busy
+                    : LIFECYCLE_COPY[confirming].confirm}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : null}
+        </ModalContent>
+      </Dialog>
     </>
   );
 }
