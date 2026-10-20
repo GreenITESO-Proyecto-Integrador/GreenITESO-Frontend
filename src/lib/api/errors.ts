@@ -146,6 +146,31 @@ const MESSAGE_RULES: readonly {
     message: 'El clan seleccionado no existe.',
   },
   {
+    pattern: /start date must be tomorrow or later/i,
+    message: 'La fecha de inicio debe ser mañana o después.',
+  },
+  {
+    pattern: /cannot approve a proposal that starts today or earlier/i,
+    message:
+      'No se puede aprobar: la propuesta ya inicia hoy o antes. Los usuarios necesitan al menos un día para unirse. Puedes rechazarla con un motivo.',
+  },
+  {
+    pattern: /only campaigns in promotion can be started/i,
+    message: 'Solo se puede iniciar una campaña en promoción.',
+  },
+  {
+    pattern: /only campaigns in progress can be finished/i,
+    message: 'Solo se puede finalizar una campaña en curso.',
+  },
+  {
+    pattern: /you cannot start this campaign/i,
+    message: 'No tienes permiso para iniciar esta campaña.',
+  },
+  {
+    pattern: /you cannot finish this campaign/i,
+    message: 'No tienes permiso para finalizar esta campaña.',
+  },
+  {
     pattern: /end_date.*future|end date.*future|must be in the future/i,
     message: 'La fecha de fin debe estar en el futuro.',
   },
