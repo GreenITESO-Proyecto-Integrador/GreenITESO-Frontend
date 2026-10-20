@@ -35,6 +35,9 @@ export function EditCampaignForm({ campaign, onSaved, onCancel }: EditCampaignFo
   const originalStart = toDateInputValue(campaign.startDate);
   const originalEnd = toDateInputValue(campaign.endDate);
   const tomorrow = getTomorrowInMexicoCity();
+  // A saved date earlier than tomorrow stays selectable so the form can open with it as is.
+  const minStart = originalStart && originalStart < tomorrow ? originalStart : tomorrow;
+  const minEnd = originalEnd && originalEnd < tomorrow ? originalEnd : tomorrow;
   const [startDate, setStartDate] = useState(originalStart);
   const [endDate, setEndDate] = useState(originalEnd);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -127,7 +130,7 @@ export function EditCampaignForm({ campaign, onSaved, onCancel }: EditCampaignFo
           <Input
             id="edit-campaign-start"
             type="date"
-            min={originalStart < tomorrow ? undefined : tomorrow}
+            min={minStart}
             value={startDate}
             aria-invalid={errors.start_date ? true : undefined}
             onChange={event => setStartDate(event.target.value)}
@@ -140,6 +143,7 @@ export function EditCampaignForm({ campaign, onSaved, onCancel }: EditCampaignFo
           <Input
             id="edit-campaign-end"
             type="date"
+            min={minEnd}
             value={endDate}
             aria-invalid={errors.end_date ? true : undefined}
             onChange={event => setEndDate(event.target.value)}

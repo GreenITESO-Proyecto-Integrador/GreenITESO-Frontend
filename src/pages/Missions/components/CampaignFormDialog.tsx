@@ -95,8 +95,7 @@ function CampaignForm({
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const tomorrow = getTomorrowInMexicoCity();
-  // TODO: cuando exista el endpoint "mis clanes" del Equipo 2, listar solo los clanes PRIVATE que
+  const tomorrow = getTomorrowInMexicoCity(); // TODO: cuando exista el endpoint "mis clanes" del Equipo 2, listar solo los clanes PRIVATE que
   // lidera el usuario. Por ahora se listan todos los PRIVATE y el backend valida el liderazgo.
   const [rows, setRows] = useState<MissionRow[]>([]);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -316,6 +315,7 @@ function CampaignForm({
           <Input
             id="campaign-end"
             type="date"
+            min={tomorrow}
             value={endDate}
             aria-invalid={errors.end_date ? true : undefined}
             onChange={event => setEndDate(event.target.value)}

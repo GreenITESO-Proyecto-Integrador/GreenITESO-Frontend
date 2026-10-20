@@ -41,7 +41,8 @@ export function endOfDay(value: string): Date {
 }
 
 /**
- * Tomorrow as `YYYY-MM-DD` in Mexico City: the earliest `start_date` the backend accepts.
+ * Tomorrow as `YYYY-MM-DD` in Mexico City: the earliest `start_date` the backend accepts, and
+ * so the earliest useful `end_date` (the end must come after the start).
  */
 export function getTomorrowInMexicoCity(now: Date = new Date()): string {
   const today = toMxDate(now);
