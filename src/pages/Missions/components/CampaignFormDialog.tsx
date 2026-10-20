@@ -354,7 +354,7 @@ function CampaignForm({
           <>
             {rows.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Aún sin misiones. Puedes agregarlas ahora o después.
+                Aún sin misiones.
               </p>
             ) : null}
 
