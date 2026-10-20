@@ -27,26 +27,35 @@ export function toMxDateTime(value: string, edge: 'start' | 'end'): string {
 }
 
 /**
- * Start of day (Mexico City) for a `YYYY-MM-DD` value.
- */
-export function startOfDay(value: string): Date {
-  return new Date(toMxDateTime(value, 'start'));
-}
-
-/**
- * End of day (Mexico City) for a `YYYY-MM-DD` value, so a same-day campaign is valid.
+ * End of day (Mexico City) for a `YYYY-MM-DD` value.
  */
 export function endOfDay(value: string): Date {
   return new Date(toMxDateTime(value, 'end'));
 }
 
 /**
- * Tomorrow as `YYYY-MM-DD` in Mexico City: the earliest `start_date` the backend accepts, and
- * so the earliest useful `end_date` (the end must come after the start).
+ * `YYYY-MM-DD` shifted by whole days (calendar arithmetic, no time zone involved).
+ */
+export function addDays(value: string, days: number): string {
+  return new Date(new Date(`${value}T12:00:00Z`).getTime() + days * DAY_MS)
+    .toISOString()
+    .slice(0, 10);
+}
+
+/**
+ * Tomorrow as `YYYY-MM-DD` in Mexico City: the earliest `start_date` the backend accepts.
  */
 export function getTomorrowInMexicoCity(now: Date = new Date()): string {
-  const today = toMxDate(now);
-  return new Date(new Date(`${today}T12:00:00Z`).getTime() + DAY_MS).toISOString().slice(0, 10);
+  return addDays(toMxDate(now), 1);
+}
+
+/**
+ * Earliest `end_date` for a campaign: the backend needs the end at least one day after the start,
+ * which with start-of-day / end-of-day times means the next calendar day. Without a start, the
+ * earliest start (tomorrow) is assumed.
+ */
+export function getMinEndDate(startDate: string): string {
+  return addDays(startDate || getTomorrowInMexicoCity(), 1);
 }
 
 /**
@@ -66,8 +75,8 @@ interface ValidateDatesOptions {
 }
 
 /**
- * Client-side date checks: both required, start tomorrow or later (when asked), end after
- * start, end in the future. Returns messages keyed by backend field name.
+ * Client-side date checks: both required, start tomorrow or later (when asked), end at least one
+ * day after start, end in the future. Returns messages keyed by backend field name.
  */
 export function validateDates(
   startDate: string,
@@ -83,8 +92,8 @@ export function validateDates(
   }
 
   if (startDate && endDate) {
-    if (endOfDay(endDate) <= startOfDay(startDate)) {
-      errors.end_date = 'La fecha de fin debe ser posterior al inicio.';
+    if (endDate < getMinEndDate(startDate)) {
+      errors.end_date = 'La fecha de fin debe ser al menos un día después del inicio.';
     } else if (endOfDay(endDate) <= new Date()) {
       errors.end_date = 'La fecha de fin debe estar en el futuro.';
     }

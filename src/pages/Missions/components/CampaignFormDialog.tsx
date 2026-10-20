@@ -24,6 +24,7 @@ import {
   WRAP_TEXT,
 } from '@/components/campaigns/field-limits';
 import {
+  getMinEndDate,
   getTomorrowInMexicoCity,
   toMxDateTime,
   validateDates,
@@ -95,8 +96,7 @@ function CampaignForm({
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const tomorrow = getTomorrowInMexicoCity(); // TODO: cuando exista el endpoint "mis clanes" del Equipo 2, listar solo los clanes PRIVATE que
-  // lidera el usuario. Por ahora se listan todos los PRIVATE y el backend valida el liderazgo.
+  const tomorrow = getTomorrowInMexicoCity();
   const [rows, setRows] = useState<MissionRow[]>([]);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -315,7 +315,7 @@ function CampaignForm({
           <Input
             id="campaign-end"
             type="date"
-            min={tomorrow}
+            min={getMinEndDate(startDate)}
             value={endDate}
             aria-invalid={errors.end_date ? true : undefined}
             onChange={event => setEndDate(event.target.value)}

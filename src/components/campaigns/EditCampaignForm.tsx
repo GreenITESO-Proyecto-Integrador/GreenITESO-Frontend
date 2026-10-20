@@ -7,6 +7,7 @@ import { updateCampaign, type CampaignUpdate } from '@/lib/api/campaigns';
 import { ApiError, toFriendlyMessage } from '@/lib/api/errors';
 import type { CampaignDetail } from '@/types/campaign';
 import {
+  getMinEndDate,
   getTomorrowInMexicoCity,
   toDateInputValue,
   toMxDateTime,
@@ -37,9 +38,9 @@ export function EditCampaignForm({ campaign, onSaved, onCancel }: EditCampaignFo
   const tomorrow = getTomorrowInMexicoCity();
   // A saved date earlier than tomorrow stays selectable so the form can open with it as is.
   const minStart = originalStart && originalStart < tomorrow ? originalStart : tomorrow;
-  const minEnd = originalEnd && originalEnd < tomorrow ? originalEnd : tomorrow;
   const [startDate, setStartDate] = useState(originalStart);
   const [endDate, setEndDate] = useState(originalEnd);
+  const minEnd = getMinEndDate(startDate);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -53,10 +54,12 @@ export function EditCampaignForm({ campaign, onSaved, onCancel }: EditCampaignFo
     if (startDate !== originalStart) changes.startDate = toMxDateTime(startDate, 'start');
     if (endDate !== originalEnd) changes.endDate = toMxDateTime(endDate, 'end');
 
-    // Start < end uses the effective values (edited, or the saved ones when untouched).
-    const found: Record<string, string> = validateDates(startDate, endDate, {
-      checkStartMin: changes.startDate !== undefined,
-    });
+    // Date rules use the effective values (edited, or the saved ones when untouched), and only
+    // run when a date changed: editing just the title must not fail on an older campaign.
+    const datesChanged = changes.startDate !== undefined || changes.endDate !== undefined;
+    const found: Record<string, string> = datesChanged
+      ? validateDates(startDate, endDate, { checkStartMin: changes.startDate !== undefined })
+      : {};
     if (!title.trim()) found.title = 'Escribe un título.';
     if (!description.trim()) found.description = 'Escribe una descripción.';
     setErrors(found);

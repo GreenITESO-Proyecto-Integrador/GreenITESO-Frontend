@@ -155,6 +155,10 @@ const MESSAGE_RULES: readonly {
       'No se puede aprobar: la propuesta ya inicia hoy o antes. Los usuarios necesitan al menos un día para unirse. Puedes rechazarla con un motivo.',
   },
   {
+    pattern: /end date must be at least one day after start date/i,
+    message: 'La fecha de fin debe ser al menos un día después del inicio.',
+  },
+  {
     pattern: /only campaigns in promotion can be started/i,
     message: 'Solo se puede iniciar una campaña en promoción.',
   },
