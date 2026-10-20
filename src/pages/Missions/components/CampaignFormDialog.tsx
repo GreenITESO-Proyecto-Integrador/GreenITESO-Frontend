@@ -353,9 +353,7 @@ function CampaignForm({
         {status === 'success' ? (
           <>
             {rows.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Aún sin misiones.
-              </p>
+              <p className="text-sm text-muted-foreground">Aún sin misiones.</p>
             ) : null}
 
             {rows.map((row, index) => (
