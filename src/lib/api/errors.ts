@@ -155,6 +155,15 @@ const MESSAGE_RULES: readonly {
       'No se puede aprobar: la propuesta ya inicia hoy o antes. Los usuarios necesitan al menos un día para unirse. Puedes rechazarla con un motivo.',
   },
   {
+    pattern: /campaign must have at least one mission/i,
+    message: 'Agrega al menos una misión a la campaña.',
+  },
+  {
+    pattern: /cannot approve a proposal whose end date has passed/i,
+    message:
+      'No se puede aprobar: la fecha de fin de la propuesta ya pasó. Puedes rechazarla con un motivo.',
+  },
+  {
     pattern: /end date must be at least one day after start date/i,
     message: 'La fecha de fin debe ser al menos un día después del inicio.',
   },
