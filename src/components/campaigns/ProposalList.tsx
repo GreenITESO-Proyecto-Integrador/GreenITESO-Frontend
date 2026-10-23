@@ -38,6 +38,8 @@ interface ProposalListProps {
   onFilterChange: (filter: ProposalFilter) => void;
   busyId: string | null;
   decisionError: string | null;
+  /** Proposal the decision error belongs to; without it the error shows above the list. */
+  decisionErrorId?: string | null;
   onApprove: (id: string) => void;
   onReject: (id: string, reason: string) => void;
 }
@@ -47,6 +49,7 @@ interface ProposalCardProps {
   isAdmin: boolean;
   busy: boolean;
   disabled: boolean;
+  error: string | null;
   onApprove: (id: string) => void;
   onReject: (id: string, reason: string) => void;
 }
@@ -56,6 +59,7 @@ function ProposalCard({
   isAdmin,
   busy,
   disabled,
+  error,
   onApprove,
   onReject,
 }: ProposalCardProps) {
@@ -122,6 +126,12 @@ function ProposalCard({
         {proposal.reviewedAt ? (
           <p className="mt-auto text-xs text-muted-foreground">
             Revisada el {formatDate(proposal.reviewedAt)}
+          </p>
+        ) : null}
+
+        {error ? (
+          <p className="text-sm text-red-700 dark:text-red-300" role="alert">
+            {error}
           </p>
         ) : null}
 
@@ -206,6 +216,7 @@ export function ProposalList({
   onFilterChange,
   busyId,
   decisionError,
+  decisionErrorId = null,
   onApprove,
   onReject,
 }: ProposalListProps) {
@@ -223,7 +234,7 @@ export function ProposalList({
         }}
       />
 
-      {decisionError ? (
+      {decisionError && !decisionErrorId ? (
         <p className="text-sm text-red-700 dark:text-red-300" role="alert">
           {decisionError}
         </p>
@@ -262,6 +273,7 @@ export function ProposalList({
                   isAdmin={isAdmin}
                   busy={busyId === proposal.id}
                   disabled={busyId !== null}
+                  error={decisionErrorId === proposal.id ? decisionError : null}
                   onApprove={onApprove}
                   onReject={onReject}
                 />

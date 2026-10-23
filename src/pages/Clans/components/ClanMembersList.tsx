@@ -34,7 +34,7 @@ export function ClanMembersList({ members, viewerId }: ClanMembersListProps) {
       ) : (
         <ul className="flex flex-col gap-2">
           {visible.map(member => {
-            const name = memberDisplayName(member.nickname);
+            const name = memberDisplayName(member);
             const since = formatMemberSince(member.joinedAt);
             return (
               <li

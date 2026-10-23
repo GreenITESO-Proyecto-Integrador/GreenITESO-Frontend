@@ -14,6 +14,7 @@ export function useCampaignProposals(filter?: CampaignApprovalStatus) {
   const [status, setStatus] = useState<CampaignProposalsStatus>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [decisionError, setDecisionError] = useState<string | null>(null);
+  const [decisionErrorId, setDecisionErrorId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const latestRequest = useRef(0);
@@ -32,6 +33,7 @@ export function useCampaignProposals(filter?: CampaignApprovalStatus) {
       } else {
         setStatus('loading');
         setDecisionError(null);
+        setDecisionErrorId(null);
       }
       setErrorMessage(null);
       try {
@@ -60,12 +62,14 @@ export function useCampaignProposals(filter?: CampaignApprovalStatus) {
   async function decide(id: string, run: () => Promise<void>, fallback: string): Promise<boolean> {
     setBusyId(id);
     setDecisionError(null);
+    setDecisionErrorId(null);
     try {
       await run();
       await load(true);
       return true;
     } catch (error) {
       setDecisionError(toFriendlyMessage(error, fallback));
+      setDecisionErrorId(id);
       return false;
     } finally {
       setBusyId(null);
@@ -99,6 +103,7 @@ export function useCampaignProposals(filter?: CampaignApprovalStatus) {
     refreshing,
     errorMessage,
     decisionError,
+    decisionErrorId,
     busyId,
     reload,
     approve,
