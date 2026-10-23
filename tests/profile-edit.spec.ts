@@ -1,14 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mockStudentSession } from './helpers/auth';
+import { PIXEL_PNG } from './helpers/images';
 
 const profileUrl = '**/api/v1/profile/me/**';
 const imageHost = 'https://images.greeniteso.test';
-
-// 1×1 transparent PNG, served for every image URL the tests treat as reachable.
-const PIXEL_PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
-  'base64',
-);
 
 const initialProfileData = {
   user_id: 'user-uuid-123',
@@ -49,6 +44,15 @@ interface MockProfileOptions {
   patchGate?: Promise<void>;
   /** Respond to the photo upload with this status and body instead of storing it. */
   uploadError?: { status: number; body: unknown };
+  /** Fail only the first N PATCHes with `patchError`; later ones succeed. */
+  patchFailures?: number;
+  /** Status served for uploaded photos (GET /api/v1/avatars/...). */
+  uploadedAvatarStatus?: number;
+  /** Page to open first (default /profile). */
+  startPath?: string;
+  /** While this returns true, profile GETs answer with the profile as it was when they arrived, after `heldGate`. */
+  holdProfileGets?: () => boolean;
+  heldGate?: Promise<void>;
 }
 
 /** Where the backend serves an uploaded photo (GET /api/v1/avatars/<user_id>/). */
@@ -68,12 +72,19 @@ async function setupProfile(page: Page, options: MockProfileOptions = {}) {
   let stored: ProfilePayload = { ...initialProfileData, ...options.profile };
   const patches: Record<string, unknown>[] = [];
   const uploads: RecordedUpload[] = [];
+  const profileGets: { authorization: string | null }[] = [];
+  const refreshCalls: number[] = [];
+  let failedPatches = 0;
 
   await mockStudentSession(page, {
     id: stored.user_id,
     email: stored.email,
     firstName: stored.first_name,
     lastName: stored.last_name,
+  });
+  await page.route('**/api/v1/auth/refresh/', async route => {
+    refreshCalls.push(Date.now());
+    await route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
   });
 
   await page.route(`${imageHost}/**`, async route => {
@@ -85,7 +96,9 @@ async function setupProfile(page: Page, options: MockProfileOptions = {}) {
   });
 
   await page.route('**/api/v1/avatars/**', route =>
-    route.fulfill({ status: 200, contentType: 'image/png', body: PIXEL_PNG }),
+    (options.uploadedAvatarStatus ?? 200) === 200
+      ? route.fulfill({ status: 200, contentType: 'image/png', body: PIXEL_PNG })
+      : route.fulfill({ status: options.uploadedAvatarStatus ?? 404, body: '' }),
   );
 
   await page.route(profileUrl, async route => {
@@ -105,11 +118,23 @@ async function setupProfile(page: Page, options: MockProfileOptions = {}) {
       }
       stored = { ...stored, avatar_url: uploadedAvatarUrl(uploads.length) };
     }
+    if (method === 'GET') {
+      profileGets.push({ authorization: await route.request().headerValue('authorization') });
+      if (options.holdProfileGets?.()) {
+        const snapshot = JSON.stringify(stored);
+        await options.heldGate;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: snapshot });
+        return;
+      }
+    }
     if (method === 'PATCH') {
       const body = JSON.parse(route.request().postData() || '{}') as Record<string, unknown>;
       patches.push(body);
       await options.patchGate;
-      if (options.patchError) {
+      const failThisOne =
+        options.patchFailures === undefined || failedPatches < options.patchFailures;
+      if (options.patchError && failThisOne) {
+        failedPatches += 1;
         await route.fulfill({
           status: options.patchError.status,
           contentType: 'application/json',
@@ -126,8 +151,8 @@ async function setupProfile(page: Page, options: MockProfileOptions = {}) {
     });
   });
 
-  await page.goto('/profile');
-  return { patches, uploads };
+  await page.goto(options.startPath ?? '/profile');
+  return { patches, uploads, profileGets, refreshCalls };
 }
 
 async function openEditor(page: Page) {
@@ -606,5 +631,136 @@ test.describe('Profile Editing (T2-23)', () => {
     await saveButton.click();
     await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
     expect(patches[0]).toMatchObject({ bio: '🌱'.repeat(260) });
+  });
+
+  test('should not upload the photo again when retrying after the other fields failed', async ({
+    page,
+  }) => {
+    const { patches, uploads } = await setupProfile(page, {
+      patchError: {
+        status: 400,
+        body: { bio: ['Ensure this field has no more than 500 characters.'] },
+      },
+      patchFailures: 1,
+    });
+    await openEditor(page);
+
+    await page.getByTestId('profile-avatar-file').setInputFiles({
+      name: 'yo.png',
+      mimeType: 'image/png',
+      buffer: PIXEL_PNG,
+    });
+    await page.getByLabel('Biografía').fill('Nueva biografía.');
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+
+    // The photo was saved even though the other fields were not; say so.
+    await expect(page.getByRole('alert')).toContainText('La foto se actualizó');
+    // The modal hides the navbar from the accessibility tree, so locate it by CSS.
+    await expect(page.locator('header [aria-label="Menú de usuario"] img')).toHaveAttribute(
+      'src',
+      uploadedAvatarUrl(1),
+    );
+
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
+
+    expect(uploads).toHaveLength(1);
+    expect(patches).toHaveLength(2);
+    expect(patches[1]).toMatchObject({ bio: 'Nueva biografía.' });
+    expect(patches[1]).not.toHaveProperty('avatar_url');
+  });
+
+  test('should fall back to initials when the uploaded photo cannot be loaded', async ({
+    page,
+  }) => {
+    await setupProfile(page, {
+      profile: { avatar_url: uploadedAvatarUrl(7) },
+      uploadedAvatarStatus: 404,
+    });
+    await openEditor(page);
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('MG', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Cargando vista previa…')).toHaveCount(0);
+  });
+
+  test('should use the first letter of the email when there is no name', async ({ page }) => {
+    await setupProfile(page, { profile: { first_name: '', last_name: '', avatar_url: '' } });
+
+    await expect(page.getByRole('main').getByText('U', { exact: true })).toBeVisible();
+    await expect(page.getByRole('main').getByText('US', { exact: true })).toHaveCount(0);
+  });
+
+  test('should not let a late navbar lookup overwrite a photo saved meanwhile', async ({
+    page,
+  }) => {
+    let holding = true;
+    let release!: () => void;
+    const heldGate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    // Only the navbar asks for /profile/me/ on /notifications; hold its answer.
+    await page.route('**/api/v1/notifications/**', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ count: 0, results: [], unread_count: 0 }),
+      }),
+    );
+    const { profileGets } = await setupProfile(page, {
+      startPath: '/notifications',
+      holdProfileGets: () => holding,
+      heldGate,
+    });
+    await expect.poll(() => profileGets.length).toBeGreaterThan(0);
+    holding = false;
+
+    await page.getByRole('button', { name: 'Menú de usuario' }).click();
+    await page.getByRole('menuitem', { name: 'Perfil' }).click();
+    await openEditor(page);
+    await page.getByTestId('profile-avatar-file').setInputFiles({
+      name: 'yo.png',
+      mimeType: 'image/png',
+      buffer: PIXEL_PNG,
+    });
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    const navbarPhoto = page.getByRole('button', { name: 'Menú de usuario' }).locator('img');
+    await expect(navbarPhoto).toHaveAttribute('src', uploadedAvatarUrl(1));
+
+    release();
+    // Give the held (stale) response time to land, then check it was ignored.
+    await page.waitForTimeout(500);
+    await expect(navbarPhoto).toHaveAttribute('src', uploadedAvatarUrl(1));
+  });
+});
+
+test.describe('Navbar photo lookup', () => {
+  test('should never refresh or clear the session, even with an expired token', async ({
+    page,
+  }) => {
+    const { profileGets, refreshCalls } = await setupProfile(page, {
+      startPath: '/notifications',
+    });
+    await page.waitForLoadState('networkidle');
+    const before = { gets: profileGets.length, refreshes: refreshCalls.length };
+
+    const result = await page.evaluate(async () => {
+      sessionStorage.setItem(
+        'greeniteso.access_token',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjF9.expired',
+      );
+      const module = await import('/src/lib/api/ecological-profile.ts');
+      const url = await module.fetchOwnAvatarUrl();
+      return {
+        url,
+        accessKept: sessionStorage.getItem('greeniteso.access_token') !== null,
+        refreshKept: sessionStorage.getItem('greeniteso.refresh_token') !== null,
+      };
+    });
+
+    // No usable token: skip the lookup instead of refreshing (and possibly logging out).
+    expect(result).toEqual({ url: null, accessKept: true, refreshKept: true });
+    expect(refreshCalls).toHaveLength(before.refreshes);
+    expect(profileGets).toHaveLength(before.gets);
   });
 });

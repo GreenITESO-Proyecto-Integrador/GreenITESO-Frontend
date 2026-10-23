@@ -7,11 +7,27 @@ import type {
   ProfileUpdatePayload,
   ProfileVisibility,
 } from '@/types/ecological-profile';
-import { apiFetch, getApiBaseUrl, getApiHeaders } from './client';
+import { getAccessToken, isTokenExpired } from '@/lib/auth/session';
+import { apiFetch, getApiBaseUrl } from './client';
 import { readError } from './errors';
 
 export const ECOLOGICAL_PROFILE_PATH = '/api/v1/profile/me/';
 export const PROFILE_AVATAR_PATH = '/api/v1/profile/me/avatar/';
+/** Where the backend serves photos uploaded from the device (`GET /api/v1/avatars/<user_id>/`). */
+export const UPLOADED_AVATAR_PATH = '/api/v1/avatars/';
+
+/**
+ * Whether a profile `avatar_url` points at a photo uploaded from the device,
+ * as opposed to a link the user pasted.
+ */
+export function isUploadedAvatarUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  try {
+    return new URL(url, getApiBaseUrl()).pathname.startsWith(UPLOADED_AVATAR_PATH);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Narrow unknown values to plain objects before reading profile fields.
@@ -262,11 +278,17 @@ export async function uploadProfileAvatar(file: File): Promise<EcologicalProfile
 
 /**
  * Best-effort read of the signed-in user's photo URL, for the navbar.
- * Unlike `apiFetch`, a 401 here never refreshes or clears the session: a
- * background avatar lookup must not be able to log the user out.
+ * It never refreshes or clears the session, unlike `apiFetch`: it uses the
+ * stored access token as is and skips the request when that token is missing
+ * or expired, so a background avatar lookup can't log the user out.
+ * Returns null when the lookup is skipped or fails.
  */
 export async function fetchOwnAvatarUrl(): Promise<string | null> {
-  const response = await fetch(getEcologicalProfileUrl(), { headers: await getApiHeaders() });
+  const accessToken = getAccessToken();
+  if (!accessToken || isTokenExpired(accessToken)) return null;
+  const response = await fetch(getEcologicalProfileUrl(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
   if (!response.ok) return null;
   const payload: unknown = await response.json();
   return mapEcologicalProfile(payload).avatarUrl ?? '';

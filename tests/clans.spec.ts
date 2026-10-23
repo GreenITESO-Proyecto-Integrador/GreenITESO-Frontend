@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mockStudentSession } from './helpers/auth';
+import { PIXEL_PNG } from './helpers/images';
 
 type Json = Record<string, unknown>;
 
@@ -14,12 +15,6 @@ const CORS_HEADERS = {
   'access-control-allow-headers': '*',
   'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS',
 };
-
-// 1×1 PNG served for every avatar URL the test treats as reachable.
-const PIXEL_PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
-  'base64',
-);
 
 /** The mocked session user (see tests/helpers/auth.ts). */
 const ME = 'test-user-id';

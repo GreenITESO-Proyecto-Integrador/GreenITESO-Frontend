@@ -3,7 +3,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Footer } from '@/components/layout/Footer';
-import { CurrentUserAvatarProvider } from '@/components/current-user-avatar-provider';
+import { CurrentUserAvatarProvider } from '@/components/CurrentUserAvatarProvider';
 import { NotificationsProvider } from '@/components/notifications-provider';
 import { useNotifications } from '@/hooks/use-notifications';
 

@@ -18,10 +18,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useDialogBusyGuard } from '@/hooks/use-dialog-busy-guard';
-import { updateEcologicalProfile, uploadProfileAvatar } from '@/lib/api/ecological-profile';
+import {
+  isUploadedAvatarUrl,
+  updateEcologicalProfile,
+  uploadProfileAvatar,
+} from '@/lib/api/ecological-profile';
 import { toFriendlyMessage } from '@/lib/api/errors';
 import { validateImageFile } from '@/lib/api/upload';
-import { getInitials } from '@/lib/clan-meta';
+import { getUserInitials } from '@/lib/user-initials';
 import type { EcologicalProfile, ProfileVisibility } from '@/types/ecological-profile';
 
 // Mirrors the backend's avatar_url rules (accounts.serializers._validate_avatar_url).
@@ -32,17 +36,9 @@ const CLOSE_AFTER_SAVE_MS = 700;
 
 type PreviewStatus = 'loading' | 'loaded' | 'failed';
 
-/**
- * A photo uploaded from the device is served by the backend at /api/v1/avatars/<id>/.
- * It is not a link the user pasted, so it never prefills the link field.
- */
-function isUploadedAvatar(url: string | undefined): boolean {
-  return Boolean(url && /\/api\/v1\/avatars\//.test(url));
-}
-
 /** The pasted link the form starts from; an uploaded photo has none. */
 function initialLink(profile: EcologicalProfile): string {
-  return isUploadedAvatar(profile.avatarUrl) ? '' : (profile.avatarUrl ?? '');
+  return isUploadedAvatarUrl(profile.avatarUrl) ? '' : (profile.avatarUrl ?? '');
 }
 
 /**
@@ -167,13 +163,13 @@ export function EditProfileDialog({
     [avatarPreviewUrl],
   );
 
-  const initials = getInitials(
+  const initials = getUserInitials(
     `${profile.firstName ?? ''} ${profile.lastName ?? ''}`.trim() || profile.email || 'U',
   );
 
   const trimmedAvatarUrl = avatarUrl.trim();
   const avatarFormatError = validateAvatarUrl(trimmedAvatarUrl);
-  const hasUploadedAvatar = isUploadedAvatar(profile.avatarUrl);
+  const hasUploadedAvatar = isUploadedAvatarUrl(profile.avatarUrl);
   const avatarChanged = trimmedAvatarUrl !== initialLink(profile);
   // What the preview shows: the picked file, else the typed link, else the
   // current uploaded photo unless it was removed.
@@ -263,6 +259,7 @@ export function EditProfileDialog({
     setBusy(true);
     setIsSubmitting(true);
 
+    let photoSaved = false;
     try {
       // Spread the stored preferences so keys this form doesn't edit (e.g. theme) survive.
       const updatedPreferences: Record<string, unknown> = {
@@ -272,9 +269,13 @@ export function EditProfileDialog({
       };
 
       if (avatarFile) {
-        // The upload goes first: if it fails, nothing else is half-saved.
+        // The upload goes first, so a failed upload saves nothing. Once it succeeds the photo
+        // stays saved even if the PATCH below fails: drop the picked file so a retry only
+        // re-sends the other fields instead of uploading the photo again.
         const withPhoto = await uploadProfileAvatar(avatarFile.file);
+        photoSaved = true;
         onProfileUpdated(withPhoto);
+        if (session === sessionRef.current) setAvatarFile(null);
       }
 
       const updated = await updateEcologicalProfile({
@@ -299,9 +300,12 @@ export function EditProfileDialog({
       }, CLOSE_AFTER_SAVE_MS);
     } catch (err) {
       if (session !== sessionRef.current) return;
+      const reason = toFriendlyMessage(err, 'Ocurrió un error al actualizar el perfil.');
       setStatusMessage({
         type: 'error',
-        text: toFriendlyMessage(err, 'Ocurrió un error al actualizar el perfil.'),
+        text: photoSaved
+          ? `La foto se actualizó, pero no se guardaron los demás cambios: ${reason}`
+          : reason,
       });
     } finally {
       setBusy(false);

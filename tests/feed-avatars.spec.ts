@@ -1,11 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { mockStudentSession } from './helpers/auth';
-
-// 1×1 PNG served for every avatar URL the test treats as reachable.
-const PIXEL_PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
-  'base64',
-);
+import { PIXEL_PNG } from './helpers/images';
 
 function post(id: number, author: Record<string, unknown>) {
   return {

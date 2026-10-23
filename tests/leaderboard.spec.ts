@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mockStudentSession } from './helpers/auth';
+import { PIXEL_PNG } from './helpers/images';
 
 const usersUrl = '**/api/v1/rankings/users**';
 const rankingsUrl = '**/api/v1/rankings/**';
@@ -14,12 +15,6 @@ const globalRanking = [
   },
   { id: 'user-2', rank: 2, display_name: 'Luis', avatar_url: '', total_points: 80 },
 ];
-
-// 1×1 PNG served for every avatar URL the test treats as reachable.
-const PIXEL_PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
-  'base64',
-);
 
 const institutionalRanking = [
   { id: 'clan-1', rank: 1, clan_name: 'Software', total_points: 400 },

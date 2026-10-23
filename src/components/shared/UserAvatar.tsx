@@ -1,5 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getInitials } from '@/lib/clan-meta';
+import { getUserInitials } from '@/lib/user-initials';
 import { cn } from '@/lib/utils';
 
 interface UserAvatarProps {
@@ -27,7 +27,7 @@ export function UserAvatar({ src, name, className, decorative = false }: UserAva
     >
       {src ? <AvatarImage src={src} alt={decorative ? '' : name} /> : null}
       <AvatarFallback className="bg-linear-to-br from-primary-500 to-primary-700 text-[length:inherit] text-white">
-        <span aria-hidden="true">{getInitials(name)}</span>
+        <span aria-hidden="true">{getUserInitials(name)}</span>
       </AvatarFallback>
     </Avatar>
   );
