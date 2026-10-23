@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { CalendarRange, Pencil, Plus, Users } from 'lucide-react';
+import { CalendarRange, Flag, Pencil, Play, Plus, Users } from 'lucide-react';
 import { ModalContent } from '@/components/custom/ModalContent';
 import { MissionItem } from '@/components/shared/MissionItem';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,7 @@ import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '@/componen
 import { useCampaignDetail } from '@/hooks/use-campaign-detail';
 import { useClanName } from '@/hooks/use-clan-name';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { joinCampaign } from '@/lib/api/campaigns';
+import { finishCampaign, joinCampaign, startCampaign } from '@/lib/api/campaigns';
 import { toFriendlyMessage } from '@/lib/api/errors';
 import { SCOPE_META, STATUS_META, formatDate } from '@/lib/campaign-meta';
 import type { Mission } from '@/types/mission';
@@ -27,6 +27,30 @@ interface CampaignDetailDialogProps {
   onLogAction?: (mission: Mission) => void;
 }
 
+type LifecycleAction = 'start' | 'finish';
+
+const LIFECYCLE_COPY: Record<
+  LifecycleAction,
+  { verb: string; description: string; confirm: string; busy: string; success: string }
+> = {
+  start: {
+    verb: 'Iniciar',
+    description:
+      'La campaña pasará a "Activa" y su fecha de inicio será ahora. Esta acción no se puede revertir: ya no podrás editarla y nadie más podrá unirse.',
+    confirm: 'Iniciar campaña',
+    busy: 'Iniciando…',
+    success: '¡Listo! La campaña ya está activa.',
+  },
+  finish: {
+    verb: 'Finalizar',
+    description:
+      'La campaña pasará a "Finalizada" y su fecha de fin será ahora. Esta acción no se puede revertir.',
+    confirm: 'Finalizar campaña',
+    busy: 'Finalizando…',
+    success: 'La campaña se finalizó.',
+  },
+};
+
 function DetailBody({
   campaignId,
   onChanged,
@@ -37,6 +61,8 @@ function DetailBody({
   const [addingMission, setAddingMission] = useState(false);
   const [editing, setEditing] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [confirming, setConfirming] = useState<LifecycleAction | null>(null);
+  const [transitioning, setTransitioning] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const dismissNotice = useCallback(() => setNotice(null), []);
@@ -55,6 +81,23 @@ function DetailBody({
       setActionError(toFriendlyMessage(error, 'No se pudo completar la inscripción.'));
     } finally {
       setJoining(false);
+    }
+  }
+
+  async function handleTransition(action: LifecycleAction) {
+    setTransitioning(true);
+    setActionError(null);
+    try {
+      await (action === 'start' ? startCampaign(campaignId) : finishCampaign(campaignId));
+      setConfirming(null);
+      setNotice(LIFECYCLE_COPY[action].success);
+      await refresh();
+      onChanged?.();
+    } catch (error) {
+      setConfirming(null);
+      setActionError(toFriendlyMessage(error, 'No se pudo actualizar la campaña.'));
+    } finally {
+      setTransitioning(false);
     }
   }
 
@@ -106,7 +149,47 @@ function DetailBody({
   const canEdit = canAddMission;
   // Admins cannot join campaigns.
   const canJoin = isPromotion && !detail.isParticipant && !isAdmin;
+  // One-way transitions; the backend also requires an approved campaign to start.
+  const canStart = canEdit && detail.approvalStatus === 'APPROVED';
+  const canFinish = detail.canManage && detail.status === 'IN_PROGRESS';
   const existingCodes = new Set(detail.missions.map(mission => mission.action.id));
+
+  // Confirmation replaces the modal content (like editing) instead of stacking a second dialog.
+  if (
+    confirming &&
+    ((confirming === 'start' && canStart) || (confirming === 'finish' && canFinish))
+  ) {
+    const copy = LIFECYCLE_COPY[confirming];
+    return (
+      <>
+        <DialogHeader className="pr-10">
+          <DialogTitle className={`line-clamp-3 text-xl font-bold text-foreground ${WRAP_TEXT}`}>
+            ¿{copy.verb} “{detail.title}”?
+          </DialogTitle>
+          <DialogDescription>{copy.description}</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={transitioning}
+            onClick={() => setConfirming(null)}
+            className="min-h-11 cursor-pointer rounded-xl px-5 font-semibold"
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            disabled={transitioning}
+            onClick={() => void handleTransition(confirming)}
+            className="min-h-11 cursor-pointer rounded-xl bg-primary-500 px-5 font-semibold text-white shadow-sm hover:bg-primary-600 disabled:opacity-50 sm:ml-auto"
+          >
+            {transitioning ? copy.busy : copy.confirm}
+          </Button>
+        </div>
+      </>
+    );
+  }
 
   if (editing && canEdit) {
     return (
@@ -177,7 +260,20 @@ function DetailBody({
       </dl>
 
       <section className="flex flex-col gap-3">
-        <h3 className="text-lg font-semibold text-foreground">Misiones</h3>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-lg font-semibold text-foreground">Misiones</h3>
+          {canAddMission && !addingMission ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAddingMission(true)}
+              className="min-h-11 cursor-pointer rounded-xl px-4 font-semibold"
+            >
+              <Plus className="size-4" />
+              Agregar misión
+            </Button>
+          ) : null}
+        </div>
         {detail.missions.length === 0 ? (
           <p className="text-sm text-muted-foreground">Esta campaña aún no tiene misiones.</p>
         ) : (
@@ -209,8 +305,9 @@ function DetailBody({
         </p>
       ) : null}
 
-      {canJoin || canEdit || (canAddMission && !addingMission) ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+      {/* Secondary action first (left on desktop, bottom on mobile); the main action is last. */}
+      {canJoin || canEdit || canStart || canFinish ? (
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
           {canEdit ? (
             <Button
               type="button"
@@ -226,15 +323,17 @@ function DetailBody({
               Editar campaña
             </Button>
           ) : null}
-          {canAddMission && !addingMission ? (
+          {canStart || canFinish ? (
             <Button
               type="button"
-              variant="outline"
-              onClick={() => setAddingMission(true)}
-              className="min-h-11 cursor-pointer rounded-xl px-5 font-semibold"
+              onClick={() => {
+                setActionError(null);
+                setConfirming(canStart ? 'start' : 'finish');
+              }}
+              className="min-h-11 cursor-pointer rounded-xl bg-primary-500 px-5 font-semibold text-white shadow-sm hover:bg-primary-600 sm:ml-auto"
             >
-              <Plus className="size-4" />
-              Agregar misión
+              {canStart ? <Play className="size-4" /> : <Flag className="size-4" />}
+              {canStart ? 'Iniciar campaña' : 'Finalizar campaña'}
             </Button>
           ) : null}
           {canJoin ? (
@@ -242,7 +341,7 @@ function DetailBody({
               type="button"
               disabled={joining}
               onClick={() => void handleJoin()}
-              className="min-h-11 cursor-pointer rounded-xl bg-primary-500 px-5 font-semibold text-white shadow-sm hover:bg-primary-600 disabled:opacity-50"
+              className="min-h-11 cursor-pointer rounded-xl bg-primary-500 px-5 font-semibold text-white shadow-sm hover:bg-primary-600 disabled:opacity-50 sm:ml-auto"
             >
               {joining ? 'Uniéndome…' : 'Unirme'}
             </Button>
