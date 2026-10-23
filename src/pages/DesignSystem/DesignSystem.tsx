@@ -10,7 +10,7 @@ import { BottomNavigation } from './sections/BottomNavigation';
 
 export function DesignSystemPage() {
   return (
-    <div className="bg-secondary-50 min-h-screen pb-28">
+    <div className="min-h-screen bg-background pb-28">
       {/* Hero Section */}
       <div className="bg-linear-to-b from-primary-500 to-primary-600 text-white text-center px-4 py-8 sm:py-12">
         <h1 className="text-4xl sm:text-5xl font-extrabold mb-2">GreenITESO</h1>
@@ -22,12 +22,12 @@ export function DesignSystemPage() {
         <ColorPalette
           title="Paleta Primaria - Verde Ecológico"
           colorPrefix="primary"
-          borderClass="border border-secondary-100"
+          borderClass="border border-border"
         />
         <ColorPalette
           title="Paleta Secundaria - Gris Salvia"
           colorPrefix="secondary"
-          borderClass="border border-secondary-200"
+          borderClass="border border-border"
         />
         <SemanticStates />
         <EnvironmentalImpact />

@@ -202,6 +202,17 @@ body {
   }
 }
 
+@layer utilities {
+  /* Keep legacy utility usage theme-aware while pages migrate to semantic tokens. */
+  .dark .bg-white {
+    background-color: var(--card);
+  }
+
+  .dark .border-white {
+    border-color: var(--border);
+  }
+}
+
 /* Soft entrance for lists that change with filters or pages (`animate-fade-in`). */
 @theme {
   --animate-fade-in: fade-in 0.3s ease-out;

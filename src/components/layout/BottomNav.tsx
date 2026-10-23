@@ -26,7 +26,7 @@ export function BottomNav({ unreadNotifications = 0 }: BottomNavProps) {
   return (
     <>
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-secondary-100 bg-white pb-[env(safe-area-inset-bottom,0px)] shadow-lg md:hidden dark:border-secondary-700 dark:bg-secondary-800"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card pb-[env(safe-area-inset-bottom,0px)] shadow-lg md:hidden"
         aria-label="Navegación principal"
       >
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-around px-2">

@@ -40,14 +40,14 @@ export function HomePage() {
             <Button
               variant="outline"
               onClick={() => navigate('/login')}
-              className="min-h-11 border-2 border-secondary-300 px-8 py-3 font-semibold text-secondary-500 cursor-pointer"
+              className="min-h-11 border-2 border-border px-8 py-3 font-semibold text-foreground cursor-pointer"
             >
               Iniciar sesión
             </Button>
             <Button
               variant="outline"
               onClick={() => navigate('/profile')}
-              className="min-h-11 border-2 border-primary-500 bg-white px-8 py-3 font-semibold text-primary-700 hover:bg-primary-50 cursor-pointer shadow-xs"
+              className="min-h-11 border-2 border-primary-500 bg-card px-8 py-3 font-semibold text-primary-700 hover:bg-primary-50 cursor-pointer shadow-xs"
             >
               <User className="mr-2 size-5 text-primary-600" />
               Mi Perfil

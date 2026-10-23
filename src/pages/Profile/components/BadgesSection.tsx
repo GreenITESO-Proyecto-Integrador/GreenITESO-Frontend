@@ -19,7 +19,7 @@ export function BadgesSection({ badges }: BadgesSectionProps) {
 
       {badges.length === 0 ? (
         <div className="bg-card rounded-2xl p-6 sm:p-8 text-center border border-border shadow-xs">
-          <div className="size-12 bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 rounded-2xl flex items-center justify-center mx-auto mb-3">
+          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-800/50 dark:text-amber-400">
             <Award className="size-6" />
           </div>
           <h3 className="text-base font-bold text-foreground">Aún no tienes insignias</h3>
@@ -35,7 +35,7 @@ export function BadgesSection({ badges }: BadgesSectionProps) {
               key={badge.id || `badge-${idx}`}
               className="bg-card rounded-2xl p-5 border border-border shadow-xs flex flex-col items-center text-center hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
             >
-              <div className="size-12 rounded-full bg-linear-to-br from-primary-100 to-primary-200 dark:from-primary-950/80 dark:to-primary-900/60 text-primary-700 dark:text-primary-300 flex items-center justify-center mb-3 shadow-inner">
+              <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-linear-to-br from-primary-100 to-primary-200 text-primary-700 shadow-inner dark:from-primary-900/80 dark:to-primary-900/60 dark:text-primary-300">
                 <Sparkles className="size-6 text-primary-600 dark:text-primary-400" />
               </div>
               <h4 className="text-sm font-bold text-foreground line-clamp-1">

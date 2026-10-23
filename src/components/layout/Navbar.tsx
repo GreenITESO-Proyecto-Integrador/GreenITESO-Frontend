@@ -1,4 +1,4 @@
-import { Bell, Leaf, LogOut, Search, Settings, User as UserIcon } from 'lucide-react';
+import { Bell, Leaf, LogOut, Search, User as UserIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
