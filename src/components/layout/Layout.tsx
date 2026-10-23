@@ -3,6 +3,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Footer } from '@/components/layout/Footer';
+import { CurrentUserAvatarProvider } from '@/components/current-user-avatar-provider';
 import { NotificationsProvider } from '@/components/notifications-provider';
 import { useNotifications } from '@/hooks/use-notifications';
 
@@ -29,7 +30,9 @@ function LayoutContent() {
 export function Layout() {
   return (
     <NotificationsProvider>
-      <LayoutContent />
+      <CurrentUserAvatarProvider>
+        <LayoutContent />
+      </CurrentUserAvatarProvider>
     </NotificationsProvider>
   );
 }

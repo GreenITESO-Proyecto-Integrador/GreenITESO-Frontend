@@ -85,6 +85,7 @@ function mapLeaderboardEntry(raw: unknown, index: number): LeaderboardEntry | nu
     id,
     rank: readNumber(raw.rank, index + 1),
     displayName,
+    avatarUrl: readString(raw.avatar_url),
     totalPoints: readNumber(raw.total_points),
   };
 }

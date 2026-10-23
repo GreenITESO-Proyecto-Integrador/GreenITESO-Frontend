@@ -23,6 +23,8 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   role: UserRole | string;
+  /** Profile photo URL; empty when there is none. Missing in sessions stored before #78. */
+  avatarUrl?: string;
 }
 
 export interface LoginResponse {

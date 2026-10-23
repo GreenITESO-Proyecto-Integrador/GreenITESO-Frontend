@@ -7,10 +7,11 @@ import type {
   ProfileUpdatePayload,
   ProfileVisibility,
 } from '@/types/ecological-profile';
-import { apiFetch, getApiBaseUrl } from './client';
+import { apiFetch, getApiBaseUrl, getApiHeaders } from './client';
 import { readError } from './errors';
 
 export const ECOLOGICAL_PROFILE_PATH = '/api/v1/profile/me/';
+export const PROFILE_AVATAR_PATH = '/api/v1/profile/me/avatar/';
 
 /**
  * Narrow unknown values to plain objects before reading profile fields.
@@ -226,4 +227,47 @@ export async function updateEcologicalProfile(
   }
 
   return mapEcologicalProfile(data);
+}
+
+/**
+ * Read a profile response, or throw the backend's error with a fallback message.
+ */
+async function readProfileResponse(
+  response: Response,
+  fallback: string,
+): Promise<EcologicalProfile> {
+  if (!response.ok) {
+    throw await readError(response, fallback);
+  }
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error('La respuesta del servidor no es un JSON válido');
+  }
+  return mapEcologicalProfile(data);
+}
+
+/**
+ * Upload a photo from the device as the profile photo (#78). It replaces any
+ * pasted link. Validate the file with `validateImageFile` before calling this.
+ */
+export async function uploadProfileAvatar(file: File): Promise<EcologicalProfile> {
+  const body = new FormData();
+  body.append('avatar', file);
+  // No Content-Type header: the browser sets the multipart boundary itself.
+  const response = await apiFetch(PROFILE_AVATAR_PATH, { method: 'POST', body });
+  return readProfileResponse(response, 'No se pudo subir la foto.');
+}
+
+/**
+ * Best-effort read of the signed-in user's photo URL, for the navbar.
+ * Unlike `apiFetch`, a 401 here never refreshes or clears the session: a
+ * background avatar lookup must not be able to log the user out.
+ */
+export async function fetchOwnAvatarUrl(): Promise<string | null> {
+  const response = await fetch(getEcologicalProfileUrl(), { headers: await getApiHeaders() });
+  if (!response.ok) return null;
+  const payload: unknown = await response.json();
+  return mapEcologicalProfile(payload).avatarUrl ?? '';
 }

@@ -1,6 +1,6 @@
-import { useState } from 'react';
 import { Globe, Lock, Pencil } from 'lucide-react';
 import type { EcologicalProfile } from '@/types/ecological-profile';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 import { Button } from '@/components/ui/button';
 
 interface ProfileHeaderProps {
@@ -9,15 +9,8 @@ interface ProfileHeaderProps {
 }
 
 export function ProfileHeader({ profile, onEditProfile }: ProfileHeaderProps) {
-  // URL whose image failed to load; falls back to initials until the URL changes.
-  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
-  const showAvatar = Boolean(profile.avatarUrl) && failedAvatarUrl !== profile.avatarUrl;
   const isPublic = profile.visibility === 'PUBLIC';
   const fullName = `${profile.firstName} ${profile.lastName}`.trim() || profile.email;
-  const initials =
-    (profile.firstName?.[0] ?? '') + (profile.lastName?.[0] ?? '') ||
-    profile.email?.[0]?.toUpperCase() ||
-    'U';
 
   const roleLabelMap: Record<string, string> = {
     STUDENT: 'Estudiante',
@@ -30,18 +23,11 @@ export function ProfileHeader({ profile, onEditProfile }: ProfileHeaderProps) {
     <header className="bg-card rounded-3xl p-6 sm:p-8 shadow-sm border border-border">
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
         {/* Avatar / Initials */}
-        <div className="size-20 sm:size-24 rounded-2xl bg-linear-to-br from-primary-500 to-primary-700 text-white font-extrabold text-2xl sm:text-3xl flex items-center justify-center shadow-md shrink-0 overflow-hidden">
-          {showAvatar ? (
-            <img
-              src={profile.avatarUrl}
-              alt={fullName}
-              className="size-full object-cover"
-              onError={() => setFailedAvatarUrl(profile.avatarUrl ?? null)}
-            />
-          ) : (
-            <span aria-hidden="true">{initials}</span>
-          )}
-        </div>
+        <UserAvatar
+          src={profile.avatarUrl}
+          name={fullName}
+          className="size-20 sm:size-24 rounded-2xl text-2xl sm:text-3xl shadow-md"
+        />
 
         {/* User Info */}
         <div className="flex-1 text-center sm:text-left space-y-2">

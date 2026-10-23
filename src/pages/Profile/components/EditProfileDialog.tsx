@@ -8,6 +8,8 @@ import {
   LoaderCircle,
   Bell,
   SunMoon,
+  Upload,
+  Link2,
 } from 'lucide-react';
 import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ModalContent } from '@/components/custom/ModalContent';
@@ -16,8 +18,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useDialogBusyGuard } from '@/hooks/use-dialog-busy-guard';
-import { updateEcologicalProfile } from '@/lib/api/ecological-profile';
+import { updateEcologicalProfile, uploadProfileAvatar } from '@/lib/api/ecological-profile';
 import { toFriendlyMessage } from '@/lib/api/errors';
+import { validateImageFile } from '@/lib/api/upload';
+import { getInitials } from '@/lib/clan-meta';
 import type { EcologicalProfile, ProfileVisibility } from '@/types/ecological-profile';
 
 // Mirrors the backend's avatar_url rules (accounts.serializers._validate_avatar_url).
@@ -27,6 +31,19 @@ const MAX_BIO_LENGTH = 500;
 const CLOSE_AFTER_SAVE_MS = 700;
 
 type PreviewStatus = 'loading' | 'loaded' | 'failed';
+
+/**
+ * A photo uploaded from the device is served by the backend at /api/v1/avatars/<id>/.
+ * It is not a link the user pasted, so it never prefills the link field.
+ */
+function isUploadedAvatar(url: string | undefined): boolean {
+  return Boolean(url && /\/api\/v1\/avatars\//.test(url));
+}
+
+/** The pasted link the form starts from; an uploaded photo has none. */
+function initialLink(profile: EcologicalProfile): string {
+  return isUploadedAvatar(profile.avatarUrl) ? '' : (profile.avatarUrl ?? '');
+}
 
 /**
  * Validate an avatar URL the same way the backend does. Returns a Spanish error, or null.
@@ -85,7 +102,14 @@ export function EditProfileDialog({
   // Form states
   const [bio, setBio] = useState(profile.bio ?? '');
   const [visibility, setVisibility] = useState<ProfileVisibility>(profile.visibility);
-  const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl ?? '');
+  const [avatarUrl, setAvatarUrl] = useState(initialLink(profile));
+  const [isLinkOpen, setIsLinkOpen] = useState(initialLink(profile) !== '');
+  // A photo picked from the device; it is only uploaded when the form is saved.
+  const [avatarFile, setAvatarFile] = useState<{ file: File; previewUrl: string } | null>(null);
+  const [avatarFileError, setAvatarFileError] = useState<string | null>(null);
+  // "Quitar" on an uploaded photo, which has no link to clear.
+  const [isAvatarRemoved, setIsAvatarRemoved] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   // Load result of the preview image, tagged with the URL it belongs to so a stale
   // result never applies to a newly typed URL.
   const [preview, setPreview] = useState<{ url: string; status: PreviewStatus } | null>(null);
@@ -118,7 +142,11 @@ export function EditProfileDialog({
     const current = profileRef.current;
     setBio(current.bio ?? '');
     setVisibility(current.visibility);
-    setAvatarUrl(current.avatarUrl ?? '');
+    setAvatarUrl(initialLink(current));
+    setIsLinkOpen(initialLink(current) !== '');
+    setAvatarFile(null);
+    setAvatarFileError(null);
+    setIsAvatarRemoved(false);
     setPreview(null);
     setBioError(null);
     setStatusMessage(null);
@@ -130,23 +158,77 @@ export function EditProfileDialog({
 
   useEffect(() => () => clearTimeout(closeTimerRef.current), []);
 
-  const initials =
-    (profile.firstName?.[0] ?? '') + (profile.lastName?.[0] ?? '') ||
-    profile.email?.[0]?.toUpperCase() ||
-    'U';
+  // Free the picked file's preview once it is replaced or the modal closes.
+  const avatarPreviewUrl = avatarFile?.previewUrl;
+  useEffect(
+    () => () => {
+      if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
+    },
+    [avatarPreviewUrl],
+  );
+
+  const initials = getInitials(
+    `${profile.firstName ?? ''} ${profile.lastName ?? ''}`.trim() || profile.email || 'U',
+  );
 
   const trimmedAvatarUrl = avatarUrl.trim();
   const avatarFormatError = validateAvatarUrl(trimmedAvatarUrl);
-  const previewStatus: PreviewStatus =
-    preview?.url === trimmedAvatarUrl ? preview.status : 'loading';
-  const avatarChanged = trimmedAvatarUrl !== (profile.avatarUrl ?? '');
-  // A new URL is only saved once the browser could actually load it, so a broken
-  // link never reaches other users. An unchanged URL never blocks other edits.
+  const hasUploadedAvatar = isUploadedAvatar(profile.avatarUrl);
+  const avatarChanged = trimmedAvatarUrl !== initialLink(profile);
+  // What the preview shows: the picked file, else the typed link, else the
+  // current uploaded photo unless it was removed.
+  const previewSrc =
+    avatarFile?.previewUrl ??
+    (trimmedAvatarUrl !== ''
+      ? trimmedAvatarUrl
+      : hasUploadedAvatar && !isAvatarRemoved
+        ? (profile.avatarUrl ?? '')
+        : '');
+  const previewStatus: PreviewStatus = preview?.url === previewSrc ? preview.status : 'loading';
+  const linkPreviewed = !avatarFile && trimmedAvatarUrl !== '';
+  // A new link is only saved once the browser could actually load it, so a broken
+  // link never reaches other users. An unchanged link never blocks other edits.
   const avatarBlocksSave =
-    avatarChanged &&
-    trimmedAvatarUrl !== '' &&
-    (avatarFormatError !== null || previewStatus !== 'loaded');
-  const showPreviewImage = trimmedAvatarUrl !== '' && avatarFormatError === null;
+    linkPreviewed && avatarChanged && (avatarFormatError !== null || previewStatus !== 'loaded');
+  const showPreviewImage = previewSrc !== '' && (!linkPreviewed || avatarFormatError === null);
+  // A picked file is uploaded on its own request; otherwise a changed link, or
+  // removing an uploaded photo, goes in the PATCH ("" clears either kind).
+  const avatarUrlPatch = avatarFile
+    ? undefined
+    : avatarChanged
+      ? trimmedAvatarUrl
+      : isAvatarRemoved && hasUploadedAvatar
+        ? ''
+        : undefined;
+
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Let the same file be picked again after a removal.
+    e.target.value = '';
+    if (!file) return;
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      setAvatarFileError(validation.error ?? 'Archivo no válido.');
+      return;
+    }
+    setAvatarFileError(null);
+    setAvatarFile({ file, previewUrl: URL.createObjectURL(file) });
+    setAvatarUrl('');
+    setIsAvatarRemoved(false);
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatarFile(null);
+    setAvatarFileError(null);
+    setAvatarUrl('');
+    setIsAvatarRemoved(true);
+  };
+
+  const handleLinkChange = (value: string) => {
+    setAvatarUrl(value);
+    setAvatarFile(null);
+    setAvatarFileError(null);
+  };
   const bioLength = getBioLength(bio);
 
   const handleBioChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -189,11 +271,17 @@ export function EditProfileDialog({
         notify_campaigns: notifyCampaigns,
       };
 
+      if (avatarFile) {
+        // The upload goes first: if it fails, nothing else is half-saved.
+        const withPhoto = await uploadProfileAvatar(avatarFile.file);
+        onProfileUpdated(withPhoto);
+      }
+
       const updated = await updateEcologicalProfile({
         bio: bio.trim(),
         visibility,
         preferences: updatedPreferences,
-        avatarUrl: avatarChanged ? trimmedAvatarUrl : undefined,
+        avatarUrl: avatarUrlPatch,
       });
 
       // The saved profile is still the latest server state, even if the modal moved on.
@@ -251,22 +339,20 @@ export function EditProfileDialog({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Avatar URL with Live Preview */}
+          {/* Profile photo: upload from the device, or paste a link */}
           <div className="space-y-3">
-            <Label htmlFor="profile-avatar-url" className="text-sm font-semibold text-foreground">
-              Foto de perfil
-            </Label>
+            <p className="text-sm font-semibold text-foreground">Foto de perfil</p>
             <div className="flex items-center gap-5">
               {/* Preview */}
               <div className="size-20 rounded-2xl bg-linear-to-br from-primary-500 to-primary-700 text-white font-extrabold text-2xl flex items-center justify-center shadow-md shrink-0 overflow-hidden border-2 border-border">
                 {showPreviewImage ? (
                   <img
-                    key={trimmedAvatarUrl}
-                    src={trimmedAvatarUrl}
+                    key={previewSrc}
+                    src={previewSrc}
                     alt="Previsualización"
                     className={previewStatus === 'loaded' ? 'size-full object-cover' : 'hidden'}
-                    onLoad={() => setPreview({ url: trimmedAvatarUrl, status: 'loaded' })}
-                    onError={() => setPreview({ url: trimmedAvatarUrl, status: 'failed' })}
+                    onLoad={() => setPreview({ url: previewSrc, status: 'loaded' })}
+                    onError={() => setPreview({ url: previewSrc, status: 'failed' })}
                   />
                 ) : null}
                 {!showPreviewImage || previewStatus !== 'loaded' ? (
@@ -276,23 +362,30 @@ export function EditProfileDialog({
 
               {/* Actions */}
               <div className="flex-1 min-w-0 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="profile-avatar-url"
-                    type="url"
-                    inputMode="url"
-                    value={avatarUrl}
-                    onChange={e => setAvatarUrl(e.target.value)}
-                    placeholder="https://…/mi-foto.jpg"
-                    aria-invalid={avatarChanged && avatarBlocksSave && previewStatus !== 'loading'}
-                    className="h-11 rounded-xl"
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleAvatarFileChange}
+                    className="hidden"
+                    data-testid="profile-avatar-file"
                   />
-                  {avatarUrl ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex h-11 items-center gap-1.5 rounded-xl font-semibold cursor-pointer"
+                  >
+                    <Upload className="size-4" />
+                    <span>Subir foto</span>
+                  </Button>
+                  {previewSrc ? (
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => setAvatarUrl('')}
+                      onClick={handleRemoveAvatar}
                       className="flex h-11 items-center gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer rounded-xl font-medium"
                     >
                       <Trash2 className="size-4" />
@@ -302,22 +395,73 @@ export function EditProfileDialog({
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                  Pega el enlace https de una imagen JPG, PNG o WEBP. La subida de archivos llegará
-                  cuando se habilite el almacenamiento en la nube.
+                  {avatarFile
+                    ? `Se subirá «${avatarFile.file.name}» al guardar.`
+                    : 'JPG, PNG o WEBP de máximo 5 MB.'}
                 </p>
-                {avatarChanged && avatarFormatError ? (
+                {avatarFileError ? (
+                  <p
+                    role="alert"
+                    className="text-xs text-destructive font-medium flex items-center gap-1"
+                  >
+                    <AlertCircle className="size-3.5" />
+                    <span>{avatarFileError}</span>
+                  </p>
+                ) : null}
+
+                {isLinkOpen ? (
+                  <div className="space-y-1.5 pt-1">
+                    <Label
+                      htmlFor="profile-avatar-url"
+                      className="text-xs font-semibold text-foreground"
+                    >
+                      Enlace de la foto
+                    </Label>
+                    <Input
+                      id="profile-avatar-url"
+                      type="url"
+                      inputMode="url"
+                      value={avatarUrl}
+                      onChange={e => handleLinkChange(e.target.value)}
+                      placeholder="https://…/mi-foto.jpg"
+                      aria-invalid={
+                        avatarChanged && avatarBlocksSave && previewStatus !== 'loading'
+                      }
+                      className="h-11 rounded-xl"
+                    />
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    onClick={() => setIsLinkOpen(true)}
+                    className="h-auto gap-1 px-0 text-xs text-primary-700 dark:text-primary-300 cursor-pointer"
+                  >
+                    <Link2 className="size-3.5" />
+                    Usar un enlace
+                  </Button>
+                )}
+
+                {linkPreviewed && avatarChanged && avatarFormatError ? (
                   <p className="text-xs text-destructive font-medium flex items-center gap-1">
                     <AlertCircle className="size-3.5" />
                     <span>{avatarFormatError}</span>
                   </p>
                 ) : null}
-                {avatarChanged && showPreviewImage && previewStatus === 'loading' ? (
+                {linkPreviewed &&
+                avatarChanged &&
+                showPreviewImage &&
+                previewStatus === 'loading' ? (
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <LoaderCircle className="size-3.5 animate-spin" />
                     <span>Cargando vista previa…</span>
                   </p>
                 ) : null}
-                {avatarChanged && showPreviewImage && previewStatus === 'failed' ? (
+                {linkPreviewed &&
+                avatarChanged &&
+                showPreviewImage &&
+                previewStatus === 'failed' ? (
                   <p className="text-xs text-destructive font-medium flex items-center gap-1">
                     <AlertCircle className="size-3.5" />
                     <span>No se pudo cargar la imagen. Verifica que el enlace sea público.</span>
