@@ -27,6 +27,7 @@ function readLoginResponse(payload: unknown): LoginResponse {
       firstName: readString(user.first_name),
       lastName: readString(user.last_name),
       role: readString(user.role),
+      avatarUrl: readString(user.avatar_url),
     },
     created: payload.created === true,
   };

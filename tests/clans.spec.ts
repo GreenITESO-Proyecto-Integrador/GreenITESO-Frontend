@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mockStudentSession } from './helpers/auth';
+import { PIXEL_PNG } from './helpers/images';
 
 type Json = Record<string, unknown>;
 
@@ -235,6 +236,32 @@ test('should show the clan profile with its members and member actions', async (
   await expect(page.getByRole('button', { name: 'Establecer como clan activo' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Salir del clan' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Disolver clan' })).toHaveCount(0);
+});
+
+test("should show each member's profile photo, or their initials without one", async ({ page }) => {
+  await mockStudentSession(page);
+  await page.route('https://images.greeniteso.test/**', route =>
+    route.fulfill({ status: 200, contentType: 'image/png', body: PIXEL_PNG }),
+  );
+  await mockClansApi(page, {
+    details: {
+      'clan-eco': detail(ECO_CLAN, [
+        {
+          ...member('leader-1', 'Ana Líder', 'LEADER'),
+          avatar_url: 'https://images.greeniteso.test/ana.png',
+        },
+        member(ME, 'Usuario Prueba', 'MEMBER'),
+      ]),
+    },
+  });
+  await page.goto('/clans/clan-eco');
+
+  const members = page.getByRole('region', { name: /Miembros/ });
+  await expect(members.getByRole('img', { name: 'Ana Líder' })).toHaveAttribute(
+    'src',
+    'https://images.greeniteso.test/ana.png',
+  );
+  await expect(members.getByText('UP', { exact: true })).toBeVisible();
 });
 
 test('should set the clan as active', async ({ page }) => {

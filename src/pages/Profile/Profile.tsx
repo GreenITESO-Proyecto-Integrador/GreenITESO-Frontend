@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useCurrentUserAvatar } from '@/hooks/use-current-user-avatar';
 import { useEcologicalProfile } from '@/hooks/use-ecological-profile';
 import { ProfileHeader } from './components/ProfileHeader';
 import { ProgressSection } from './components/ProgressSection';
@@ -17,6 +18,7 @@ export function ProfilePage() {
   const navigate = useNavigate();
   const { profile, status, errorMessage, reload, setProfile } = useEcologicalProfile();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const { setAvatarUrl } = useCurrentUserAvatar();
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 space-y-8 pb-24">
@@ -63,6 +65,8 @@ export function ProfilePage() {
             profile={profile}
             onProfileUpdated={updated => {
               setProfile(updated);
+              // Keep the navbar photo in sync without a reload.
+              setAvatarUrl(updated.avatarUrl ?? '');
             }}
           />
         </div>
