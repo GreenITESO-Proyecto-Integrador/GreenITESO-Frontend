@@ -108,6 +108,11 @@ export async function refreshAccessToken(): Promise<string | null> {
     }
 
     sessionStorage.setItem(AUTH_STORAGE_KEYS.access, payload.access);
+    // The backend rotates refresh tokens and blacklists the one just used, so
+    // the next refresh must send the new one or it fails with 401.
+    if ('refresh' in payload && typeof payload.refresh === 'string') {
+      sessionStorage.setItem(AUTH_STORAGE_KEYS.refresh, payload.refresh);
+    }
     return payload.access;
   })().finally(() => {
     refreshInFlight = null;
