@@ -41,6 +41,7 @@ export function ProposalsTab() {
         onFilterChange={setProposalFilter}
         busyId={proposalsData.busyId}
         decisionError={proposalsData.decisionError}
+        decisionErrorId={proposalsData.decisionErrorId}
         onApprove={id => void handleApprove(id)}
         onReject={(id, reason) => void handleReject(id, reason)}
       />

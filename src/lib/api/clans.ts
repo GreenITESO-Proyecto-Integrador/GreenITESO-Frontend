@@ -81,6 +81,7 @@ function mapClanMember(raw: unknown): ClanMember | null {
   return {
     userId,
     nickname: readString(raw.nickname),
+    displayName: readString(raw.display_name),
     role: readRole(raw.role),
     joinedAt: readString(raw.joined_at),
   };
