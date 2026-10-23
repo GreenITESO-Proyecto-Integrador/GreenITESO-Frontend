@@ -21,6 +21,8 @@ export interface ClanListItem extends Clan {
 export interface ClanMember {
   userId: string;
   nickname: string;
+  /** Nickname, else full name; never the email. Empty from older backends. */
+  displayName: string;
   role: ClanMemberRole;
   joinedAt: string;
 }

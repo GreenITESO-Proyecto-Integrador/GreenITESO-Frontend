@@ -532,3 +532,20 @@ test('should keep the confirm dialog open while the request is in flight', async
   await expect(page.getByText('Eco Warriors se disolvió.')).toBeVisible();
   expect(deletes).toBe(1);
 });
+
+test('should label members without a nickname by their display name', async ({ page }) => {
+  await mockStudentSession(page);
+  const unnamed = detail(ECO_CLAN, [
+    { ...member(ME, '', 'LEADER'), display_name: 'Usuario Prueba' },
+    { ...member('member-2', '', 'MEMBER'), display_name: 'Luisa Pérez' },
+  ]);
+  await mockClansApi(page, { details: { 'clan-eco': unnamed } });
+  await page.goto('/clans/clan-eco');
+
+  await expect(page.getByText('Luisa Pérez')).toBeVisible();
+  await expect(page.getByText('Miembro sin apodo')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Transferir liderazgo' }).click();
+  await page.getByRole('dialog').getByLabel('Nuevo líder').click();
+  await expect(page.getByRole('option', { name: 'Luisa Pérez' })).toBeVisible();
+});
