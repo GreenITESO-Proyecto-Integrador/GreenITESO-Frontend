@@ -17,7 +17,7 @@ export function ProgressSection({ profile }: ProgressSectionProps) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {/* Total Points */}
         <div className="bg-card rounded-2xl p-5 shadow-xs border border-border flex flex-col items-center text-center">
-          <div className="p-2.5 bg-primary-50 dark:bg-primary-950/50 text-primary-600 dark:text-primary-300 rounded-xl mb-3">
+          <div className="mb-3 rounded-xl bg-primary-50 p-2.5 text-primary-600 dark:bg-primary-900/50 dark:text-primary-300">
             <Sparkles className="size-6" />
           </div>
           <p className="text-2xl sm:text-3xl font-extrabold text-foreground">
@@ -30,7 +30,7 @@ export function ProgressSection({ profile }: ProgressSectionProps) {
 
         {/* Available Points */}
         <div className="bg-card rounded-2xl p-5 shadow-xs border border-border flex flex-col items-center text-center">
-          <div className="p-2.5 bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-300 rounded-xl mb-3">
+          <div className="mb-3 rounded-xl bg-sky-50 p-2.5 text-sky-600 dark:bg-sky-800/50 dark:text-sky-300">
             <Coins className="size-6" />
           </div>
           <p className="text-2xl sm:text-3xl font-extrabold text-foreground">
@@ -43,7 +43,7 @@ export function ProgressSection({ profile }: ProgressSectionProps) {
 
         {/* Streak */}
         <div className="bg-card rounded-2xl p-5 shadow-xs border border-border flex flex-col items-center text-center">
-          <div className="p-2.5 bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 rounded-xl mb-3">
+          <div className="mb-3 rounded-xl bg-amber-50 p-2.5 text-amber-700 dark:bg-amber-800/50 dark:text-amber-300">
             <Flame className="size-6" />
           </div>
           <p className="text-2xl sm:text-3xl font-extrabold text-foreground">
@@ -56,7 +56,7 @@ export function ProgressSection({ profile }: ProgressSectionProps) {
 
         {/* Level */}
         <div className="bg-card rounded-2xl p-5 shadow-xs border border-border flex flex-col items-center text-center">
-          <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-300 rounded-xl mb-3">
+          <div className="mb-3 rounded-xl bg-emerald-50 p-2.5 text-emerald-600 dark:bg-emerald-700/50 dark:text-emerald-300">
             <Trophy className="size-6" />
           </div>
           <p className="text-2xl sm:text-3xl font-extrabold text-foreground">

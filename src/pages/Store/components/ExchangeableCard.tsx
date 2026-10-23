@@ -58,7 +58,7 @@ export function ExchangeableCard({ item, isUnlocked, onBuyClick }: ExchangeableC
       <CardContent className="flex flex-1 flex-col justify-between p-0 pt-4 gap-4">
         <div>
           <h3 className="text-base font-bold text-foreground sm:text-lg">{item.name}</h3>
-          <p className="mt-1 text-xs text-secondary-300 dark:text-muted-foreground line-clamp-2 min-h-[32px] sm:text-sm">
+          <p className="mt-1 line-clamp-2 min-h-[32px] text-xs text-muted-foreground sm:text-sm">
             {item.description || 'Sin descripción disponible.'}
           </p>
         </div>

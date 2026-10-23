@@ -93,9 +93,9 @@ export function LoginPage() {
   const isConfigured = isMicrosoftLoginConfigured();
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-secondary-50 px-4 py-8">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
       <div className="w-full max-w-md">
-        <section className="rounded-2xl bg-white p-6 shadow-sm sm:p-8">
+        <section className="rounded-2xl bg-card p-6 shadow-sm sm:p-8">
           <div className="mb-8 text-center">
             <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-3xl bg-primary-500">
               <Leaf className="size-9 text-white" aria-hidden="true" />
@@ -103,8 +103,8 @@ export function LoginPage() {
             <p className="text-xs font-semibold tracking-wider text-primary-600 uppercase">
               GreenITESO
             </p>
-            <h1 className="mt-2 text-2xl font-bold text-secondary-500">Inicia sesión</h1>
-            <p className="mt-3 text-sm leading-relaxed text-secondary-300">
+            <h1 className="mt-2 text-2xl font-bold text-foreground">Inicia sesión</h1>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
               Accede con tu cuenta institucional para registrar y consultar tu impacto ambiental.
             </p>
           </div>
@@ -150,7 +150,7 @@ export function LoginPage() {
             {isLoading ? 'Conectando…' : 'Iniciar sesión con @iteso.mx'}
           </Button>
 
-          <div className="mt-6 flex items-start gap-3 border-t border-secondary-50 pt-5 text-xs leading-relaxed text-secondary-300">
+          <div className="mt-6 flex items-start gap-3 border-t border-border pt-5 text-xs leading-relaxed text-muted-foreground">
             <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary-600" aria-hidden="true" />
             <p>Usa exclusivamente tu cuenta institucional @iteso.mx.</p>
           </div>
