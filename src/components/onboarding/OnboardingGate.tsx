@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,19 +13,33 @@ import { Label } from '@/components/ui/label';
 import { FieldError } from '@/components/campaigns/FieldError';
 import { ApiError, toFriendlyMessage } from '@/lib/api/errors';
 import { completeOnboarding, fetchCareers, fetchOnboardingState } from '@/lib/api/onboarding';
+import { clearSession, getStoredUser } from '@/lib/auth/session';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { cn } from '@/lib/utils';
 
 const OTHER_CAREER = '__other__';
 const CAREER_MAX_LENGTH = 150;
 const NICKNAME_MAX_LENGTH = 50;
-const FIELD_KEYS = ['career', 'nickname', 'visibility'];
+/** Fields with their own error line; any other field error goes to the general alert. */
+const FIELD_KEYS = ['career', 'nickname'];
 
 const SELECT_CLASSES = cn(
   'h-11 w-full min-h-11 rounded-xl border border-border bg-background px-4 text-sm text-foreground transition-all',
   'focus:border-primary-500 focus:ring-2 focus:ring-primary-500/30 focus:outline-none',
 );
 
-function OnboardingForm({ careers, onDone }: { careers: string[]; onDone: () => void }) {
+// Users already confirmed onboarded in this page load, so remounting the layout does not refetch.
+const onboardedUserIds = new Set<string>();
+
+function OnboardingForm({
+  careers,
+  careersFailed,
+  onDone,
+}: {
+  careers: string[];
+  careersFailed: boolean;
+  onDone: () => void;
+}) {
   const [selected, setSelected] = useState(careers.length > 0 ? '' : OTHER_CAREER);
   const [otherCareer, setOtherCareer] = useState('');
   const [nickname, setNickname] = useState('');
@@ -58,8 +73,12 @@ function OnboardingForm({ careers, onDone }: { careers: string[]; onDone: () => 
       if (error instanceof ApiError) {
         const entries = Object.entries(error.fieldErrors);
         setErrors(Object.fromEntries(entries.filter(([key]) => FIELD_KEYS.includes(key))));
-        const general = entries.find(([key]) => !FIELD_KEYS.includes(key));
-        setSubmitError(general ? general[1] : entries.length === 0 ? error.message : null);
+        const unrendered = entries.filter(([key]) => !FIELD_KEYS.includes(key));
+        if (unrendered.length > 0) {
+          setSubmitError(unrendered.map(([, message]) => message).join(' '));
+        } else {
+          setSubmitError(entries.length === 0 ? error.message : null);
+        }
       } else {
         setSubmitError(toFriendlyMessage(error, 'No se pudo guardar tu carrera.'));
       }
@@ -106,6 +125,11 @@ function OnboardingForm({ careers, onDone }: { careers: string[]; onDone: () => 
         <p className="text-xs text-muted-foreground">
           Te une al clan de tu carrera. Tus acciones suman puntos a ese clan.
         </p>
+        {careersFailed ? (
+          <p role="status" className="text-xs text-amber-700 dark:text-amber-300">
+            No se pudo cargar la lista de carreras. Escribe el nombre completo de tu carrera.
+          </p>
+        ) : null}
         <FieldError message={errors.career} />
       </div>
 
@@ -163,21 +187,37 @@ function OnboardingForm({ careers, onDone }: { careers: string[]; onDone: () => 
 
 /**
  * Blocks the app with a required modal until the user declares a career (#163).
- * Without an institutional clan the backend rejects every action log.
+ * Without an institutional clan the backend rejects every action log. Admins are
+ * skipped until the backend defines their case; everyone else can still sign out.
  */
 export function OnboardingGate() {
+  const { isAdmin } = useCurrentUser();
+  const navigate = useNavigate();
   const [careers, setCareers] = useState<string[] | null>(null);
+  const [careersFailed, setCareersFailed] = useState(false);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    const userId = getStoredUser()?.id ?? '';
+    if (isAdmin || onboardedUserIds.has(userId)) return;
     let cancelled = false;
     async function load() {
       try {
         const state = await fetchOnboardingState();
-        if (!state.needsOnboarding) return;
-        const options = await fetchCareers().catch(() => [] as string[]);
+        if (!state.needsOnboarding) {
+          onboardedUserIds.add(userId);
+          return;
+        }
+        let options: string[] = [];
+        let failed = false;
+        try {
+          options = await fetchCareers();
+        } catch {
+          failed = true;
+        }
         if (!cancelled) {
           setCareers(options);
+          setCareersFailed(failed);
           setOpen(true);
         }
       } catch {
@@ -188,9 +228,21 @@ export function OnboardingGate() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isAdmin]);
 
   if (!open || careers === null) return null;
+
+  function handleDone() {
+    onboardedUserIds.add(getStoredUser()?.id ?? '');
+    // Pages already loaded the profile without a clan; reload so they show the new one.
+    window.location.reload();
+  }
+
+  function handleSignOut() {
+    clearSession();
+    setOpen(false);
+    navigate('/login');
+  }
 
   return (
     // Required step: escape and outside clicks do not close it.
@@ -205,7 +257,15 @@ export function OnboardingGate() {
             Antes de registrar acciones, dinos qué estudias para unirte al clan de tu carrera.
           </DialogDescription>
         </DialogHeader>
-        <OnboardingForm careers={careers} onDone={() => setOpen(false)} />
+        <OnboardingForm careers={careers} careersFailed={careersFailed} onDone={handleDone} />
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={handleSignOut}
+          className="min-h-11 cursor-pointer rounded-xl text-muted-foreground"
+        >
+          Cerrar sesión
+        </Button>
       </DialogContent>
     </Dialog>
   );
