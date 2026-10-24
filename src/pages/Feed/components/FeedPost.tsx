@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   type LucideIcon,
 } from 'lucide-react';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 import type { FeedPost as FeedPostType } from '@/types/feed';
 
 interface FeedPostProps {
@@ -119,19 +120,7 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
   return (
     <div className="mb-6 bg-card text-card-foreground rounded-xl border border-border shadow-sm overflow-hidden transition-colors">
       <div className="p-4 flex flex-row items-center gap-4 border-b border-border/60">
-        <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 overflow-hidden flex items-center justify-center shrink-0">
-          {post.author?.avatar_url ? (
-            <img
-              src={post.author.avatar_url}
-              alt={authorName}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <span className="text-emerald-700 dark:text-emerald-400 font-bold text-lg">
-              {authorName.charAt(0).toUpperCase()}
-            </span>
-          )}
-        </div>
+        <UserAvatar src={post.author?.avatar_url} name={authorName} className="size-12 text-lg" />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">

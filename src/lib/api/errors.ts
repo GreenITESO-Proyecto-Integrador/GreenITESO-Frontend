@@ -108,6 +108,12 @@ const MESSAGE_RULES: readonly {
     message: 'La URL de la foto debe terminar en .jpg, .jpeg, .png o .webp.',
   },
   { pattern: /enter a valid url/i, message: 'Ingresa una URL válida.' },
+  // Profile photo upload (POST /profile/me/avatar/).
+  { pattern: /image must be at most 5 MB/i, message: 'La foto debe pesar máximo 5 MB.' },
+  {
+    pattern: /image must be a JPG, PNG, or WEBP/i,
+    message: 'La foto debe ser una imagen JPG, PNG o WEBP.',
+  },
   {
     pattern: /preferences payload is too large/i,
     message: 'Tus preferencias son demasiado grandes para guardarse.',
