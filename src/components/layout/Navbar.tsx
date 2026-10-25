@@ -2,7 +2,7 @@ import { Bell, Leaf, LogOut, Search, User as UserIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +13,7 @@ import {
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationBadge } from '@/components/shared/NotificationBadge';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { useCurrentUserAvatar } from '@/hooks/use-current-user-avatar';
 import { clearSession } from '@/lib/auth/session';
 
 interface NavbarProps {
@@ -23,15 +24,11 @@ interface NavbarProps {
 export function Navbar({ unreadNotifications = 0, userNickname = 'Usuario' }: NavbarProps) {
   const navigate = useNavigate();
   const { user } = useCurrentUser();
+  const { avatarUrl } = useCurrentUserAvatar();
 
   const displayName = user
     ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email
     : userNickname;
-  const initials = user
-    ? (user.firstName?.[0] ?? '') + (user.lastName?.[0] ?? '') ||
-      user.email?.[0]?.toUpperCase() ||
-      'U'
-    : userNickname.slice(0, 2).toUpperCase();
   return (
     <header className="fixed inset-x-0 top-0 z-50 h-16 border-b border-border bg-card">
       <div className="flex h-full items-center gap-4 px-4">
@@ -72,9 +69,12 @@ export function Navbar({ unreadNotifications = 0, userNickname = 'Usuario' }: Na
             <DropdownMenuTrigger
               render={
                 <Button variant="ghost" size="icon" aria-label="Menú de usuario">
-                  <Avatar size="sm">
-                    <AvatarFallback>{initials}</AvatarFallback>
-                  </Avatar>
+                  <UserAvatar
+                    src={avatarUrl}
+                    name={displayName}
+                    className="size-8 text-xs"
+                    decorative
+                  />
                 </Button>
               }
             />

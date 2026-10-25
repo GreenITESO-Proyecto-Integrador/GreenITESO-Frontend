@@ -7,10 +7,27 @@ import type {
   ProfileUpdatePayload,
   ProfileVisibility,
 } from '@/types/ecological-profile';
+import { getAccessToken, isTokenExpired } from '@/lib/auth/session';
 import { apiFetch, getApiBaseUrl } from './client';
 import { readError } from './errors';
 
 export const ECOLOGICAL_PROFILE_PATH = '/api/v1/profile/me/';
+export const PROFILE_AVATAR_PATH = '/api/v1/profile/me/avatar/';
+/** Where the backend serves photos uploaded from the device (`GET /api/v1/avatars/<user_id>/`). */
+export const UPLOADED_AVATAR_PATH = '/api/v1/avatars/';
+
+/**
+ * Whether a profile `avatar_url` points at a photo uploaded from the device,
+ * as opposed to a link the user pasted.
+ */
+export function isUploadedAvatarUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  try {
+    return new URL(url, getApiBaseUrl()).pathname.startsWith(UPLOADED_AVATAR_PATH);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Narrow unknown values to plain objects before reading profile fields.
@@ -226,4 +243,53 @@ export async function updateEcologicalProfile(
   }
 
   return mapEcologicalProfile(data);
+}
+
+/**
+ * Read a profile response, or throw the backend's error with a fallback message.
+ */
+async function readProfileResponse(
+  response: Response,
+  fallback: string,
+): Promise<EcologicalProfile> {
+  if (!response.ok) {
+    throw await readError(response, fallback);
+  }
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error('La respuesta del servidor no es un JSON válido');
+  }
+  return mapEcologicalProfile(data);
+}
+
+/**
+ * Upload a photo from the device as the profile photo (#78). It replaces any
+ * pasted link. Validate the file with `validateImageFile` before calling this.
+ */
+export async function uploadProfileAvatar(file: File): Promise<EcologicalProfile> {
+  const body = new FormData();
+  body.append('avatar', file);
+  // No Content-Type header: the browser sets the multipart boundary itself.
+  const response = await apiFetch(PROFILE_AVATAR_PATH, { method: 'POST', body });
+  return readProfileResponse(response, 'No se pudo subir la foto.');
+}
+
+/**
+ * Best-effort read of the signed-in user's photo URL, for the navbar.
+ * It never refreshes or clears the session, unlike `apiFetch`: it uses the
+ * stored access token as is and skips the request when that token is missing
+ * or expired, so a background avatar lookup can't log the user out.
+ * Returns null when the lookup is skipped or fails.
+ */
+export async function fetchOwnAvatarUrl(): Promise<string | null> {
+  const accessToken = getAccessToken();
+  if (!accessToken || isTokenExpired(accessToken)) return null;
+  const response = await fetch(getEcologicalProfileUrl(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) return null;
+  const payload: unknown = await response.json();
+  return mapEcologicalProfile(payload).avatarUrl ?? '';
 }

@@ -6,6 +6,8 @@ export interface LeaderboardEntry {
   id: string;
   rank: number;
   displayName: string;
+  /** Profile photo URL of a user row; empty for clans and users without one. */
+  avatarUrl: string;
   totalPoints: number;
 }
 

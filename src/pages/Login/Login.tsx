@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Leaf, LoaderCircle, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { loginWithMicrosoft, persistLogin } from '@/lib/api/auth';
+import { persistLogin } from '@/lib/api/auth';
 import {
   handleMicrosoftRedirect,
   isMicrosoftLoginConfigured,
   startMicrosoftLogin,
-  getMicrosoftAccessToken,
 } from '@/lib/auth/microsoft';
+import { exchangeMicrosoftSignIn } from '@/lib/auth/microsoft-login';
 
 type LoginStatus = 'idle' | 'loading' | 'error';
 
@@ -46,19 +46,11 @@ export function LoginPage() {
           setErrorMessage(null);
         }
 
-        const accessToken = result.accessToken || (await getMicrosoftAccessToken(result.account));
-        const email = result.account.username;
-        const idToken = result.idToken || `mock:${email}`;
-        let loginResponse;
-        try {
-          loginResponse = await loginWithMicrosoft(idToken, accessToken);
-        } catch (error) {
-          if (result.idToken) {
-            loginResponse = await loginWithMicrosoft(`mock:${email}`, accessToken);
-          } else {
-            throw error;
-          }
-        }
+        const loginResponse = await exchangeMicrosoftSignIn({
+          account: result.account,
+          idToken: result.idToken,
+          accessToken: result.accessToken,
+        });
         persistLogin(loginResponse);
 
         window.location.assign('/');

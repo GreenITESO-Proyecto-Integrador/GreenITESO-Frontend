@@ -1,14 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mockStudentSession } from './helpers/auth';
+import { PIXEL_PNG } from './helpers/images';
 
 const profileUrl = '**/api/v1/profile/me/**';
 const imageHost = 'https://images.greeniteso.test';
-
-// 1×1 transparent PNG, served for every image URL the tests treat as reachable.
-const PIXEL_PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
-  'base64',
-);
 
 const initialProfileData = {
   user_id: 'user-uuid-123',
@@ -47,6 +42,26 @@ interface MockProfileOptions {
   patchError?: { status: number; body: unknown };
   /** Hold every PATCH until this settles, to test saves that land late. */
   patchGate?: Promise<void>;
+  /** Respond to the photo upload with this status and body instead of storing it. */
+  uploadError?: { status: number; body: unknown };
+  /** Fail only the first N PATCHes with `patchError`; later ones succeed. */
+  patchFailures?: number;
+  /** Status served for uploaded photos (GET /api/v1/avatars/...). */
+  uploadedAvatarStatus?: number;
+  /** Page to open first (default /profile). */
+  startPath?: string;
+  /** While this returns true, profile GETs answer with the profile as it was when they arrived, after `heldGate`. */
+  holdProfileGets?: () => boolean;
+  heldGate?: Promise<void>;
+}
+
+/** Where the backend serves an uploaded photo (GET /api/v1/avatars/<user_id>/). */
+const uploadedAvatarUrl = (version: number) =>
+  `http://localhost:8000/api/v1/avatars/user-uuid-123/?v=${version}`;
+
+interface RecordedUpload {
+  contentType: string;
+  body: string;
 }
 
 /**
@@ -56,12 +71,20 @@ interface MockProfileOptions {
 async function setupProfile(page: Page, options: MockProfileOptions = {}) {
   let stored: ProfilePayload = { ...initialProfileData, ...options.profile };
   const patches: Record<string, unknown>[] = [];
+  const uploads: RecordedUpload[] = [];
+  const profileGets: { authorization: string | null }[] = [];
+  const refreshCalls: number[] = [];
+  let failedPatches = 0;
 
   await mockStudentSession(page, {
     id: stored.user_id,
     email: stored.email,
     firstName: stored.first_name,
     lastName: stored.last_name,
+  });
+  await page.route('**/api/v1/auth/refresh/', async route => {
+    refreshCalls.push(Date.now());
+    await route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
   });
 
   await page.route(`${imageHost}/**`, async route => {
@@ -72,13 +95,46 @@ async function setupProfile(page: Page, options: MockProfileOptions = {}) {
     await route.fulfill({ status: 200, contentType: 'image/png', body: PIXEL_PNG });
   });
 
+  await page.route('**/api/v1/avatars/**', route =>
+    (options.uploadedAvatarStatus ?? 200) === 200
+      ? route.fulfill({ status: 200, contentType: 'image/png', body: PIXEL_PNG })
+      : route.fulfill({ status: options.uploadedAvatarStatus ?? 404, body: '' }),
+  );
+
   await page.route(profileUrl, async route => {
     const method = route.request().method();
+    if (method === 'POST' && route.request().url().endsWith('/profile/me/avatar/')) {
+      uploads.push({
+        contentType: (await route.request().headerValue('content-type')) ?? '',
+        body: route.request().postDataBuffer()?.toString('latin1') ?? '',
+      });
+      if (options.uploadError) {
+        await route.fulfill({
+          status: options.uploadError.status,
+          contentType: 'application/json',
+          body: JSON.stringify(options.uploadError.body),
+        });
+        return;
+      }
+      stored = { ...stored, avatar_url: uploadedAvatarUrl(uploads.length) };
+    }
+    if (method === 'GET') {
+      profileGets.push({ authorization: await route.request().headerValue('authorization') });
+      if (options.holdProfileGets?.()) {
+        const snapshot = JSON.stringify(stored);
+        await options.heldGate;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: snapshot });
+        return;
+      }
+    }
     if (method === 'PATCH') {
       const body = JSON.parse(route.request().postData() || '{}') as Record<string, unknown>;
       patches.push(body);
       await options.patchGate;
-      if (options.patchError) {
+      const failThisOne =
+        options.patchFailures === undefined || failedPatches < options.patchFailures;
+      if (options.patchError && failThisOne) {
+        failedPatches += 1;
         await route.fulfill({
           status: options.patchError.status,
           contentType: 'application/json',
@@ -95,8 +151,8 @@ async function setupProfile(page: Page, options: MockProfileOptions = {}) {
     });
   });
 
-  await page.goto('/profile');
-  return { patches };
+  await page.goto(options.startPath ?? '/profile');
+  return { patches, uploads, profileGets, refreshCalls };
 }
 
 async function openEditor(page: Page) {
@@ -122,7 +178,7 @@ test.describe('Profile Editing (T2-23)', () => {
     await expect(page.getByText(/\d+ \/ 500/)).toBeVisible();
 
     // Current avatar URL is prefilled and previewed
-    await expect(page.getByLabel('Foto de perfil')).toHaveValue(`${imageHost}/current.jpg`);
+    await expect(page.getByLabel('Enlace de la foto')).toHaveValue(`${imageHost}/current.jpg`);
     await expect(page.getByAltText('Previsualización')).toBeVisible();
 
     // Visibility options visible
@@ -145,19 +201,160 @@ test.describe('Profile Editing (T2-23)', () => {
     await expect(page.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled();
   });
 
-  test('should no longer offer a file picker that cannot upload', async ({ page }) => {
-    await setupProfile(page);
+  test('should upload a photo from the device when the profile is saved', async ({ page }) => {
+    const { patches, uploads } = await setupProfile(page);
     await openEditor(page);
 
-    await expect(page.locator('input[type="file"]')).toHaveCount(0);
-    await expect(page.getByText(/La subida de archivos llegará/)).toBeVisible();
+    await page.getByTestId('profile-avatar-file').setInputFiles({
+      name: 'yo.png',
+      mimeType: 'image/png',
+      buffer: PIXEL_PNG,
+    });
+
+    // Previewed right away, but nothing is sent until the form is saved.
+    await expect(page.getByAltText('Previsualización')).toHaveAttribute('src', /^blob:/);
+    await expect(page.getByText('Se subirá «yo.png» al guardar.')).toBeVisible();
+    expect(uploads).toHaveLength(0);
+
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
+
+    expect(uploads).toHaveLength(1);
+    expect(uploads[0]!.contentType).toMatch(/^multipart\/form-data; boundary=/);
+    expect(uploads[0]!.body).toContain('name="avatar"; filename="yo.png"');
+    // The PATCH for the other fields must not overwrite the uploaded photo.
+    expect(patches[0]).not.toHaveProperty('avatar_url');
+
+    const headerAvatar = page.getByRole('img', { name: 'Mariana García' });
+    await expect(headerAvatar).toHaveAttribute('src', uploadedAvatarUrl(1));
+    // The navbar shows the new photo without a reload.
+    await expect(
+      page.getByRole('button', { name: 'Menú de usuario' }).locator('img'),
+    ).toHaveAttribute('src', uploadedAvatarUrl(1));
+
+    await page.reload();
+    await expect(page.getByRole('img', { name: 'Mariana García' })).toHaveAttribute(
+      'src',
+      uploadedAvatarUrl(1),
+    );
+  });
+
+  test('should reject a photo that is too large or not an image', async ({ page }) => {
+    const { uploads } = await setupProfile(page);
+    await openEditor(page);
+    const fileInput = page.getByTestId('profile-avatar-file');
+
+    await fileInput.setInputFiles({
+      name: 'animada.gif',
+      mimeType: 'image/gif',
+      buffer: Buffer.from('GIF89a'),
+    });
+    await expect(
+      page.getByText('Formato no soportado. Usa imágenes JPG, PNG o WebP.'),
+    ).toBeVisible();
+
+    await fileInput.setInputFiles({
+      name: 'enorme.jpg',
+      mimeType: 'image/jpeg',
+      buffer: Buffer.alloc(5 * 1024 * 1024 + 1),
+    });
+    await expect(
+      page.getByText('El archivo excede el tamaño máximo permitido de 5 MB.'),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
+    expect(uploads).toHaveLength(0);
+  });
+
+  test('should not upload a picked photo when the edit is cancelled', async ({ page }) => {
+    const { patches, uploads } = await setupProfile(page);
+    await openEditor(page);
+
+    await page.getByTestId('profile-avatar-file').setInputFiles({
+      name: 'yo.png',
+      mimeType: 'image/png',
+      buffer: PIXEL_PNG,
+    });
+    await page.getByRole('button', { name: 'Cancelar' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
+    expect(uploads).toHaveLength(0);
+    expect(patches).toHaveLength(0);
+  });
+
+  test('should show the backend error in Spanish when the upload fails', async ({ page }) => {
+    const { patches } = await setupProfile(page, {
+      uploadError: { status: 400, body: { avatar: ['The image must be at most 5 MB.'] } },
+    });
+    await openEditor(page);
+
+    await page.getByTestId('profile-avatar-file').setInputFiles({
+      name: 'yo.png',
+      mimeType: 'image/png',
+      buffer: PIXEL_PNG,
+    });
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+
+    await expect(page.getByRole('alert')).toContainText('La foto debe pesar máximo 5 MB.');
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).toBeVisible();
+    // Nothing else is saved when the photo could not be uploaded.
+    expect(patches).toHaveLength(0);
+  });
+
+  test('should remove an uploaded photo through the profile PATCH', async ({ page }) => {
+    const { patches } = await setupProfile(page, {
+      profile: { avatar_url: uploadedAvatarUrl(7) },
+    });
+    await openEditor(page);
+
+    // An uploaded photo is not a pasted link, so the link field starts hidden.
+    await expect(page.getByLabel('Enlace de la foto')).toHaveCount(0);
+    await expect(page.getByAltText('Previsualización')).toHaveAttribute(
+      'src',
+      uploadedAvatarUrl(7),
+    );
+
+    await page.getByRole('button', { name: 'Quitar' }).click();
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
+
+    expect(patches[0]).toMatchObject({ avatar_url: '' });
+    await expect(page.getByRole('main').getByText('MG', { exact: true })).toBeVisible();
+  });
+
+  test('should keep an uploaded photo when only other fields change', async ({ page }) => {
+    const { patches } = await setupProfile(page, {
+      profile: { avatar_url: uploadedAvatarUrl(7) },
+    });
+    await openEditor(page);
+
+    await page.getByLabel('Biografía').fill('Nueva biografía.');
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
+
+    expect(patches[0]).not.toHaveProperty('avatar_url');
+  });
+
+  test('should open the link field on demand to paste a photo URL', async ({ page }) => {
+    const { patches } = await setupProfile(page, { profile: { avatar_url: '' } });
+    await openEditor(page);
+
+    await expect(page.getByLabel('Enlace de la foto')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Usar un enlace' }).click();
+    await page.getByLabel('Enlace de la foto').fill(`${imageHost}/pegada.png`);
+    await expect(page.getByAltText('Previsualización')).toBeVisible();
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
+
+    expect(patches[0]).toMatchObject({ avatar_url: `${imageHost}/pegada.png` });
   });
 
   test('should reject avatar URLs the backend would refuse', async ({ page }) => {
     const { patches } = await setupProfile(page);
     await openEditor(page);
 
-    const avatarInput = page.getByLabel('Foto de perfil');
+    const avatarInput = page.getByLabel('Enlace de la foto');
     const saveButton = page.getByRole('button', { name: 'Guardar cambios' });
 
     await avatarInput.fill(`http://images.greeniteso.test/new.jpg`);
@@ -181,7 +378,7 @@ test.describe('Profile Editing (T2-23)', () => {
     const { patches } = await setupProfile(page);
     await openEditor(page);
 
-    await page.getByLabel('Foto de perfil').fill(`${imageHost}/missing.png`);
+    await page.getByLabel('Enlace de la foto').fill(`${imageHost}/missing.png`);
 
     await expect(
       page.getByText('No se pudo cargar la imagen. Verifica que el enlace sea público.'),
@@ -195,7 +392,7 @@ test.describe('Profile Editing (T2-23)', () => {
     await openEditor(page);
 
     const newAvatar = `${imageHost}/new-avatar.webp`;
-    await page.getByLabel('Foto de perfil').fill(newAvatar);
+    await page.getByLabel('Enlace de la foto').fill(newAvatar);
     await expect(page.getByAltText('Previsualización')).toHaveAttribute('src', newAvatar);
     await expect(page.getByAltText('Previsualización')).toBeVisible();
 
@@ -217,7 +414,7 @@ test.describe('Profile Editing (T2-23)', () => {
     await openEditor(page);
 
     await page.getByRole('button', { name: 'Quitar' }).click();
-    await expect(page.getByLabel('Foto de perfil')).toHaveValue('');
+    await expect(page.getByLabel('Enlace de la foto')).toHaveValue('');
     await page.getByRole('button', { name: 'Guardar cambios' }).click();
     await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
 
@@ -294,14 +491,14 @@ test.describe('Profile Editing (T2-23)', () => {
     await openEditor(page);
 
     await page.getByLabel('Biografía').fill('Borrador sin guardar');
-    await page.getByLabel('Foto de perfil').fill(`${imageHost}/draft.png`);
+    await page.getByLabel('Enlace de la foto').fill(`${imageHost}/draft.png`);
     await page.getByRole('button', { name: 'Cancelar' }).click();
 
     await openEditor(page);
     await expect(page.getByLabel('Biografía')).toHaveValue(
       'Comprometida con el reciclaje y la movilidad activa',
     );
-    await expect(page.getByLabel('Foto de perfil')).toHaveValue(`${imageHost}/current.jpg`);
+    await expect(page.getByLabel('Enlace de la foto')).toHaveValue(`${imageHost}/current.jpg`);
   });
 
   test('should not let an earlier save close a reopened modal', async ({ page }) => {
@@ -434,5 +631,136 @@ test.describe('Profile Editing (T2-23)', () => {
     await saveButton.click();
     await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
     expect(patches[0]).toMatchObject({ bio: '🌱'.repeat(260) });
+  });
+
+  test('should not upload the photo again when retrying after the other fields failed', async ({
+    page,
+  }) => {
+    const { patches, uploads } = await setupProfile(page, {
+      patchError: {
+        status: 400,
+        body: { bio: ['Ensure this field has no more than 500 characters.'] },
+      },
+      patchFailures: 1,
+    });
+    await openEditor(page);
+
+    await page.getByTestId('profile-avatar-file').setInputFiles({
+      name: 'yo.png',
+      mimeType: 'image/png',
+      buffer: PIXEL_PNG,
+    });
+    await page.getByLabel('Biografía').fill('Nueva biografía.');
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+
+    // The photo was saved even though the other fields were not; say so.
+    await expect(page.getByRole('alert')).toContainText('La foto se actualizó');
+    // The modal hides the navbar from the accessibility tree, so locate it by CSS.
+    await expect(page.locator('header [aria-label="Menú de usuario"] img')).toHaveAttribute(
+      'src',
+      uploadedAvatarUrl(1),
+    );
+
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
+
+    expect(uploads).toHaveLength(1);
+    expect(patches).toHaveLength(2);
+    expect(patches[1]).toMatchObject({ bio: 'Nueva biografía.' });
+    expect(patches[1]).not.toHaveProperty('avatar_url');
+  });
+
+  test('should fall back to initials when the uploaded photo cannot be loaded', async ({
+    page,
+  }) => {
+    await setupProfile(page, {
+      profile: { avatar_url: uploadedAvatarUrl(7) },
+      uploadedAvatarStatus: 404,
+    });
+    await openEditor(page);
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('MG', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Cargando vista previa…')).toHaveCount(0);
+  });
+
+  test('should use the first letter of the email when there is no name', async ({ page }) => {
+    await setupProfile(page, { profile: { first_name: '', last_name: '', avatar_url: '' } });
+
+    await expect(page.getByRole('main').getByText('U', { exact: true })).toBeVisible();
+    await expect(page.getByRole('main').getByText('US', { exact: true })).toHaveCount(0);
+  });
+
+  test('should not let a late navbar lookup overwrite a photo saved meanwhile', async ({
+    page,
+  }) => {
+    let holding = true;
+    let release!: () => void;
+    const heldGate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    // Only the navbar asks for /profile/me/ on /notifications; hold its answer.
+    await page.route('**/api/v1/notifications/**', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ count: 0, results: [], unread_count: 0 }),
+      }),
+    );
+    const { profileGets } = await setupProfile(page, {
+      startPath: '/notifications',
+      holdProfileGets: () => holding,
+      heldGate,
+    });
+    await expect.poll(() => profileGets.length).toBeGreaterThan(0);
+    holding = false;
+
+    await page.getByRole('button', { name: 'Menú de usuario' }).click();
+    await page.getByRole('menuitem', { name: 'Perfil' }).click();
+    await openEditor(page);
+    await page.getByTestId('profile-avatar-file').setInputFiles({
+      name: 'yo.png',
+      mimeType: 'image/png',
+      buffer: PIXEL_PNG,
+    });
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    const navbarPhoto = page.getByRole('button', { name: 'Menú de usuario' }).locator('img');
+    await expect(navbarPhoto).toHaveAttribute('src', uploadedAvatarUrl(1));
+
+    release();
+    // Give the held (stale) response time to land, then check it was ignored.
+    await page.waitForTimeout(500);
+    await expect(navbarPhoto).toHaveAttribute('src', uploadedAvatarUrl(1));
+  });
+});
+
+test.describe('Navbar photo lookup', () => {
+  test('should never refresh or clear the session, even with an expired token', async ({
+    page,
+  }) => {
+    const { profileGets, refreshCalls } = await setupProfile(page, {
+      startPath: '/notifications',
+    });
+    await page.waitForLoadState('networkidle');
+    const before = { gets: profileGets.length, refreshes: refreshCalls.length };
+
+    const result = await page.evaluate(async () => {
+      sessionStorage.setItem(
+        'greeniteso.access_token',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjF9.expired',
+      );
+      const module = await import('/src/lib/api/ecological-profile.ts');
+      const url = await module.fetchOwnAvatarUrl();
+      return {
+        url,
+        accessKept: sessionStorage.getItem('greeniteso.access_token') !== null,
+        refreshKept: sessionStorage.getItem('greeniteso.refresh_token') !== null,
+      };
+    });
+
+    // No usable token: skip the lookup instead of refreshing (and possibly logging out).
+    expect(result).toEqual({ url: null, accessKept: true, refreshKept: true });
+    expect(refreshCalls).toHaveLength(before.refreshes);
+    expect(profileGets).toHaveLength(before.gets);
   });
 });
