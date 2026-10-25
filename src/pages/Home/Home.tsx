@@ -40,7 +40,7 @@ export function HomePage() {
             <Button
               variant="outline"
               onClick={() => navigate('/login')}
-              className="min-h-11 border-2 border-border px-8 py-3 font-semibold text-foreground cursor-pointer"
+              className="min-h-11 border-2 border-secondary-300 px-8 py-3 font-semibold text-foreground cursor-pointer dark:border-border"
             >
               Iniciar sesión
             </Button>

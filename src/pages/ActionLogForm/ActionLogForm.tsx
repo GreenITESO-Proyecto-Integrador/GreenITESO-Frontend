@@ -75,7 +75,7 @@ export function ActionLogFormPage() {
         ) : null}
 
         {submitStatus === 'success' && registeredLog ? (
-          <section className="mb-6 rounded-2xl border border-primary-200 bg-primary-50 p-4 text-primary-700 dark:border-primary-800 dark:bg-primary-950/40 dark:text-primary-300">
+          <section className="mb-6 rounded-2xl border border-primary-200 bg-primary-50 p-4 text-primary-700 dark:border-primary-800 dark:bg-primary-900/40 dark:text-primary-300">
             <h2 className="text-lg font-semibold">Acción registrada</h2>
             <p className="mt-1 text-sm">{registrationSummary(registeredLog)}</p>
             {selectedAction ? (

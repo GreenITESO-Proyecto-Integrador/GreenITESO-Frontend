@@ -37,7 +37,7 @@ export function Pagination({ page, totalPages, onPageChange, label }: Pagination
         aria-valuemax={totalPages}
         aria-valuenow={page}
         aria-valuetext={`Página ${page} de ${totalPages}`}
-        className="h-2 w-full max-w-48 flex-1 overflow-hidden rounded-full bg-secondary-100 dark:bg-secondary-600"
+        className="h-2 w-full max-w-48 flex-1 overflow-hidden rounded-full bg-secondary-100 dark:bg-white/25"
       >
         <div
           className="h-full rounded-full bg-primary-500 transition-all duration-300 dark:bg-primary-400"
