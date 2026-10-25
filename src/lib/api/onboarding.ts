@@ -9,6 +9,9 @@ export type ProfileVisibility = 'PUBLIC' | 'PRIVATE';
 
 export interface OnboardingState {
   career: string;
+  /** Current nickname; onboarding never replaces an existing one. */
+  nickname: string;
+  visibility: ProfileVisibility;
   /** True only when the backend explicitly reports no institutional clan. */
   needsOnboarding: boolean;
 }
@@ -27,6 +30,8 @@ function mapState(raw: unknown): OnboardingState {
   if (!isRecord(raw)) throw new ApiError(UNREADABLE_RESPONSE);
   return {
     career: typeof raw.career === 'string' ? raw.career : '',
+    nickname: typeof raw.nickname === 'string' ? raw.nickname : '',
+    visibility: raw.visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC',
     needsOnboarding: 'institutional_clan' in raw && raw.institutional_clan === null,
   };
 }

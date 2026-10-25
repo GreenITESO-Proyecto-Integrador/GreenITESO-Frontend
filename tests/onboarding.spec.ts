@@ -8,6 +8,8 @@ const assignedClan = { id: 'clan-1', name: 'Arquitectura', type: 'INSTITUTIONAL'
 
 interface OnboardingMock {
   assigned: boolean;
+  nickname?: string;
+  visibility?: 'PUBLIC' | 'PRIVATE';
   careers?: string[] | 'error';
   postStatus?: number;
   postBody?: unknown;
@@ -60,6 +62,8 @@ async function mockOnboarding(
       body: JSON.stringify({
         career: assigned ? 'Arquitectura' : '',
         institutional_clan: assigned ? assignedClan : null,
+        nickname: options.nickname ?? '',
+        visibility: options.visibility ?? 'PUBLIC',
       }),
     });
   });
@@ -86,6 +90,28 @@ test.describe('Career onboarding modal (#163)', () => {
 
     await expect(dialog).toBeHidden();
     expect(posted).toEqual([{ career: 'Arquitectura', nickname: 'Ana', visibility: 'PRIVATE' }]);
+  });
+
+  test('keeps an existing private profile and nickname', async ({ page }) => {
+    await mockStudentSession(page);
+    const { posted } = await mockOnboarding(page, {
+      assigned: false,
+      nickname: 'Pau',
+      visibility: 'PRIVATE',
+    });
+
+    await page.goto('/');
+    const dialog = onboardingDialog(page);
+    await expect(dialog.getByLabel(/Perfil privado/)).toBeChecked();
+    const nickname = dialog.getByLabel('Nickname (opcional)');
+    await expect(nickname).toHaveValue('Pau');
+    await expect(nickname).not.toBeEditable();
+
+    await dialog.getByLabel('Carrera').selectOption('Arquitectura');
+    await dialog.getByRole('button', { name: 'Continuar' }).click();
+
+    await expect(dialog).toBeHidden();
+    expect(posted).toEqual([{ career: 'Arquitectura', visibility: 'PRIVATE' }]);
   });
 
   test('requires a career before submitting', async ({ page }) => {

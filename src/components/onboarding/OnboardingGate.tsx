@@ -12,7 +12,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FieldError } from '@/components/campaigns/FieldError';
 import { ApiError, toFriendlyMessage } from '@/lib/api/errors';
-import { completeOnboarding, fetchCareers, fetchOnboardingState } from '@/lib/api/onboarding';
+import {
+  completeOnboarding,
+  fetchCareers,
+  fetchOnboardingState,
+  type OnboardingState,
+} from '@/lib/api/onboarding';
 import { clearSession, getStoredUser } from '@/lib/auth/session';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { cn } from '@/lib/utils';
@@ -34,16 +39,21 @@ const onboardedUserIds = new Set<string>();
 function OnboardingForm({
   careers,
   careersFailed,
+  initial,
   onDone,
 }: {
   careers: string[];
   careersFailed: boolean;
+  /** Current profile state, so the form never reverts an earlier choice. */
+  initial: OnboardingState;
   onDone: () => void;
 }) {
   const [selected, setSelected] = useState(careers.length > 0 ? '' : OTHER_CAREER);
   const [otherCareer, setOtherCareer] = useState('');
-  const [nickname, setNickname] = useState('');
-  const [isPrivate, setIsPrivate] = useState(false);
+  const [nickname, setNickname] = useState(initial.nickname);
+  const [isPrivate, setIsPrivate] = useState(initial.visibility === 'PRIVATE');
+  // The backend never replaces an existing nickname, so it is shown read-only.
+  const hasNickname = Boolean(initial.nickname);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -65,7 +75,7 @@ function OnboardingForm({
     try {
       await completeOnboarding({
         career,
-        ...(nickname.trim() ? { nickname: nickname.trim() } : {}),
+        ...(!hasNickname && nickname.trim() ? { nickname: nickname.trim() } : {}),
         visibility: isPrivate ? 'PRIVATE' : 'PUBLIC',
       });
       onDone();
@@ -138,6 +148,7 @@ function OnboardingForm({
         <Input
           id="onboarding-nickname"
           value={nickname}
+          readOnly={hasNickname}
           maxLength={NICKNAME_MAX_LENGTH}
           onChange={event => setNickname(event.target.value)}
           aria-invalid={errors.nickname ? true : undefined}
@@ -145,7 +156,9 @@ function OnboardingForm({
           autoComplete="nickname"
         />
         <p className="text-xs text-muted-foreground">
-          Es el nombre que verán los demás en rankings y clanes.
+          {hasNickname
+            ? 'Ya tienes un nickname; puedes cambiarlo después desde tu perfil.'
+            : 'Es el nombre que verán los demás en rankings y clanes.'}
         </p>
         <FieldError message={errors.nickname} />
       </div>
@@ -194,6 +207,7 @@ export function OnboardingGate() {
   const { isAdmin } = useCurrentUser();
   const navigate = useNavigate();
   const [careers, setCareers] = useState<string[] | null>(null);
+  const [initial, setInitial] = useState<OnboardingState | null>(null);
   const [careersFailed, setCareersFailed] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -218,6 +232,7 @@ export function OnboardingGate() {
         if (!cancelled) {
           setCareers(options);
           setCareersFailed(failed);
+          setInitial(state);
           setOpen(true);
         }
       } catch {
@@ -230,7 +245,7 @@ export function OnboardingGate() {
     };
   }, [isAdmin]);
 
-  if (!open || careers === null) return null;
+  if (!open || careers === null || initial === null) return null;
 
   function handleDone() {
     onboardedUserIds.add(getStoredUser()?.id ?? '');
@@ -257,7 +272,12 @@ export function OnboardingGate() {
             Antes de registrar acciones, dinos qué estudias para unirte al clan de tu carrera.
           </DialogDescription>
         </DialogHeader>
-        <OnboardingForm careers={careers} careersFailed={careersFailed} onDone={handleDone} />
+        <OnboardingForm
+          careers={careers}
+          careersFailed={careersFailed}
+          initial={initial}
+          onDone={handleDone}
+        />
         <Button
           type="button"
           variant="ghost"
