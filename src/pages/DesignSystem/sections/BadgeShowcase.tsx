@@ -2,7 +2,7 @@ export function BadgeShowcase() {
   return (
     <section>
       <h2 className="text-2xl font-bold text-secondary-500 mb-6">Badges y Tags</h2>
-      <div className="bg-white p-6 rounded-2xl shadow-sm space-y-4">
+      <div className="bg-card p-6 rounded-2xl shadow-sm space-y-4">
         <div className="flex flex-wrap gap-2">
           <span className="px-3 py-1 bg-primary-50 text-primary-700 text-xs font-semibold rounded-full">
             APROBADO

@@ -34,7 +34,7 @@ export function ProfileHeader({ profile, onEditProfile }: ProfileHeaderProps) {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 justify-center sm:justify-start">
               <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground">{fullName}</h1>
-              <span className="inline-flex items-center self-center px-3 py-0.5 rounded-full text-xs font-semibold bg-primary-50 text-primary-700 dark:bg-primary-950/60 dark:text-primary-300 border border-primary-200 dark:border-primary-800">
+              <span className="inline-flex items-center self-center rounded-full border border-primary-200 bg-primary-50 px-3 py-0.5 text-xs font-semibold text-primary-700 dark:border-primary-800 dark:bg-primary-900/60 dark:text-primary-300">
                 {roleLabel}
               </span>
             </div>
@@ -63,7 +63,7 @@ export function ProfileHeader({ profile, onEditProfile }: ProfileHeaderProps) {
             <div
               className={`inline-flex items-center gap-1.5 self-center sm:self-start px-3 py-1 rounded-full font-semibold border ${
                 isPublic
-                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-700/40 dark:text-emerald-300'
                   : 'bg-muted text-muted-foreground border-border'
               }`}
             >

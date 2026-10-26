@@ -82,9 +82,9 @@ export function StorePage() {
         {/* Success State but Empty Catalog */}
         {status === 'success' && allItemsCount === 0 && (
           <section className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-border bg-card p-8 text-center">
-            <ShoppingBag className="mb-3 size-10 text-secondary-300 dark:text-muted-foreground" />
+            <ShoppingBag className="mb-3 size-10 text-muted-foreground" />
             <h2 className="text-lg font-bold text-foreground">No hay canjeables disponibles</h2>
-            <p className="mt-1 text-sm text-secondary-300 dark:text-muted-foreground max-w-sm">
+            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
               Actualmente no existen artículos activos en la tienda.
             </p>
           </section>
@@ -100,7 +100,7 @@ export function StorePage() {
 
             {items.length === 0 ? (
               <section className="flex min-h-36 items-center justify-center rounded-2xl border border-border bg-card p-6 text-center">
-                <p className="text-sm font-semibold text-secondary-300 dark:text-muted-foreground">
+                <p className="text-sm font-semibold text-muted-foreground">
                   Ningún artículo coincide con la categoría seleccionada.
                 </p>
               </section>

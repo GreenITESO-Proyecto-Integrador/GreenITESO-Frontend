@@ -329,7 +329,7 @@ export function EditProfileDialog({
             role="alert"
             className={`p-3 rounded-xl text-sm flex items-center gap-2 border font-medium ${
               statusMessage.type === 'success'
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800'
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-700/50 dark:text-emerald-300'
                 : 'bg-destructive/10 text-destructive border-destructive/20'
             }`}
           >
@@ -519,7 +519,7 @@ export function EditProfileDialog({
                 onClick={() => setVisibility('PUBLIC')}
                 className={`flex items-start gap-3 p-3.5 rounded-2xl border text-left cursor-pointer transition-all ${
                   visibility === 'PUBLIC'
-                    ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/30 ring-2 ring-primary-500/20'
+                    ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-900/30 ring-2 ring-primary-500/20'
                     : 'border-border bg-card hover:bg-muted/50'
                 }`}
               >
@@ -546,7 +546,7 @@ export function EditProfileDialog({
                 onClick={() => setVisibility('PRIVATE')}
                 className={`flex items-start gap-3 p-3.5 rounded-2xl border text-left cursor-pointer transition-all ${
                   visibility === 'PRIVATE'
-                    ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/30 ring-2 ring-primary-500/20'
+                    ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-900/30 ring-2 ring-primary-500/20'
                     : 'border-border bg-card hover:bg-muted/50'
                 }`}
               >
@@ -576,7 +576,7 @@ export function EditProfileDialog({
               {/* Notify Impact toggle */}
               <label className="flex items-center justify-between p-3 rounded-xl border border-border bg-card cursor-pointer hover:bg-muted/30">
                 <div className="flex items-center gap-3">
-                  <div className="size-7 rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 flex items-center justify-center">
+                  <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-700 dark:text-emerald-300">
                     <Bell className="size-4" />
                   </div>
                   <div>
@@ -599,7 +599,7 @@ export function EditProfileDialog({
               {/* Notify Campaigns toggle */}
               <label className="flex items-center justify-between p-3 rounded-xl border border-border bg-card cursor-pointer hover:bg-muted/30">
                 <div className="flex items-center gap-3">
-                  <div className="size-7 rounded-lg bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300 flex items-center justify-center">
+                  <div className="flex size-7 items-center justify-center rounded-lg bg-sky-100 text-sky-700 dark:bg-sky-800 dark:text-sky-300">
                     <SunMoon className="size-4" />
                   </div>
                   <div>

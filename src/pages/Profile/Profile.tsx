@@ -51,9 +51,7 @@ export function ProfilePage() {
           />
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-secondary-500 dark:text-secondary-400">
-              Galería de Insignias
-            </h2>
+            <h2 className="text-xl font-bold text-foreground">Galería de Insignias</h2>
             <BadgeGallery />
           </section>
 
