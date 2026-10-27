@@ -31,9 +31,12 @@ export async function exchangeMicrosoftSignIn(
     if (!allowMockRetry) throw error;
     try {
       return await loginWithMicrosoft(`mock:${result.account.username}`, accessToken);
-    } catch {
-      // Not a mock-mode backend either: the first error is the real cause.
-      throw error;
+    } catch (retryError) {
+      // A mock-mode backend rejects real tokens before checking the account.
+      const isMockModeRejection =
+        error instanceof Error &&
+        error.message === 'Mock mode expects an id_token like mock:<email>.';
+      throw isMockModeRejection ? retryError : error;
     }
   }
 }
