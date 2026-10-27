@@ -92,7 +92,7 @@ test.describe('Microsoft sign-in exchange (#82)', () => {
       const body = route.request().postDataJSON() as { id_token: string };
       sentIdTokens.push(body.id_token);
       const message = body.id_token.startsWith('mock:')
-        ? 'Mock mode expects an id_token like mock:<email>.'
+        ? 'The Microsoft sign-in could not be verified.'
         : 'Solo cuentas @iteso.mx.';
       await route.fulfill({
         status: 403,
@@ -106,6 +106,50 @@ test.describe('Microsoft sign-in exchange (#82)', () => {
 
     expect(outcome).toBe('Solo cuentas @iteso.mx.');
     expect(sentIdTokens).toEqual(['real-id-token', 'mock:ana@iteso.mx']);
+  });
+
+  test('on the dev server it shows the retry error from a mock-mode backend', async ({ page }) => {
+    const sentIdTokens: string[] = [];
+    await page.route(loginUrl, async route => {
+      const body = route.request().postDataJSON() as { id_token: string };
+      sentIdTokens.push(body.id_token);
+      const error = body.id_token.startsWith('mock:')
+        ? { code: 'DOMAIN_NOT_ALLOWED', message: 'Solo cuentas @iteso.mx.' }
+        : {
+            code: 'UNAUTHENTICATED',
+            message: 'Mock mode expects an id_token like mock:<email>.',
+          };
+      await route.fulfill({
+        status: error.code === 'DOMAIN_NOT_ALLOWED' ? 403 : 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ error }),
+      });
+    });
+    await page.goto('/login');
+
+    const outcome = await exchangeFromPage(page, { idToken: 'real-id-token', accessToken: 'at' });
+
+    expect(outcome).toBe('Solo cuentas @iteso.mx.');
+    expect(sentIdTokens).toEqual(['real-id-token', 'mock:ana@iteso.mx']);
+  });
+
+  test('keeps other original errors even when they mention mock tokens', async ({ page }) => {
+    await page.route(loginUrl, async route => {
+      const body = route.request().postDataJSON() as { id_token: string };
+      const message = body.id_token.startsWith('mock:')
+        ? 'The Microsoft sign-in could not be verified.'
+        : 'Tokens mock: no permitidos en este ambiente.';
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: { code: 'UNAUTHENTICATED', message } }),
+      });
+    });
+    await page.goto('/login');
+
+    const outcome = await exchangeFromPage(page, { idToken: 'real-id-token', accessToken: 'at' });
+
+    expect(outcome).toBe('Tokens mock: no permitidos en este ambiente.');
   });
 
   test('does not call the backend without an ID token', async ({ page }) => {
