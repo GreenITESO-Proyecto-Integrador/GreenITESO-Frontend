@@ -29,6 +29,11 @@ export async function exchangeMicrosoftSignIn(
     return await loginWithMicrosoft(result.idToken, accessToken);
   } catch (error) {
     if (!allowMockRetry) throw error;
-    return loginWithMicrosoft(`mock:${result.account.username}`, accessToken);
+    try {
+      return await loginWithMicrosoft(`mock:${result.account.username}`, accessToken);
+    } catch {
+      // Not a mock-mode backend either: the first error is the real cause.
+      throw error;
+    }
   }
 }

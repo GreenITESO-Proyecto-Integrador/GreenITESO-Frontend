@@ -84,6 +84,30 @@ test.describe('Microsoft sign-in exchange (#82)', () => {
     expect(sentIdTokens).toEqual(['real-id-token', 'mock:ana@iteso.mx']);
   });
 
+  test('on the dev server it keeps the original error when the retry fails too', async ({
+    page,
+  }) => {
+    const sentIdTokens: string[] = [];
+    await page.route(loginUrl, async route => {
+      const body = route.request().postDataJSON() as { id_token: string };
+      sentIdTokens.push(body.id_token);
+      const message = body.id_token.startsWith('mock:')
+        ? 'Mock mode expects an id_token like mock:<email>.'
+        : 'Solo cuentas @iteso.mx.';
+      await route.fulfill({
+        status: 403,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: { code: 'DOMAIN_NOT_ALLOWED', message } }),
+      });
+    });
+    await page.goto('/login');
+
+    const outcome = await exchangeFromPage(page, { idToken: 'real-id-token', accessToken: 'at' });
+
+    expect(outcome).toBe('Solo cuentas @iteso.mx.');
+    expect(sentIdTokens).toEqual(['real-id-token', 'mock:ana@iteso.mx']);
+  });
+
   test('does not call the backend without an ID token', async ({ page }) => {
     let calls = 0;
     await page.route(loginUrl, async route => {
