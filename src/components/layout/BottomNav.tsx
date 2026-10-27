@@ -2,9 +2,14 @@ import { useState } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { PRIMARY_NAV_LINKS, SECONDARY_NAV_LINKS } from '@/components/layout/nav-links';
+import {
+  PRIMARY_NAV_LINKS,
+  SECONDARY_NAV_LINKS,
+  filterNavLinks,
+} from '@/components/layout/nav-links';
 import { NotificationBadge } from '@/components/shared/NotificationBadge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useIsAdmin } from '@/hooks/use-has-role';
 
 interface BottomNavProps {
   unreadNotifications?: number;
@@ -19,6 +24,8 @@ const tabClassName = (isActive: boolean) =>
 export function BottomNav({ unreadNotifications = 0 }: BottomNavProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
+  const isAdmin = useIsAdmin();
+  const visibleSecondaryLinks = filterNavLinks(SECONDARY_NAV_LINKS, isAdmin);
   const isSecondaryActive = SECONDARY_NAV_LINKS.some(
     link => location.pathname === link.href || location.pathname.startsWith(`${link.href}/`),
   );
@@ -68,7 +75,7 @@ export function BottomNav({ unreadNotifications = 0 }: BottomNavProps) {
             <SheetTitle>Más opciones</SheetTitle>
           </SheetHeader>
           <div className="flex flex-col gap-1 px-4">
-            {SECONDARY_NAV_LINKS.map(link => (
+            {visibleSecondaryLinks.map(link => (
               <NavLink
                 key={link.href}
                 to={link.href}

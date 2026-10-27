@@ -115,3 +115,93 @@ test.describe('Role-based route guards and permissions', () => {
     await expect(page).toHaveURL('/audit');
   });
 });
+
+test.describe('Auditoría navigation link visibility', () => {
+  const auditLinkName = 'Auditoría';
+
+  test.beforeEach(async ({ page }) => {
+    await page.route(actionsUrl, async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ results: [] }),
+      });
+    });
+  });
+
+  test('should hide Auditoría from the sidebar for STUDENT', async ({ page }) => {
+    await mockStudentSession(page);
+    await page.goto('/actions');
+
+    const sidebar = page.locator('aside');
+    await expect(sidebar.getByRole('link', { name: 'Clanes', exact: true })).toBeVisible();
+    await expect(sidebar.getByRole('link', { name: auditLinkName, exact: true })).toHaveCount(0);
+  });
+
+  test('should hide Auditoría from the sidebar for STAFF', async ({ page }) => {
+    await mockStaffSession(page);
+    await page.goto('/actions');
+
+    const sidebar = page.locator('aside');
+    await expect(sidebar.getByRole('link', { name: 'Clanes', exact: true })).toBeVisible();
+    await expect(sidebar.getByRole('link', { name: auditLinkName, exact: true })).toHaveCount(0);
+  });
+
+  test('should show Auditoría in the sidebar for ADMIN and navigate to /audit', async ({
+    page,
+  }) => {
+    await page.route(pendingQueueUrl, async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ results: [] }),
+      });
+    });
+
+    await mockAdminSession(page);
+    await page.goto('/actions');
+
+    const auditLink = page.locator('aside').getByRole('link', { name: auditLinkName, exact: true });
+    await expect(auditLink).toBeVisible();
+
+    await auditLink.click();
+    await expect(page).toHaveURL('/audit');
+    await expect(page.getByRole('heading', { name: 'Panel de revisión' })).toBeVisible();
+  });
+
+  test.describe('mobile "Más" sheet', () => {
+    test.use({ viewport: { width: 390, height: 844 } });
+
+    test('should hide Auditoría from the "Más" sheet for STUDENT', async ({ page }) => {
+      await mockStudentSession(page);
+      await page.goto('/actions');
+
+      await page.getByRole('button', { name: 'Más' }).click();
+
+      const sheet = page.getByRole('dialog');
+      await expect(sheet.getByRole('link', { name: 'Clanes', exact: true })).toBeVisible();
+      await expect(sheet.getByRole('link', { name: auditLinkName, exact: true })).toHaveCount(0);
+    });
+
+    test('should hide Auditoría from the "Más" sheet for STAFF', async ({ page }) => {
+      await mockStaffSession(page);
+      await page.goto('/actions');
+
+      await page.getByRole('button', { name: 'Más' }).click();
+
+      const sheet = page.getByRole('dialog');
+      await expect(sheet.getByRole('link', { name: 'Clanes', exact: true })).toBeVisible();
+      await expect(sheet.getByRole('link', { name: auditLinkName, exact: true })).toHaveCount(0);
+    });
+
+    test('should show Auditoría in the "Más" sheet for ADMIN', async ({ page }) => {
+      await mockAdminSession(page);
+      await page.goto('/actions');
+
+      await page.getByRole('button', { name: 'Más' }).click();
+
+      const sheet = page.getByRole('dialog');
+      await expect(sheet.getByRole('link', { name: auditLinkName, exact: true })).toBeVisible();
+    });
+  });
+});
