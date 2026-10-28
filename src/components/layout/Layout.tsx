@@ -5,6 +5,7 @@ import { BottomNav } from '@/components/layout/BottomNav';
 import { Footer } from '@/components/layout/Footer';
 import { CurrentUserAvatarProvider } from '@/components/CurrentUserAvatarProvider';
 import { NotificationsProvider } from '@/components/notifications-provider';
+import { OnboardingGate } from '@/components/onboarding/OnboardingGate';
 import { useNotifications } from '@/hooks/use-notifications';
 
 function LayoutContent() {
@@ -23,6 +24,7 @@ function LayoutContent() {
       </div>
 
       <BottomNav unreadNotifications={unreadCount} />
+      <OnboardingGate />
     </div>
   );
 }
