@@ -15,6 +15,7 @@ import { NotificationBadge } from '@/components/shared/NotificationBadge';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useCurrentUserAvatar } from '@/hooks/use-current-user-avatar';
 import { clearSession } from '@/lib/auth/session';
+import { useGuidedTour } from '@/hooks/use-guided-tour';
 
 interface NavbarProps {
   unreadNotifications?: number;
@@ -25,6 +26,7 @@ export function Navbar({ unreadNotifications = 0, userNickname = 'Usuario' }: Na
   const navigate = useNavigate();
   const { user } = useCurrentUser();
   const { avatarUrl } = useCurrentUserAvatar();
+  const { canReplay, startSimple, startCampaigns } = useGuidedTour();
 
   const displayName = user
     ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email
@@ -32,7 +34,7 @@ export function Navbar({ unreadNotifications = 0, userNickname = 'Usuario' }: Na
   return (
     <header className="fixed inset-x-0 top-0 z-50 h-16 border-b border-border bg-card">
       <div className="flex h-full items-center gap-4 px-4">
-        <Link to="/" className="flex shrink-0 items-center gap-2">
+        <Link to="/" data-tour="app-brand" className="flex shrink-0 items-center gap-2">
           <span className="flex size-9 items-center justify-center rounded-xl bg-primary-500 text-white">
             <Leaf className="size-5" />
           </span>
@@ -87,6 +89,18 @@ export function Navbar({ unreadNotifications = 0, userNickname = 'Usuario' }: Na
                 <UserIcon />
                 Perfil
               </DropdownMenuItem>
+              {canReplay ? (
+                <DropdownMenuItem onClick={startSimple} className="cursor-pointer">
+                  <Leaf />
+                  Recorrido general
+                </DropdownMenuItem>
+              ) : null}
+              {canReplay ? (
+                <DropdownMenuItem onClick={startCampaigns} className="cursor-pointer">
+                  <Leaf />
+                  Recorrido de campañas
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 variant="destructive"

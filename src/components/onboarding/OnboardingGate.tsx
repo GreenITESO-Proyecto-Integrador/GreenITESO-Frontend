@@ -203,7 +203,7 @@ function OnboardingForm({
  * Without an institutional clan the backend rejects every action log. Admins are
  * skipped until the backend defines their case; everyone else can still sign out.
  */
-export function OnboardingGate() {
+export function OnboardingGate({ onReady }: { onReady?: () => void }) {
   const { isAdmin } = useCurrentUser();
   const navigate = useNavigate();
   const [careers, setCareers] = useState<string[] | null>(null);
@@ -213,13 +213,17 @@ export function OnboardingGate() {
 
   useEffect(() => {
     const userId = getStoredUser()?.id ?? '';
-    if (isAdmin || onboardedUserIds.has(userId)) return;
+    if (isAdmin || onboardedUserIds.has(userId)) {
+      onReady?.();
+      return;
+    }
     let cancelled = false;
     async function load() {
       try {
         const state = await fetchOnboardingState();
         if (!state.needsOnboarding) {
           onboardedUserIds.add(userId);
+          onReady?.();
           return;
         }
         let options: string[] = [];
@@ -237,13 +241,16 @@ export function OnboardingGate() {
         }
       } catch {
         // A failed check must not lock the app; the action form still reports the error.
+        if (!cancelled) {
+          onReady?.();
+        }
       }
     }
     void load();
     return () => {
       cancelled = true;
     };
-  }, [isAdmin]);
+  }, [isAdmin, onReady]);
 
   if (!open || careers === null || initial === null) return null;
 

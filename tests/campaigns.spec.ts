@@ -294,7 +294,7 @@ test.describe('Usuario: campañas', () => {
     await mockApi(page, { campaigns: [promotionCampaign, activeCampaign] });
     await page.goto('/campaigns');
 
-    await expect(page.getByRole('heading', { name: 'Misiones y campañas' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Campañas' })).toBeVisible();
     await expect(campaignCard(page, 'Semana del Reciclaje')).toBeVisible();
     await expect(campaignCard(page, 'Cero Plástico')).toBeVisible();
 

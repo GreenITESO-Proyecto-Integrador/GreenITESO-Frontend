@@ -231,4 +231,37 @@ test.describe('Career onboarding modal (#163)', () => {
     await checked;
     await expect(onboardingDialog(page)).toHaveCount(0);
   });
+
+  test('starts the guided tour after onboarding is resolved', async ({ page }) => {
+    await mockStudentSession(page, undefined, { seedTourState: false });
+    await mockOnboarding(page, { assigned: true });
+
+    await page.goto('/');
+
+    await expect(
+      page.getByText('Desde aquí puedes volver a tu dashboard en cualquier momento.'),
+    ).toBeVisible();
+  });
+
+  test('persists a skipped tour per user and allows replay', async ({ page }) => {
+    await mockStudentSession(page, undefined, { seedTourState: false });
+    await mockOnboarding(page, { assigned: true });
+
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Saltar' }).click();
+    await expect(
+      page.getByText('Desde aquí puedes volver a tu dashboard en cualquier momento.'),
+    ).toBeHidden();
+
+    await page.reload();
+    await expect(
+      page.getByText('Desde aquí puedes volver a tu dashboard en cualquier momento.'),
+    ).toBeHidden();
+
+    await page.getByRole('button', { name: 'Menú de usuario' }).click();
+    await page.getByRole('menuitem', { name: 'Recorrido general' }).click();
+    await expect(
+      page.getByText('Desde aquí puedes volver a tu dashboard en cualquier momento.'),
+    ).toBeVisible();
+  });
 });
