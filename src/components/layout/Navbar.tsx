@@ -26,7 +26,7 @@ export function Navbar({ unreadNotifications = 0, userNickname = 'Usuario' }: Na
   const navigate = useNavigate();
   const { user } = useCurrentUser();
   const { avatarUrl } = useCurrentUserAvatar();
-  const { canReplaySimple, canReplayCampaigns, startSimple, startCampaigns } = useGuidedTour();
+  const { canReplay, startSimple, startCampaigns } = useGuidedTour();
 
   const displayName = user
     ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email
@@ -70,12 +70,7 @@ export function Navbar({ unreadNotifications = 0, userNickname = 'Usuario' }: Na
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Menú de usuario"
-                  data-tour="user-menu"
-                >
+                <Button variant="ghost" size="icon" aria-label="Menú de usuario">
                   <UserAvatar
                     src={avatarUrl}
                     name={displayName}
@@ -94,13 +89,13 @@ export function Navbar({ unreadNotifications = 0, userNickname = 'Usuario' }: Na
                 <UserIcon />
                 Perfil
               </DropdownMenuItem>
-              {canReplaySimple ? (
+              {canReplay ? (
                 <DropdownMenuItem onClick={startSimple} className="cursor-pointer">
                   <Leaf />
                   Recorrido general
                 </DropdownMenuItem>
               ) : null}
-              {canReplayCampaigns ? (
+              {canReplay ? (
                 <DropdownMenuItem onClick={startCampaigns} className="cursor-pointer">
                   <Leaf />
                   Recorrido de campañas

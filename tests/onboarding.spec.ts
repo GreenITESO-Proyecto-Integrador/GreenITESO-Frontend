@@ -233,7 +233,7 @@ test.describe('Career onboarding modal (#163)', () => {
   });
 
   test('starts the guided tour after onboarding is resolved', async ({ page }) => {
-    await mockStudentSession(page);
+    await mockStudentSession(page, undefined, { seedTourState: false });
     await mockOnboarding(page, { assigned: true });
 
     await page.goto('/');
@@ -244,7 +244,7 @@ test.describe('Career onboarding modal (#163)', () => {
   });
 
   test('persists a skipped tour per user and allows replay', async ({ page }) => {
-    await mockStudentSession(page);
+    await mockStudentSession(page, undefined, { seedTourState: false });
     await mockOnboarding(page, { assigned: true });
 
     await page.goto('/');

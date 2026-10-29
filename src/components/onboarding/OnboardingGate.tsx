@@ -241,6 +241,9 @@ export function OnboardingGate({ onReady }: { onReady?: () => void }) {
         }
       } catch {
         // A failed check must not lock the app; the action form still reports the error.
+        if (!cancelled) {
+          onReady?.();
+        }
       }
     }
     void load();
@@ -253,7 +256,6 @@ export function OnboardingGate({ onReady }: { onReady?: () => void }) {
 
   function handleDone() {
     onboardedUserIds.add(getStoredUser()?.id ?? '');
-    onReady?.();
     // Pages already loaded the profile without a clan; reload so they show the new one.
     window.location.reload();
   }

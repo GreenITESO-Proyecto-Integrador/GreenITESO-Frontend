@@ -86,7 +86,7 @@ export function ImpactTrendChart({ points }: ImpactTrendChartProps) {
   }));
 
   return (
-    <section data-tour="dashboard-trend" className="flex flex-col gap-4">
+    <section className="flex flex-col gap-4">
       <h2 className="text-xl font-bold text-foreground">Tendencia (últimas 4 semanas)</h2>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {SERIES.map(series => (

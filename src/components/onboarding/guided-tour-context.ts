@@ -1,8 +1,7 @@
 import { createContext } from 'react';
 
 export interface GuidedTourContextValue {
-  canReplaySimple: boolean;
-  canReplayCampaigns: boolean;
+  canReplay: boolean;
   startSimple: () => void;
   startCampaigns: () => void;
 }

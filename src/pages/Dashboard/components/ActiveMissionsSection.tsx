@@ -35,7 +35,7 @@ export function ActiveMissionsSection({
     .filter(group => group.missions.length > 0);
 
   return (
-    <section data-tour="dashboard-missions" className="flex flex-col gap-3">
+    <section className="flex flex-col gap-3">
       <h2 className="text-xl font-bold text-foreground">Misiones activas</h2>
       <SectionState
         status={status}
