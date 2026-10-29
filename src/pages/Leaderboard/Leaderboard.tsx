@@ -16,7 +16,7 @@ export function LeaderboardPage() {
   return (
     <main className="min-h-screen bg-background px-4 pt-8 pb-24">
       <div className="mx-auto max-w-5xl">
-        <header className="mb-8">
+        <header className="mb-8" data-tour="leaderboard-overview">
           <p className="text-xs font-semibold tracking-wider text-primary-600 uppercase dark:text-primary-400">
             Rankings
           </p>

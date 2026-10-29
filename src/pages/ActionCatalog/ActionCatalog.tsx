@@ -12,7 +12,7 @@ export function ActionCatalogPage() {
   return (
     <main className="min-h-screen bg-background px-4 pb-24 pt-8">
       <div className="mx-auto max-w-5xl">
-        <header className="mb-8">
+        <header className="mb-8" data-tour="actions-overview">
           <p className="text-xs font-semibold tracking-wider text-primary-600 uppercase dark:text-primary-400">
             Equipo 1
           </p>
