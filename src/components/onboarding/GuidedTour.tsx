@@ -54,6 +54,7 @@ export function GuidedTourProvider({
   const [phase, setPhase] = useState<TourPhase | null>(null);
   const [run, setRun] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
+  const [autoLaunchSuppressed, setAutoLaunchSuppressed] = useState(false);
   const navigatingToRouteRef = useRef<string | null>(null);
   const currentPathnameRef = useRef(location.pathname);
 
@@ -66,6 +67,10 @@ export function GuidedTourProvider({
   useEffect(() => {
     currentPathnameRef.current = location.pathname;
   }, [location.pathname]);
+
+  useEffect(() => {
+    setAutoLaunchSuppressed(false);
+  }, [userId]);
 
   const finishTour = useCallback(
     (status: TourStatus) => {
@@ -91,13 +96,20 @@ export function GuidedTourProvider({
   );
 
   useEffect(() => {
-    if (!enabled || isAdmin || !userId || simpleStatus) {
+    if (!enabled || isAdmin || !userId || simpleStatus || autoLaunchSuppressed) {
       return;
     }
 
     setPhase('simple');
     setStepIndex(0);
-  }, [enabled, isAdmin, simpleStatus, userId]);
+  }, [autoLaunchSuppressed, enabled, isAdmin, simpleStatus, userId]);
+
+  const stopTour = useCallback(() => {
+    setRun(false);
+    setPhase(null);
+    setAutoLaunchSuppressed(true);
+    navigatingToRouteRef.current = null;
+  }, []);
 
   useEffect(() => {
     if (!phase || !activeStep || !enabled || isAdmin) {
@@ -127,9 +139,9 @@ export function GuidedTourProvider({
     }
 
     if (run && !navigatingToRouteRef.current && location.pathname !== activeStep.route) {
-      finishTour('skipped');
+      stopTour();
     }
-  }, [activeStep, enabled, finishTour, isAdmin, location.pathname, phase, run]);
+  }, [activeStep, enabled, isAdmin, location.pathname, phase, run, stopTour]);
 
   function handleEvent(data: EventData) {
     const { action, index, status, type } = data;
@@ -145,7 +157,7 @@ export function GuidedTourProvider({
     }
 
     if (type === EVENTS.TARGET_NOT_FOUND) {
-      finishTour('skipped');
+      stopTour();
       return;
     }
 
@@ -175,6 +187,7 @@ export function GuidedTourProvider({
 
       removeStoredTourStatus(userId, nextPhase);
       navigatingToRouteRef.current = null;
+      setAutoLaunchSuppressed(false);
       setPhase(nextPhase);
       setStepIndex(0);
       setRun(false);

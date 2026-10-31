@@ -6,4 +6,8 @@ export interface GuidedTourContextValue {
   startCampaigns: () => void;
 }
 
-export const GuidedTourContext = createContext<GuidedTourContextValue | null>(null);
+export const GuidedTourContext = createContext<GuidedTourContextValue>({
+  canReplay: false,
+  startSimple: () => undefined,
+  startCampaigns: () => undefined,
+});
