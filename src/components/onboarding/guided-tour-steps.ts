@@ -41,7 +41,7 @@ export const SIMPLE_STEPS: TourStep[] = [
     route: '/feed',
     target: TOUR_TARGETS.feedOverview,
     content: 'Comparte tus logros y descubre el impacto que está creando la comunidad.',
-    placement: 'top',
+    placement: 'bottom',
   },
   {
     route: '/leaderboard',

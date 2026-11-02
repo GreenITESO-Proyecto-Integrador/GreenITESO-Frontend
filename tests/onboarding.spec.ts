@@ -243,6 +243,28 @@ test.describe('Career onboarding modal (#163)', () => {
     ).toBeVisible();
   });
 
+  test('feed step highlights only the page header', async ({ page }) => {
+    await mockStudentSession(page, undefined, { seedTourState: false });
+    await mockOnboarding(page, { assigned: true });
+
+    await page.goto('/');
+    await expect(
+      page.getByText('Desde aquí puedes volver a tu dashboard en cualquier momento.'),
+    ).toBeVisible();
+    // Advance through steps 1-3 to reach the feed step (step 4).
+    for (let i = 0; i < 3; i++) {
+      await page.getByRole('button', { name: 'Siguiente' }).click();
+    }
+
+    await expect(
+      page.getByText('Comparte tus logros y descubre el impacto que está creando la comunidad.'),
+    ).toBeVisible();
+    const target = page.locator('[data-tour="feed-overview"]');
+    await expect(target).toContainText('Muro Social');
+    const box = await target.boundingBox();
+    expect(box?.height ?? Number.POSITIVE_INFINITY).toBeLessThan(200);
+  });
+
   test('persists a skipped tour per user and allows replay', async ({ page }) => {
     await mockStudentSession(page, undefined, { seedTourState: false });
     await mockOnboarding(page, { assigned: true });
