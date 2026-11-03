@@ -101,6 +101,45 @@ async function setupProfile(page: Page, options: MockProfileOptions = {}) {
       : route.fulfill({ status: options.uploadedAvatarStatus ?? 404, body: '' }),
   );
 
+  await page.route('**/api/v1/exchangeables/**', async route => {
+    if (route.request().url().includes('my-inventory')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ unlocked_cosmetics: ['frame_halloween', 'background_grasoso'] }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        results: [
+          {
+            id: 'item-1',
+            key: 'frame_halloween',
+            name: 'Marco noche de brujas',
+            description: 'Terrorífico marco.',
+            category: 'FRAME',
+            points_cost: 20,
+            is_active: true,
+            image_url: `${imageHost}/halloween_frame.png`,
+          },
+          {
+            id: 'item-2',
+            key: 'background_grasoso',
+            name: 'fondo grasoso',
+            description: 'Fondo grasoso.',
+            category: 'BACKGROUND',
+            points_cost: 100,
+            is_active: true,
+            image_url: `${imageHost}/fondo_grasoso.jpg`,
+          },
+        ],
+      }),
+    });
+  });
+
   await page.route(profileUrl, async route => {
     const method = route.request().method();
     if (method === 'POST' && route.request().url().endsWith('/profile/me/avatar/')) {
@@ -762,5 +801,66 @@ test.describe('Navbar photo lookup', () => {
     expect(result).toEqual({ url: null, accessKept: true, refreshKept: true });
     expect(refreshCalls).toHaveLength(before.refreshes);
     expect(profileGets).toHaveLength(before.gets);
+  });
+});
+
+test.describe('Profile Cosmetics Selection (Marcos y Fondos)', () => {
+  test('should display cosmetic frame and background options and allow selecting them', async ({
+    page,
+  }) => {
+    const { patches } = await setupProfile(page);
+    await openEditor(page);
+
+    // Marcos section
+    await expect(page.getByText('Marcos', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sin marco' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Marco noche de brujas' })).toBeVisible();
+
+    // Fondos section
+    await expect(page.getByText('Fondos de perfil', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sin fondo' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'fondo grasoso' })).toBeVisible();
+
+    // Select frame and background
+    await page.getByRole('button', { name: 'Marco noche de brujas' }).click();
+    await page.getByRole('button', { name: 'fondo grasoso' }).click();
+
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
+
+    expect(patches[0]).toMatchObject({
+      preferences: expect.objectContaining({
+        active_frame: 'frame_halloween',
+        active_background: 'background_grasoso',
+      }),
+    });
+  });
+
+  test('should allow selecting Sin marco and Sin fondo to remove cosmetics', async ({ page }) => {
+    const { patches } = await setupProfile(page, {
+      profile: {
+        preferences: {
+          notify_impact: true,
+          notify_campaigns: true,
+          active_frame: 'frame_halloween',
+          active_background: 'background_grasoso',
+        },
+      },
+    });
+    await openEditor(page);
+
+    // Click Sin marco and Sin fondo
+    await page.getByRole('button', { name: 'Sin marco' }).click();
+    await page.getByRole('button', { name: 'Sin fondo' }).click();
+
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(page.getByRole('heading', { name: 'Editar perfil' })).not.toBeVisible();
+
+    expect(patches[0]).toMatchObject({
+      preferences: expect.objectContaining({
+        active_frame: null,
+        active_background: null,
+      }),
+    });
   });
 });

@@ -160,6 +160,11 @@ export function mapEcologicalProfile(payload: unknown): EcologicalProfile {
     preferences: isRecord(payload.preferences)
       ? (payload.preferences as Record<string, unknown>)
       : {},
+    unlockedCosmetics: Array.isArray(payload.unlocked_cosmetics)
+      ? payload.unlocked_cosmetics.map(item => String(item))
+      : Array.isArray(payload.unlockedCosmetics)
+        ? payload.unlockedCosmetics.map(item => String(item))
+        : [],
     totalPoints: readNumber(payload.total_points ?? payload.totalPoints),
     availablePoints: readNumber(payload.available_points ?? payload.availablePoints),
     currentStreak: readNumber(payload.current_streak ?? payload.currentStreak),

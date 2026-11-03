@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Trash2,
   Globe,
@@ -10,6 +11,8 @@ import {
   SunMoon,
   Upload,
   Link2,
+  Check,
+  Ban,
 } from 'lucide-react';
 import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ModalContent } from '@/components/custom/ModalContent';
@@ -23,10 +26,12 @@ import {
   updateEcologicalProfile,
   uploadProfileAvatar,
 } from '@/lib/api/ecological-profile';
+import { fetchExchangeableItems, fetchMyInventory } from '@/lib/api/exchangeables';
 import { toFriendlyMessage } from '@/lib/api/errors';
 import { validateImageFile } from '@/lib/api/upload';
 import { getUserInitials } from '@/lib/user-initials';
 import type { EcologicalProfile, ProfileVisibility } from '@/types/ecological-profile';
+import type { ExchangeableItem } from '@/types/store';
 
 // Mirrors the backend's avatar_url rules (accounts.serializers._validate_avatar_url).
 const ALLOWED_AVATAR_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
@@ -117,6 +122,17 @@ export function EditProfileDialog({
     initialPrefs.notify_campaigns !== false,
   );
 
+  // Cosmetic frames and backgrounds states
+  const [exchangeables, setExchangeables] = useState<ExchangeableItem[]>([]);
+  const [inventoryKeys, setInventoryKeys] = useState<string[]>([]);
+  const [isLoadingCosmetics, setIsLoadingCosmetics] = useState(false);
+  const [activeFrameKey, setActiveFrameKey] = useState<string | null>(
+    (initialPrefs.active_frame as string) || null,
+  );
+  const [activeBackgroundKey, setActiveBackgroundKey] = useState<string | null>(
+    (initialPrefs.active_background as string) || null,
+  );
+
   // Validation & status states
   const [bioError, setBioError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<{
@@ -150,6 +166,25 @@ export function EditProfileDialog({
     const prefs = current.preferences ?? {};
     setNotifyImpact(prefs.notify_impact !== false);
     setNotifyCampaigns(prefs.notify_campaigns !== false);
+    setActiveFrameKey((prefs.active_frame as string) || null);
+    setActiveBackgroundKey((prefs.active_background as string) || null);
+
+    // Fetch exchangeables and user inventory when dialog opens
+    let isMounted = true;
+    setIsLoadingCosmetics(true);
+    Promise.all([fetchExchangeableItems().catch(() => []), fetchMyInventory().catch(() => [])])
+      .then(([items, inv]) => {
+        if (!isMounted) return;
+        setExchangeables(items);
+        setInventoryKeys(inv);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingCosmetics(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [open]);
 
   useEffect(() => () => clearTimeout(closeTimerRef.current), []);
@@ -196,6 +231,28 @@ export function EditProfileDialog({
       : isAvatarRemoved && hasUploadedAvatar
         ? ''
         : undefined;
+
+  // Unlocked items calculation
+  const allUnlockedKeys = Array.from(
+    new Set([...(profile.unlockedCosmetics ?? []), ...inventoryKeys]),
+  );
+  const ownedFrames = exchangeables.filter(
+    item => item.category === 'FRAME' && allUnlockedKeys.includes(item.key),
+  );
+  const ownedBackgrounds = exchangeables.filter(
+    item =>
+      (item.category === 'BACKGROUND' || item.category === 'THEME') &&
+      allUnlockedKeys.includes(item.key),
+  );
+
+  const selectedFrameItem = exchangeables.find(item => item.key === activeFrameKey);
+  const selectedBackgroundItem = exchangeables.find(item => item.key === activeBackgroundKey);
+
+  const selectedFrameUrl =
+    selectedFrameItem?.imageUrl ??
+    (activeFrameKey && profile.preferences?.active_frame === activeFrameKey
+      ? (profile.preferences?.active_frame_url as string | undefined)
+      : undefined);
 
   const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -266,6 +323,16 @@ export function EditProfileDialog({
         ...(profile.preferences ?? {}),
         notify_impact: notifyImpact,
         notify_campaigns: notifyCampaigns,
+        active_frame: activeFrameKey,
+        active_frame_url: selectedFrameItem
+          ? selectedFrameItem.imageUrl
+          : (selectedFrameUrl ?? null),
+        active_background: activeBackgroundKey,
+        active_background_url: selectedBackgroundItem
+          ? selectedBackgroundItem.imageUrl
+          : activeBackgroundKey && profile.preferences?.active_background === activeBackgroundKey
+            ? (profile.preferences?.active_background_url as string | null)
+            : null,
       };
 
       if (avatarFile) {
@@ -347,20 +414,30 @@ export function EditProfileDialog({
           <div className="space-y-3">
             <p className="text-sm font-semibold text-foreground">Foto de perfil</p>
             <div className="flex items-center gap-5">
-              {/* Preview */}
-              <div className="size-20 rounded-2xl bg-linear-to-br from-primary-500 to-primary-700 text-white font-extrabold text-2xl flex items-center justify-center shadow-md shrink-0 overflow-hidden border-2 border-border">
-                {showPreviewImage ? (
+              {/* Preview with optional selected cosmetic frame */}
+              <div className="relative size-20 shrink-0 flex items-center justify-center">
+                <div className="size-full rounded-2xl bg-linear-to-br from-primary-500 to-primary-700 text-white font-extrabold text-2xl flex items-center justify-center shadow-md overflow-hidden border-2 border-border">
+                  {showPreviewImage ? (
+                    <img
+                      key={previewSrc}
+                      src={previewSrc}
+                      alt="Previsualización"
+                      className={previewStatus === 'loaded' ? 'size-full object-cover' : 'hidden'}
+                      onLoad={() => setPreview({ url: previewSrc, status: 'loaded' })}
+                      onError={() => setPreview({ url: previewSrc, status: 'failed' })}
+                    />
+                  ) : null}
+                  {!showPreviewImage || previewStatus !== 'loaded' ? (
+                    <span aria-hidden="true">{initials}</span>
+                  ) : null}
+                </div>
+                {selectedFrameUrl ? (
                   <img
-                    key={previewSrc}
-                    src={previewSrc}
-                    alt="Previsualización"
-                    className={previewStatus === 'loaded' ? 'size-full object-cover' : 'hidden'}
-                    onLoad={() => setPreview({ url: previewSrc, status: 'loaded' })}
-                    onError={() => setPreview({ url: previewSrc, status: 'failed' })}
+                    src={selectedFrameUrl}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 size-full scale-[1.14] object-contain pointer-events-none z-10 select-none"
                   />
-                ) : null}
-                {!showPreviewImage || previewStatus !== 'loaded' ? (
-                  <span aria-hidden="true">{initials}</span>
                 ) : null}
               </div>
 
@@ -473,6 +550,182 @@ export function EditProfileDialog({
                 ) : null}
               </div>
             </div>
+          </div>
+
+          {/* Cosmetic Frames Selection */}
+          <div className="space-y-3 pt-2 border-t border-border">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-semibold text-foreground">Marcos</Label>
+                <p className="text-xs text-muted-foreground">
+                  Elige el marco decorativo para tu foto de perfil.
+                </p>
+              </div>
+              <span className="text-xs font-semibold text-muted-foreground">
+                {ownedFrames.length} {ownedFrames.length === 1 ? 'desbloqueado' : 'desbloqueados'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {/* Sin marco option */}
+              <button
+                type="button"
+                onClick={() => setActiveFrameKey(null)}
+                className={`group relative flex flex-col items-center justify-center p-3 rounded-2xl border text-center cursor-pointer transition-all min-h-28 ${
+                  activeFrameKey === null
+                    ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/30 ring-2 ring-primary-500/20'
+                    : 'border-border bg-card hover:bg-muted/40'
+                }`}
+              >
+                {activeFrameKey === null && (
+                  <div className="absolute top-2 right-2 flex size-5 items-center justify-center rounded-full bg-primary-600 text-white shadow-xs z-20">
+                    <Check className="size-3 stroke-[3]" />
+                  </div>
+                )}
+                <div className="size-12 rounded-xl border border-dashed border-muted-foreground/30 flex items-center justify-center text-muted-foreground mb-2">
+                  <Ban className="size-5" />
+                </div>
+                <span className="text-xs font-bold text-foreground">Sin marco</span>
+              </button>
+
+              {/* Owned frames */}
+              {ownedFrames.map(frame => {
+                const isSelected = activeFrameKey === frame.key;
+                return (
+                  <button
+                    key={frame.id}
+                    type="button"
+                    onClick={() => setActiveFrameKey(frame.key)}
+                    className={`group relative flex flex-col items-center justify-center p-3 rounded-2xl border text-center cursor-pointer transition-all min-h-28 ${
+                      isSelected
+                        ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/30 ring-2 ring-primary-500/20'
+                        : 'border-border bg-card hover:bg-muted/40'
+                    }`}
+                  >
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 flex size-5 items-center justify-center rounded-full bg-primary-600 text-white shadow-xs z-20">
+                        <Check className="size-3 stroke-[3]" />
+                      </div>
+                    )}
+                    <div className="relative size-14 mb-2 flex items-center justify-center">
+                      <div className="size-10 rounded-lg bg-linear-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white text-[10px] font-bold">
+                        {initials}
+                      </div>
+                      <img
+                        src={frame.imageUrl}
+                        alt={frame.name}
+                        className="absolute inset-0 size-full object-contain pointer-events-none select-none z-10"
+                      />
+                    </div>
+                    <span className="text-xs font-bold text-foreground line-clamp-1">
+                      {frame.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {ownedFrames.length === 0 && !isLoadingCosmetics && (
+              <div className="p-3 rounded-xl border border-dashed border-border bg-muted/20 text-center">
+                <p className="text-xs text-muted-foreground">
+                  No tienes marcos desbloqueados.{' '}
+                  <Link
+                    to="/tienda"
+                    className="font-semibold text-primary-600 dark:text-primary-400 hover:underline"
+                  >
+                    Visita la Tienda
+                  </Link>{' '}
+                  para canjearlos con tus puntos ecológicos.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Cosmetic Backgrounds Selection */}
+          <div className="space-y-3 pt-2 border-t border-border">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-semibold text-foreground">Fondos de perfil</Label>
+                <p className="text-xs text-muted-foreground">
+                  Elige el fondo decorativo para la tarjeta de tu perfil.
+                </p>
+              </div>
+              <span className="text-xs font-semibold text-muted-foreground">
+                {ownedBackgrounds.length}{' '}
+                {ownedBackgrounds.length === 1 ? 'desbloqueado' : 'desbloqueados'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {/* Sin fondo option */}
+              <button
+                type="button"
+                onClick={() => setActiveBackgroundKey(null)}
+                className={`group relative flex flex-col items-center justify-center p-3 rounded-2xl border text-center cursor-pointer transition-all min-h-28 ${
+                  activeBackgroundKey === null
+                    ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/30 ring-2 ring-primary-500/20'
+                    : 'border-border bg-card hover:bg-muted/40'
+                }`}
+              >
+                {activeBackgroundKey === null && (
+                  <div className="absolute top-2 right-2 flex size-5 items-center justify-center rounded-full bg-primary-600 text-white shadow-xs z-20">
+                    <Check className="size-3 stroke-[3]" />
+                  </div>
+                )}
+                <div className="w-full h-12 rounded-xl border border-dashed border-muted-foreground/30 bg-muted/40 flex items-center justify-center text-muted-foreground mb-2">
+                  <Ban className="size-5" />
+                </div>
+                <span className="text-xs font-bold text-foreground">Sin fondo</span>
+              </button>
+
+              {/* Owned backgrounds */}
+              {ownedBackgrounds.map(bg => {
+                const isSelected = activeBackgroundKey === bg.key;
+                return (
+                  <button
+                    key={bg.id}
+                    type="button"
+                    onClick={() => setActiveBackgroundKey(bg.key)}
+                    className={`group relative flex flex-col items-center justify-center p-3 rounded-2xl border text-center cursor-pointer transition-all min-h-28 overflow-hidden ${
+                      isSelected
+                        ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/30 ring-2 ring-primary-500/20'
+                        : 'border-border bg-card hover:bg-muted/40'
+                    }`}
+                  >
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 flex size-5 items-center justify-center rounded-full bg-primary-600 text-white shadow-xs z-20">
+                        <Check className="size-3 stroke-[3]" />
+                      </div>
+                    )}
+                    <div className="relative w-full h-12 rounded-xl overflow-hidden mb-2 border border-border">
+                      <img
+                        src={bg.imageUrl}
+                        alt={bg.name}
+                        className="size-full object-cover select-none"
+                      />
+                    </div>
+                    <span className="text-xs font-bold text-foreground line-clamp-1">
+                      {bg.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {ownedBackgrounds.length === 0 && !isLoadingCosmetics && (
+              <div className="p-3 rounded-xl border border-dashed border-border bg-muted/20 text-center">
+                <p className="text-xs text-muted-foreground">
+                  No tienes fondos desbloqueados.{' '}
+                  <Link
+                    to="/tienda"
+                    className="font-semibold text-primary-600 dark:text-primary-400 hover:underline"
+                  >
+                    Visita la Tienda
+                  </Link>{' '}
+                  para canjearlos con tus puntos ecológicos.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Bio Field with Char Counter */}
