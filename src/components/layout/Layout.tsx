@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -6,9 +7,10 @@ import { Footer } from '@/components/layout/Footer';
 import { CurrentUserAvatarProvider } from '@/components/CurrentUserAvatarProvider';
 import { NotificationsProvider } from '@/components/notifications-provider';
 import { OnboardingGate } from '@/components/onboarding/OnboardingGate';
+import { GuidedTourProvider } from '@/components/onboarding/GuidedTour';
 import { useNotifications } from '@/hooks/use-notifications';
 
-function LayoutContent() {
+function LayoutContent({ onOnboardingReady }: { onOnboardingReady: () => void }) {
   const { unreadCount } = useNotifications();
 
   return (
@@ -24,16 +26,21 @@ function LayoutContent() {
       </div>
 
       <BottomNav unreadNotifications={unreadCount} />
-      <OnboardingGate />
+      <OnboardingGate onReady={onOnboardingReady} />
     </div>
   );
 }
 
 export function Layout() {
+  const [onboardingReady, setOnboardingReady] = useState(false);
+  const handleOnboardingReady = useCallback(() => setOnboardingReady(true), []);
+
   return (
     <NotificationsProvider>
       <CurrentUserAvatarProvider>
-        <LayoutContent />
+        <GuidedTourProvider enabled={onboardingReady}>
+          <LayoutContent onOnboardingReady={handleOnboardingReady} />
+        </GuidedTourProvider>
       </CurrentUserAvatarProvider>
     </NotificationsProvider>
   );

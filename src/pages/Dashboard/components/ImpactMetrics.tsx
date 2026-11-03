@@ -39,7 +39,11 @@ export function ImpactMetrics({ profile }: ImpactMetricsProps) {
   const { impactMetrics, totalPoints, currentStreak } = profile;
 
   return (
-    <section aria-label="Dashboard Impact" className="flex flex-col gap-4">
+    <section
+      aria-label="Dashboard Impact"
+      data-tour="dashboard-impact"
+      className="flex flex-col gap-4"
+    >
       <h2 className="text-xl font-bold text-foreground">Tu impacto</h2>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

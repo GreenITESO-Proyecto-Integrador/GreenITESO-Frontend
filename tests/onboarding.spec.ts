@@ -231,4 +231,91 @@ test.describe('Career onboarding modal (#163)', () => {
     await checked;
     await expect(onboardingDialog(page)).toHaveCount(0);
   });
+
+  test('starts the guided tour after onboarding is resolved', async ({ page }) => {
+    await mockStudentSession(page, undefined, { seedTourState: false });
+    await mockOnboarding(page, { assigned: true });
+    await page.route('**/api/v1/profile/me/', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          user_id: 'test-user-id',
+          first_name: 'Ana',
+          last_name: 'Test',
+          total_points: 0,
+          available_points: 0,
+          current_streak: 0,
+          impact_metrics: { co2_kg: '0', water_liters: '0', plastic_kg: '0' },
+          finished_campaigns: [],
+        }),
+      }),
+    );
+
+    await page.goto('/');
+
+    await expect(
+      page.getByText('Desde aquí puedes volver a tu dashboard en cualquier momento.'),
+    ).toBeVisible();
+  });
+
+  test('feed step highlights only the page header', async ({ page }) => {
+    await mockStudentSession(page, undefined, { seedTourState: false });
+    await mockOnboarding(page, { assigned: true });
+    await page.route('**/api/v1/profile/me/', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          user_id: 'test-user-id',
+          first_name: 'Ana',
+          last_name: 'Test',
+          total_points: 0,
+          available_points: 0,
+          current_streak: 0,
+          impact_metrics: { co2_kg: '0', water_liters: '0', plastic_kg: '0' },
+          finished_campaigns: [],
+        }),
+      }),
+    );
+
+    await page.goto('/');
+    await expect(
+      page.getByText('Desde aquí puedes volver a tu dashboard en cualquier momento.'),
+    ).toBeVisible();
+    // Advance through steps 1-3 to reach the feed step (step 4).
+    for (let i = 0; i < 3; i++) {
+      await page.getByRole('button', { name: 'Siguiente' }).click();
+    }
+
+    await expect(
+      page.getByText('Comparte tus logros y descubre el impacto que está creando la comunidad.'),
+    ).toBeVisible();
+    const target = page.locator('[data-tour="feed-overview"]');
+    await expect(target).toContainText('Muro Social');
+    const box = await target.boundingBox();
+    expect(box?.height ?? Number.POSITIVE_INFINITY).toBeLessThan(200);
+  });
+
+  test('persists a skipped tour per user and allows replay', async ({ page }) => {
+    await mockStudentSession(page, undefined, { seedTourState: false });
+    await mockOnboarding(page, { assigned: true });
+
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Saltar' }).click();
+    await expect(
+      page.getByText('Desde aquí puedes volver a tu dashboard en cualquier momento.'),
+    ).toBeHidden();
+
+    await page.reload();
+    await expect(
+      page.getByText('Desde aquí puedes volver a tu dashboard en cualquier momento.'),
+    ).toBeHidden();
+
+    await page.getByRole('button', { name: 'Menú de usuario' }).click();
+    await page.getByRole('menuitem', { name: 'Recorrido general' }).click();
+    await expect(
+      page.getByText('Desde aquí puedes volver a tu dashboard en cualquier momento.'),
+    ).toBeVisible();
+  });
 });

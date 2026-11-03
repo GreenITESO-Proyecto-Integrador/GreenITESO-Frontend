@@ -31,7 +31,9 @@ export function StorePage() {
     <main className="min-h-screen bg-background">
       <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 pt-8 pb-24">
         {/* Header with Points Balance */}
-        <StoreHeader availablePoints={availablePoints} />
+        <div data-tour="shop-overview">
+          <StoreHeader availablePoints={availablePoints} />
+        </div>
 
         {/* Loading State */}
         {status === 'loading' && (
