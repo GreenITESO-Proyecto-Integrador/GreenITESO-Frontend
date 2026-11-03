@@ -6,6 +6,7 @@ import { GuidedTourContext } from '@/components/onboarding/guided-tour-context';
 import { CAMPAIGN_STEPS, SIMPLE_STEPS, type TourStep } from './guided-tour-steps';
 
 const TOUR_STORAGE_PREFIX = 'greeniteso.guided-tour.';
+const TOUR_INTERRUPTION_SUFFIX = '.interrupted';
 
 type TourPhase = 'simple' | 'campaigns';
 type TourStatus = 'completed' | 'skipped';
@@ -33,11 +34,25 @@ function setStoredTourStatus(userId: string, phase: TourPhase, status: TourStatu
   }
 }
 
-function removeStoredTourStatus(userId: string, phase: TourPhase): void {
+function getSessionInterruptionKey(userId: string): string {
+  return `${TOUR_STORAGE_PREFIX}${userId}${TOUR_INTERRUPTION_SUFFIX}`;
+}
+
+function hasSessionInterruption(userId: string): boolean {
+  if (!userId) return false;
+
   try {
-    localStorage.removeItem(getTourStorageKey(userId, phase));
+    return sessionStorage.getItem(getSessionInterruptionKey(userId)) === 'true';
   } catch {
-    // Keep replay usable when browser storage is blocked.
+    return false;
+  }
+}
+
+function setSessionInterruption(userId: string): void {
+  try {
+    sessionStorage.setItem(getSessionInterruptionKey(userId), 'true');
+  } catch {
+    // Keep the tour usable when browser storage is blocked.
   }
 }
 
@@ -57,6 +72,7 @@ export function GuidedTourProvider({
   const [autoLaunchSuppressed, setAutoLaunchSuppressed] = useState(false);
   const navigatingToRouteRef = useRef<string | null>(null);
   const currentPathnameRef = useRef(location.pathname);
+  const navigateRef = useRef(navigate);
 
   const userId = user?.id ?? '';
   const simpleStatus = userId ? getStoredTourStatus(userId, 'simple') : null;
@@ -68,8 +84,10 @@ export function GuidedTourProvider({
     currentPathnameRef.current = location.pathname;
   }, [location.pathname]);
 
+  navigateRef.current = navigate;
+
   useEffect(() => {
-    setAutoLaunchSuppressed(false);
+    setAutoLaunchSuppressed(userId ? hasSessionInterruption(userId) : false);
   }, [userId]);
 
   const finishTour = useCallback(
@@ -85,6 +103,7 @@ export function GuidedTourProvider({
       navigatingToRouteRef.current = null;
 
       if (phase === 'simple' && status === 'completed' && !campaignsStatus) {
+        navigatingToRouteRef.current = CAMPAIGN_STEPS[0].route;
         setPhase('campaigns');
         setStepIndex(0);
         return;
@@ -96,10 +115,18 @@ export function GuidedTourProvider({
   );
 
   useEffect(() => {
-    if (!enabled || isAdmin || !userId || simpleStatus || autoLaunchSuppressed) {
+    if (
+      !enabled ||
+      isAdmin ||
+      !userId ||
+      simpleStatus ||
+      autoLaunchSuppressed ||
+      hasSessionInterruption(userId)
+    ) {
       return;
     }
 
+    navigatingToRouteRef.current = SIMPLE_STEPS[0].route;
     setPhase('simple');
     setStepIndex(0);
   }, [autoLaunchSuppressed, enabled, isAdmin, simpleStatus, userId]);
@@ -108,8 +135,9 @@ export function GuidedTourProvider({
     setRun(false);
     setPhase(null);
     setAutoLaunchSuppressed(true);
+    setSessionInterruption(userId);
     navigatingToRouteRef.current = null;
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     if (!phase || !activeStep || !enabled || isAdmin) {
@@ -122,10 +150,13 @@ export function GuidedTourProvider({
       return () => window.clearTimeout(timer);
     }
 
-    navigatingToRouteRef.current = activeStep.route;
+    if (navigatingToRouteRef.current !== activeStep.route) {
+      return;
+    }
+
     setRun(false);
-    navigate(activeStep.route);
-  }, [activeStep, enabled, isAdmin, navigate, phase]);
+    navigateRef.current(activeStep.route);
+  }, [activeStep, enabled, isAdmin, phase]);
 
   useEffect(() => {
     if (!phase || !activeStep || !enabled || isAdmin) {
@@ -166,7 +197,9 @@ export function GuidedTourProvider({
     }
 
     if (action === ACTIONS.PREV) {
-      setStepIndex(Math.max(0, index - 1));
+      const nextIndex = Math.max(0, index - 1);
+      navigatingToRouteRef.current = steps[nextIndex].route;
+      setStepIndex(nextIndex);
       return;
     }
 
@@ -174,7 +207,9 @@ export function GuidedTourProvider({
       if (index + 1 >= steps.length) {
         finishTour('completed');
       } else {
-        setStepIndex(index + 1);
+        const nextIndex = index + 1;
+        navigatingToRouteRef.current = steps[nextIndex].route;
+        setStepIndex(nextIndex);
       }
     }
   }
@@ -185,8 +220,9 @@ export function GuidedTourProvider({
         return;
       }
 
-      removeStoredTourStatus(userId, nextPhase);
-      navigatingToRouteRef.current = null;
+      navigatingToRouteRef.current = (
+        nextPhase === 'campaigns' ? CAMPAIGN_STEPS : SIMPLE_STEPS
+      )[0].route;
       setAutoLaunchSuppressed(false);
       setPhase(nextPhase);
       setStepIndex(0);

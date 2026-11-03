@@ -235,6 +235,22 @@ test.describe('Career onboarding modal (#163)', () => {
   test('starts the guided tour after onboarding is resolved', async ({ page }) => {
     await mockStudentSession(page, undefined, { seedTourState: false });
     await mockOnboarding(page, { assigned: true });
+    await page.route('**/api/v1/profile/me/', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          user_id: 'test-user-id',
+          first_name: 'Ana',
+          last_name: 'Test',
+          total_points: 0,
+          available_points: 0,
+          current_streak: 0,
+          impact_metrics: { co2_kg: '0', water_liters: '0', plastic_kg: '0' },
+          finished_campaigns: [],
+        }),
+      }),
+    );
 
     await page.goto('/');
 
