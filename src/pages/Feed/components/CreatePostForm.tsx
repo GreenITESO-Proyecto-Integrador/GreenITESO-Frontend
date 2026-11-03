@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Send, Image as ImageIcon, Upload, X, Link as LinkIcon } from 'lucide-react';
 import { createPost } from '@/lib/api/feed';
 import { uploadImage, validateImageFile } from '@/lib/api/upload';
+import { IMAGE_FILE_ACCEPT } from '@/lib/image-file';
 import type { FeedPost } from '@/types/feed';
 
 interface CreatePostFormProps {
@@ -198,7 +199,7 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/jpeg,image/png,image/webp"
+                    accept={IMAGE_FILE_ACCEPT}
                     className="hidden"
                     onChange={handleFileChange}
                     disabled={isSubmitting}
