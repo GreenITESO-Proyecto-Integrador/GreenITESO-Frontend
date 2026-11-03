@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { BadgeUnlockModal } from '@/components/shared/BadgeUnlockModal';
 import { NotificationToast } from '@/components/shared/NotificationToast';
+import { isBadgeUnlock } from '@/components/shared/badge-unlock';
 import {
   deleteNotification,
   getNotifications,
@@ -28,6 +30,8 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [incoming, setIncoming] = useState<Notification | null>(null);
+  // Badges waiting for their celebration; the first one is on screen.
+  const [celebrations, setCelebrations] = useState<Notification[]>([]);
   const knownIds = useRef(new Set<string>());
   // Mirrors `notifications` synchronously so load()/markRead() can read the latest
   // list without waiting on React's state-update timing.
@@ -130,6 +134,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     if (!hasStoredSession) {
       replaceAll([], 0);
       setIncoming(null);
+      setCelebrations([]);
       setHasError(false);
       return;
     }
@@ -147,6 +152,9 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         setNotificationsState([notification, ...notificationsRef.current]);
         if (!notification.read) setUnreadCount(count => count + 1);
         setIncoming(notification);
+        if (isBadgeUnlock(notification)) {
+          setCelebrations(queue => [...queue, notification]);
+        }
         recordEvent({ type: 'add', id: notification.id, notification });
       },
     });
@@ -193,6 +201,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   );
 
   const dismissIncoming = useCallback(() => setIncoming(null), []);
+  const dismissCelebration = useCallback(() => setCelebrations(queue => queue.slice(1)), []);
 
   const value = useMemo(
     () => ({
@@ -223,6 +232,12 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     <NotificationsContext.Provider value={value}>
       {children}
       <NotificationToast notification={incoming} onDismiss={dismissIncoming} onOpen={markRead} />
+      <BadgeUnlockModal
+        notification={celebrations[0] ?? null}
+        remaining={Math.max(celebrations.length - 1, 0)}
+        onDismiss={dismissCelebration}
+        onOpen={markRead}
+      />
     </NotificationsContext.Provider>
   );
 }
