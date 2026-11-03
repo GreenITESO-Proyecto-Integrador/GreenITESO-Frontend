@@ -6,6 +6,7 @@ import { ButtonShowcase } from './sections/ButtonShowcase';
 import { FormShowcase } from './sections/FormShowcase';
 import { CardShowcase } from './sections/CardShowcase';
 import { BadgeShowcase } from './sections/BadgeShowcase';
+import { BadgeUnlockShowcase } from './sections/BadgeUnlockShowcase';
 import { BottomNavigation } from './sections/BottomNavigation';
 
 export function DesignSystemPage() {
@@ -35,6 +36,7 @@ export function DesignSystemPage() {
         <FormShowcase />
         <CardShowcase />
         <BadgeShowcase />
+        <BadgeUnlockShowcase />
       </div>
 
       <BottomNavigation />
