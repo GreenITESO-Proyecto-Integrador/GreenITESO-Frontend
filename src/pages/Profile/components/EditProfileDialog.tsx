@@ -29,6 +29,7 @@ import {
 import { fetchExchangeableItems, fetchMyInventory } from '@/lib/api/exchangeables';
 import { toFriendlyMessage } from '@/lib/api/errors';
 import { validateImageFile } from '@/lib/api/upload';
+import { IMAGE_FILE_ACCEPT } from '@/lib/image-file';
 import { getUserInitials } from '@/lib/user-initials';
 import type { EcologicalProfile, ProfileVisibility } from '@/types/ecological-profile';
 import type { ExchangeableItem } from '@/types/store';
@@ -447,7 +448,7 @@ export function EditProfileDialog({
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/jpeg,image/png,image/webp"
+                    accept={IMAGE_FILE_ACCEPT}
                     onChange={handleAvatarFileChange}
                     className="hidden"
                     data-testid="profile-avatar-file"

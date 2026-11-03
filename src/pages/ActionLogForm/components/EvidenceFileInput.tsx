@@ -1,9 +1,6 @@
 import { Input } from '@/components/ui/input';
-import {
-  ACCEPTED_EVIDENCE_MIME_TYPES,
-  MAX_EVIDENCE_FILE_BYTES,
-  formatFileSize,
-} from '@/lib/action-log-form';
+import { MAX_EVIDENCE_FILE_BYTES, formatFileSize } from '@/lib/action-log-form';
+import { IMAGE_FILE_ACCEPT } from '@/lib/image-file';
 import { cn } from '@/lib/utils';
 
 interface EvidenceFileInputProps {
@@ -37,7 +34,7 @@ export function EvidenceFileInput({
         id="evidence-file"
         name="evidence"
         type="file"
-        accept={ACCEPTED_EVIDENCE_MIME_TYPES.join(',')}
+        accept={IMAGE_FILE_ACCEPT}
         disabled={disabled}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? errorId : helpId}

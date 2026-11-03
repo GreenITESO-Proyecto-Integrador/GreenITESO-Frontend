@@ -1,7 +1,7 @@
+import { isAcceptedImageFile } from '@/lib/image-file';
 import type { CatalogAction } from '@/types/action-catalog';
 
 export const MAX_EVIDENCE_FILE_BYTES = 5 * 1024 * 1024;
-export const ACCEPTED_EVIDENCE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 
 export type ActionLogFormErrors = {
   actionId?: string;
@@ -50,7 +50,7 @@ export function validateActionLogForm(
   if (evidence) {
     if (evidence.size > MAX_EVIDENCE_FILE_BYTES) {
       errors.evidence = 'La evidencia no puede superar 5 MB.';
-    } else if (!ACCEPTED_EVIDENCE_MIME_TYPES.some(type => type === evidence.type)) {
+    } else if (!isAcceptedImageFile(evidence)) {
       errors.evidence = 'Usa una imagen JPG, PNG o WEBP.';
     }
   }
