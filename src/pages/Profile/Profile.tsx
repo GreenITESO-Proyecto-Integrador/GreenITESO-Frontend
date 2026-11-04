@@ -13,6 +13,7 @@ import { ProfileSkeleton } from './components/ProfileSkeleton';
 import { ProfileError } from './components/ProfileError';
 import { EditProfileDialog } from './components/EditProfileDialog';
 import { BadgeGallery } from '@/components/shared/BadgeGallery';
+import { ActionHistorySection } from './components/ActionHistorySection';
 
 export function ProfilePage() {
   const navigate = useNavigate();
@@ -56,6 +57,8 @@ export function ProfilePage() {
           </section>
 
           <CampaignsSection finishedCampaigns={profile.finishedCampaigns} />
+
+          <ActionHistorySection />
 
           <EditProfileDialog
             open={isEditDialogOpen}

@@ -1,0 +1,10 @@
+# Always check out text files with LF, even on Windows with core.autocrlf=true.
+# CRLF breaks shell scripts run in the devcontainer (post-create.sh) and fails
+# Prettier's format:check (endOfLine defaults to "lf").
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
