@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Pencil } from 'lucide-react';
+import { Pencil, UserX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { NicknameChangeResult } from '@/lib/api/account';
 import type { EcologicalProfile } from '@/types/ecological-profile';
 import { ChangeNicknameDialog } from './ChangeNicknameDialog';
+import { DeactivateAccountDialog } from './DeactivateAccountDialog';
 
 interface AccountSectionProps {
   profile: EcologicalProfile;
@@ -12,6 +13,7 @@ interface AccountSectionProps {
 
 export function AccountSection({ profile, onProfileChange }: AccountSectionProps) {
   const [isNicknameOpen, setIsNicknameOpen] = useState(false);
+  const [isDeactivateOpen, setIsDeactivateOpen] = useState(false);
   const costHint =
     profile.nicknameChangeCost === 0
       ? 'Tu primer cambio es gratis.'
@@ -53,6 +55,23 @@ export function AccountSection({ profile, onProfileChange }: AccountSectionProps
         </Button>
       </div>
 
+      <div className="flex flex-col gap-3 rounded-2xl border border-destructive/30 bg-card p-5 shadow-xs sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-foreground">Desactivar cuenta</p>
+          <p className="text-xs text-muted-foreground">
+            Borra tu progreso y cierra tu sesión. Si vuelves a entrar, empiezas desde cero.
+          </p>
+        </div>
+        <Button
+          variant="destructive"
+          onClick={() => setIsDeactivateOpen(true)}
+          className="h-11 cursor-pointer gap-2 self-start rounded-xl font-semibold sm:self-auto"
+        >
+          <UserX className="size-4" />
+          Desactivar cuenta
+        </Button>
+      </div>
+
       <ChangeNicknameDialog
         open={isNicknameOpen}
         onOpenChange={setIsNicknameOpen}
@@ -61,6 +80,8 @@ export function AccountSection({ profile, onProfileChange }: AccountSectionProps
         availablePoints={profile.availablePoints}
         onChanged={handleNicknameChanged}
       />
+
+      <DeactivateAccountDialog open={isDeactivateOpen} onOpenChange={setIsDeactivateOpen} />
     </section>
   );
 }
