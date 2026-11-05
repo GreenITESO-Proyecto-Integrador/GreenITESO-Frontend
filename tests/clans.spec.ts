@@ -72,6 +72,10 @@ interface ApiSeed {
   details?: Record<string, Json>;
   /** Clan ids that answer 404 on the detail endpoint. */
   hidden?: string[];
+  /** Pending join requests (leader view) by clan id. Accepting or rejecting removes one. */
+  requests?: Record<string, Json[]>;
+  /** Campaigns the campaigns endpoints answer with; `target_clan` and `is_active` filter them. */
+  campaigns?: Json[];
   failOn?: Record<string, { status: number; body: unknown }>;
 }
 
@@ -80,9 +84,11 @@ interface ApiSeed {
  */
 async function mockClansApi(page: Page, seed: ApiSeed = {}) {
   const calls: Call[] = [];
+  const campaignQueries: URLSearchParams[] = [];
   const clans = seed.clans ?? [ECO_CLAN, RIO_CLAN];
   const details = seed.details ?? {};
   const hidden = new Set(seed.hidden ?? []);
+  const pending: Record<string, Json[]> = { ...(seed.requests ?? {}) };
 
   await page.route(/\/api\/v1\//, async route => {
     const request = route.request();
@@ -134,6 +140,67 @@ async function mockClansApi(page: Page, seed: ApiSeed = {}) {
       return;
     }
 
+    if (path === '/campaigns/' && method === 'GET') {
+      campaignQueries.push(url.searchParams);
+      const targetClan = url.searchParams.get('target_clan');
+      const activeOnly = url.searchParams.get('is_active') === 'true';
+      await json(200, {
+        results: (seed.campaigns ?? []).filter(
+          item =>
+            (!targetClan || item.target_clan === targetClan) &&
+            (!activeOnly || item.status === 'IN_PROGRESS'),
+        ),
+        next: null,
+      });
+      return;
+    }
+    const campaignOne = path.match(/^\/campaigns\/([^/]+)\/$/);
+    if (campaignOne && method === 'GET') {
+      const found = (seed.campaigns ?? []).find(item => item.id === campaignOne[1]);
+      await json(found ? 200 : 404, found ?? { detail: 'Not found.' });
+      return;
+    }
+
+    const listed = path.match(/^\/clans\/([^/]+)\/requests\/$/);
+    if (listed && method === 'GET') {
+      await json(200, pending[listed[1]] ?? []);
+      return;
+    }
+
+    const decision = path.match(/^\/clans\/([^/]+)\/(accept|reject)-request\/$/);
+    if (decision && method === 'POST') {
+      const [, clanId, verdict] = decision;
+      const request = (pending[clanId] ?? []).find(
+        item => (item.user as Json).id === body?.applicant_id,
+      );
+      if (!request) {
+        await json(400, { applicant_id: 'No pending join request from this user.' });
+        return;
+      }
+      pending[clanId] = pending[clanId].filter(item => item !== request);
+      if (verdict === 'accept' && details[clanId]) {
+        const applicant = request.user as Json;
+        const roster = [
+          ...(details[clanId].members as Json[]),
+          {
+            ...member(String(applicant.id), String(applicant.nickname), 'MEMBER'),
+            display_name: applicant.display_name,
+          },
+        ];
+        details[clanId] = { ...details[clanId], members: roster, member_count: roster.length };
+      }
+      await json(200, {
+        id: String(request.id),
+        clan: clanId,
+        user: (request.user as Json).id,
+        role: 'MEMBER',
+        status: verdict === 'accept' ? 'ACCEPTED' : 'REJECTED',
+        is_active_private: false,
+        joined_at: request.joined_at,
+      });
+      return;
+    }
+
     const action = path.match(
       /^\/clans\/([^/]+)\/(join|leave|select-active|transfer-leadership)\/$/,
     );
@@ -173,7 +240,7 @@ async function mockClansApi(page: Page, seed: ApiSeed = {}) {
     await json(404, { detail: 'Not found.' });
   });
 
-  return { calls };
+  return { calls, campaignQueries };
 }
 
 const MEMBER_DETAIL = detail(ECO_CLAN, [
@@ -185,6 +252,48 @@ const LEADER_DETAIL = detail(ECO_CLAN, [
   member(ME, 'Usuario Prueba', 'LEADER'),
   member('member-2', 'Luis Miembro', 'MEMBER'),
 ]);
+
+const INVITE_CLAN = { ...ECO_CLAN, privacy: 'PRIVATE_INVITE' };
+const INVITE_LEADER_DETAIL = detail(INVITE_CLAN, [
+  member(ME, 'Usuario Prueba', 'LEADER'),
+  member('member-2', 'Luis Miembro', 'MEMBER'),
+]);
+
+/** A pending request as the backend serializes it; `displayName` falls back to the nickname. */
+function joinRequest(userId: string, nickname: string, displayName = nickname): Json {
+  return {
+    id: `req-${userId}`,
+    clan_id: 'clan-eco',
+    user: { id: userId, nickname, display_name: displayName },
+    role: 'MEMBER',
+    status: 'PENDING',
+    joined_at: '2026-10-18T12:00:00Z',
+  };
+}
+
+/** Raw campaign as the API returns it. */
+function clanCampaign(overrides: Json): Json {
+  return {
+    id: 'camp-eco',
+    title: 'Reto Eco',
+    description: 'Solo para el clan',
+    scope: 'PRIVATE',
+    status: 'IN_PROGRESS',
+    approval_status: 'APPROVED',
+    creator: 'leader-1',
+    target_clan: 'clan-eco',
+    target_clan_name: 'Eco Warriors',
+    start_date: '2026-10-01T00:00:00Z',
+    end_date: '2026-12-31T23:59:59Z',
+    created_at: '2026-09-20T00:00:00Z',
+    is_participant: false,
+    can_manage: false,
+    missions: [],
+    user_mission_progress: [],
+    participants: [],
+    ...overrides,
+  };
+}
 
 test('should list clans and filter them with the search box', async ({ page }) => {
   await mockStudentSession(page);
@@ -575,4 +684,192 @@ test('should label members without a nickname by their display name', async ({ p
   await page.getByRole('button', { name: 'Transferir liderazgo' }).click();
   await page.getByRole('dialog').getByLabel('Nuevo líder').click();
   await expect(page.getByRole('option', { name: 'Luisa Pérez' })).toBeVisible();
+});
+
+test('should show the leader the pending join requests', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockClansApi(page, {
+    details: { 'clan-eco': INVITE_LEADER_DETAIL },
+    requests: {
+      'clan-eco': [
+        joinRequest('user-ana', 'Ana Solicita'),
+        joinRequest('user-luisa', '', 'Luisa Pérez'),
+        joinRequest('user-sin', '', ''),
+      ],
+    },
+  });
+  await page.goto('/clans/clan-eco');
+
+  await expect(page.getByRole('heading', { name: 'Solicitudes pendientes (3)' })).toBeVisible();
+  await expect(page.getByText('Ana Solicita')).toBeVisible();
+  await expect(page.getByText('Luisa Pérez')).toBeVisible();
+  await expect(page.getByText('Miembro sin apodo')).toBeVisible();
+  await expect(page.getByText('Solicitó el 18 de octubre de 2026').first()).toBeVisible();
+});
+
+test('should not show or load the pending requests for a regular member', async ({ page }) => {
+  await mockStudentSession(page);
+  const requested: string[] = [];
+  page.on('request', request => {
+    if (request.url().includes('/requests/')) requested.push(request.url());
+  });
+  await mockClansApi(page, {
+    details: { 'clan-eco': { ...MEMBER_DETAIL, privacy: 'PRIVATE_INVITE' } },
+  });
+  await page.goto('/clans/clan-eco');
+
+  await expect(page.getByRole('heading', { name: 'Miembros (2)' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Solicitudes pendientes/ })).toHaveCount(0);
+  expect(requested).toEqual([]);
+});
+
+test('should accept a request and add the person to the roster', async ({ page }) => {
+  await mockStudentSession(page);
+  const { calls } = await mockClansApi(page, {
+    details: { 'clan-eco': INVITE_LEADER_DETAIL },
+    requests: { 'clan-eco': [joinRequest('user-ana', 'Ana Solicita')] },
+  });
+  await page.goto('/clans/clan-eco');
+
+  await page.getByRole('button', { name: 'Aceptar solicitud de Ana Solicita' }).click();
+
+  await expect(page.getByText('Ana Solicita ya es parte del clan.')).toBeVisible();
+  await expect(page.getByText('No hay solicitudes pendientes.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Miembros (3)' })).toBeVisible();
+  expect(calls.find(call => call.path === '/clans/clan-eco/accept-request/')?.body).toEqual({
+    applicant_id: 'user-ana',
+  });
+});
+
+test('should reject a request without touching the roster', async ({ page }) => {
+  await mockStudentSession(page);
+  const { calls } = await mockClansApi(page, {
+    details: { 'clan-eco': INVITE_LEADER_DETAIL },
+    requests: {
+      'clan-eco': [joinRequest('user-ana', 'Ana Solicita'), joinRequest('user-beto', 'Beto')],
+    },
+  });
+  await page.goto('/clans/clan-eco');
+
+  await page.getByRole('button', { name: 'Rechazar solicitud de Ana Solicita' }).click();
+
+  await expect(page.getByText('Rechazaste la solicitud de Ana Solicita.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Solicitudes pendientes (1)' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /solicitud de Ana Solicita/ })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Miembros (2)' })).toBeVisible();
+  expect(calls.find(call => call.path === '/clans/clan-eco/reject-request/')?.body).toEqual({
+    applicant_id: 'user-ana',
+  });
+});
+
+test('should show an empty state for an invite-only clan with no requests', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockClansApi(page, { details: { 'clan-eco': INVITE_LEADER_DETAIL } });
+  await page.goto('/clans/clan-eco');
+
+  await expect(page.getByRole('heading', { name: 'Solicitudes pendientes (0)' })).toBeVisible();
+  await expect(page.getByText('No hay solicitudes pendientes.')).toBeVisible();
+});
+
+test('should hide the requests section of a public clan with none pending', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockClansApi(page, { details: { 'clan-eco': LEADER_DETAIL } });
+  await page.goto('/clans/clan-eco');
+
+  await expect(page.getByRole('heading', { name: 'Miembros (2)' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Solicitudes pendientes/ })).toHaveCount(0);
+});
+
+test('should keep the request and explain when the applicant is at the clan limit', async ({
+  page,
+}) => {
+  await mockStudentSession(page);
+  await mockClansApi(page, {
+    details: { 'clan-eco': INVITE_LEADER_DETAIL },
+    requests: { 'clan-eco': [joinRequest('user-ana', 'Ana Solicita')] },
+    failOn: {
+      'POST /clans/clan-eco/accept-request/': {
+        status: 400,
+        body: ['User already belongs to 5 private clans (BR-04).'],
+      },
+    },
+  });
+  await page.goto('/clans/clan-eco');
+
+  await page.getByRole('button', { name: 'Aceptar solicitud de Ana Solicita' }).click();
+
+  await expect(page.getByRole('alert')).toHaveText(
+    'Esta persona ya está en el máximo de clanes privados y no puede unirse a otro.',
+  );
+  await expect(page.getByText('Ana Solicita', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Aceptar solicitud de Ana Solicita' }),
+  ).toBeEnabled();
+});
+
+test('should offer a retry when the requests fail to load', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockClansApi(page, {
+    details: { 'clan-eco': INVITE_LEADER_DETAIL },
+    failOn: { 'GET /clans/clan-eco/requests/': { status: 500, body: { detail: 'Boom' } } },
+  });
+  await page.goto('/clans/clan-eco');
+
+  await expect(page.getByText(/No se pudieron cargar las solicitudes/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Eco Warriors' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reintentar' })).toBeVisible();
+});
+
+test('should show members the active campaigns of their clan', async ({ page }) => {
+  await mockStudentSession(page);
+  const { campaignQueries } = await mockClansApi(page, {
+    details: { 'clan-eco': MEMBER_DETAIL },
+    campaigns: [
+      clanCampaign({}),
+      clanCampaign({ id: 'camp-soon', title: 'Reto Próximo', status: 'PROMOTION' }),
+      clanCampaign({
+        id: 'camp-rio',
+        title: 'Reto Río',
+        target_clan: 'clan-rio',
+        target_clan_name: 'Clan Río',
+      }),
+    ],
+  });
+  await page.goto('/clans/clan-eco');
+
+  await expect(page.getByRole('heading', { name: 'Campañas activas' })).toBeVisible();
+  const card = page.getByRole('button', { name: /Reto Eco/ });
+  await expect(card).toContainText('Clan · Eco Warriors');
+  await expect(page.getByRole('button', { name: /Reto Próximo/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Reto Río/ })).toHaveCount(0);
+  expect(
+    campaignQueries.some(
+      query => query.get('target_clan') === 'clan-eco' && query.get('is_active') === 'true',
+    ),
+  ).toBe(true);
+
+  await card.click();
+  await expect(page.getByRole('dialog').getByRole('heading', { name: 'Reto Eco' })).toBeVisible();
+});
+
+test('should show an empty state when the clan has no active campaigns', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockClansApi(page, { details: { 'clan-eco': MEMBER_DETAIL } });
+  await page.goto('/clans/clan-eco');
+
+  await expect(page.getByRole('heading', { name: 'Campañas activas' })).toBeVisible();
+  await expect(page.getByText('Sin campañas activas')).toBeVisible();
+});
+
+test('should not load clan campaigns for someone who is not a member', async ({ page }) => {
+  await mockStudentSession(page);
+  const { campaignQueries } = await mockClansApi(page, {
+    details: { 'clan-eco': detail(ECO_CLAN, [member('leader-1', 'Ana Líder', 'LEADER')]) },
+    campaigns: [clanCampaign({})],
+  });
+  await page.goto('/clans/clan-eco');
+
+  await expect(page.getByRole('heading', { name: 'Miembros (1)' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Campañas activas' })).toHaveCount(0);
+  expect(campaignQueries).toEqual([]);
 });

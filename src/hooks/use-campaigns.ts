@@ -10,7 +10,7 @@ const EMPTY_DATA: CampaignsData = { campaigns: [], missions: [], progress: {} };
  * Load campaigns/missions from the API.
  */
 export function useCampaigns(filters: CampaignFilters = {}) {
-  const { status: statusFilter, scope, isActive, participating } = filters;
+  const { status: statusFilter, scope, isActive, participating, targetClanId } = filters;
   const [data, setData] = useState<CampaignsData>(EMPTY_DATA);
   const [status, setStatus] = useState<CampaignsStatus>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -19,7 +19,13 @@ export function useCampaigns(filters: CampaignFilters = {}) {
   const load = useCallback(async () => {
     const requestId = latestRequest.current + 1;
     latestRequest.current = requestId;
-    const activeFilters: CampaignFilters = { status: statusFilter, scope, isActive, participating };
+    const activeFilters: CampaignFilters = {
+      status: statusFilter,
+      scope,
+      isActive,
+      participating,
+      targetClanId,
+    };
 
     setStatus('loading');
     setErrorMessage(null);
@@ -33,7 +39,7 @@ export function useCampaigns(filters: CampaignFilters = {}) {
       setStatus('error');
       setErrorMessage(toFriendlyMessage(error, 'No se pudieron cargar las campañas.'));
     }
-  }, [statusFilter, scope, isActive, participating]);
+  }, [statusFilter, scope, isActive, participating, targetClanId]);
 
   useEffect(() => {
     void load();

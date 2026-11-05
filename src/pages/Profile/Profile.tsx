@@ -9,6 +9,7 @@ import { ProgressSection } from './components/ProgressSection';
 import { ImpactMetricsSection } from './components/ImpactMetricsSection';
 import { ClansSection } from './components/ClansSection';
 import { CampaignsSection } from './components/CampaignsSection';
+import { AccountSection } from './components/AccountSection';
 import { ProfileSkeleton } from './components/ProfileSkeleton';
 import { ProfileError } from './components/ProfileError';
 import { EditProfileDialog } from './components/EditProfileDialog';
@@ -59,6 +60,8 @@ export function ProfilePage() {
           <CampaignsSection finishedCampaigns={profile.finishedCampaigns} />
 
           <ActionHistorySection />
+
+          <AccountSection profile={profile} onProfileChange={setProfile} />
 
           <EditProfileDialog
             open={isEditDialogOpen}

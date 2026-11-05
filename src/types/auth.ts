@@ -32,4 +32,6 @@ export interface LoginResponse {
   refresh: string;
   user: AuthUser;
   created: boolean;
+  /** True when this sign-in brought back an account the user had deactivated (#176). */
+  reactivated: boolean;
 }

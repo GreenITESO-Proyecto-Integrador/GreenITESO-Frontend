@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart3 } from 'lucide-react';
 import { CampaignDetailDialog } from '@/components/campaigns/CampaignDetailDialog';
+import { SuccessBanner } from '@/components/campaigns/SuccessBanner';
 import { SectionState } from '@/components/shared/SectionState';
 import { useCampaigns } from '@/hooks/use-campaigns';
 import { useEcologicalProfile } from '@/hooks/use-ecological-profile';
 import { useImpactTrend } from '@/hooks/use-impact-trend';
+import { clearReactivatedNotice, hasReactivatedNotice } from '@/lib/auth/session';
 import type { Mission } from '@/types/mission';
 import { ActiveMissionsSection } from './ActiveMissionsSection';
 import { ImpactMetrics } from './ImpactMetrics';
@@ -35,6 +37,10 @@ export function UserDashboard() {
     reload: reloadTrend,
   } = useImpactTrend();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Read without consuming, then clear in an effect: a render may run twice, a mount's effect
+  // runs once the notice is on screen.
+  const [showWelcomeBack, setShowWelcomeBack] = useState(hasReactivatedNotice);
+  useEffect(() => clearReactivatedNotice(), []);
 
   function handleLogAction(mission: Mission) {
     const params = new URLSearchParams({ action: mission.action.id });
@@ -43,6 +49,13 @@ export function UserDashboard() {
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 pt-8 pb-24">
+      {showWelcomeBack ? (
+        <SuccessBanner
+          message="Reactivamos tu cuenta. Empiezas desde cero: tu progreso anterior se borró al desactivarla."
+          onDismiss={() => setShowWelcomeBack(false)}
+        />
+      ) : null}
+
       <SectionState
         status={profileStatus}
         errorMessage={profileErrorMessage}
