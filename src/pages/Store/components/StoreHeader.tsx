@@ -9,7 +9,7 @@ export function StoreHeader({ availablePoints }: StoreHeaderProps) {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Tienda de canjeables</h1>
-        <p className="mt-1 text-sm text-secondary-300 dark:text-muted-foreground sm:text-base">
+        <p className="mt-1 text-sm text-muted-foreground sm:text-base">
           Canjea tus puntos acumulados por marcos de avatar, fondos de perfil y cosméticos.
         </p>
       </div>
@@ -26,7 +26,7 @@ export function StoreHeader({ availablePoints }: StoreHeaderProps) {
           <h2 className="text-lg font-bold text-foreground sm:text-xl">
             Puntos disponibles para canjear
           </h2>
-          <p className="mt-0.5 text-xs text-secondary-300 dark:text-muted-foreground">
+          <p className="mt-0.5 text-xs text-muted-foreground">
             Los puntos se descontarán de tu saldo disponible al confirmar un canje.
           </p>
         </div>

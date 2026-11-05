@@ -26,7 +26,7 @@ export function ImpactMetricsSection({ metrics }: ImpactMetricsSectionProps) {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* CO2 Evitado */}
-        <div className="bg-primary-50 dark:bg-primary-950/40 border-2 border-primary-200 dark:border-primary-800 rounded-2xl p-6 text-center shadow-xs transition-transform hover:scale-[1.01]">
+        <div className="rounded-2xl border-2 border-primary-200 bg-primary-50 p-6 text-center shadow-xs transition-transform hover:scale-[1.01] dark:border-primary-800 dark:bg-primary-900/40">
           <Leaf className="size-8 text-primary-700 dark:text-primary-400 mx-auto mb-3" />
           <p className="font-bold text-primary-700 dark:text-primary-300 text-sm sm:text-base">
             CO₂ Evitado
@@ -37,7 +37,7 @@ export function ImpactMetricsSection({ metrics }: ImpactMetricsSectionProps) {
         </div>
 
         {/* Agua Ahorrada */}
-        <div className="bg-sky-50 dark:bg-sky-950/40 border-2 border-sky-200 dark:border-sky-800 rounded-2xl p-6 text-center shadow-xs transition-transform hover:scale-[1.01]">
+        <div className="rounded-2xl border-2 border-sky-200 bg-sky-50 p-6 text-center shadow-xs transition-transform hover:scale-[1.01] dark:border-sky-800 dark:bg-sky-800/40">
           <Droplets className="size-8 text-sky-700 dark:text-sky-400 mx-auto mb-3" />
           <p className="font-bold text-sky-700 dark:text-sky-300 text-sm sm:text-base">
             Agua Ahorrada
@@ -48,7 +48,7 @@ export function ImpactMetricsSection({ metrics }: ImpactMetricsSectionProps) {
         </div>
 
         {/* Plástico Reciclado */}
-        <div className="bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-200 dark:border-emerald-800 rounded-2xl p-6 text-center shadow-xs transition-transform hover:scale-[1.01]">
+        <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-6 text-center shadow-xs transition-transform hover:scale-[1.01] dark:border-emerald-800 dark:bg-emerald-700/40">
           <Recycle className="size-8 text-emerald-700 dark:text-emerald-400 mx-auto mb-3" />
           <p className="font-bold text-emerald-700 dark:text-emerald-300 text-sm sm:text-base">
             Plástico Reciclado

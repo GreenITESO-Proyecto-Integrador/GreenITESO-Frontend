@@ -1,5 +1,5 @@
 import { Globe, Lock, type LucideIcon } from 'lucide-react';
-import type { ClanPrivacy, ClanType } from '@/types/clan';
+import type { ClanMember, ClanPrivacy, ClanType } from '@/types/clan';
 
 export const PRIVACY_META: Record<
   ClanPrivacy,
@@ -37,10 +37,11 @@ export function formatPoints(points: number): string {
 }
 
 /**
- * Display name for a roster entry; members without a nickname still need a label.
+ * Display name for a roster entry: the backend's display name (nickname, else full name),
+ * then the nickname, then a generic label.
  */
-export function memberDisplayName(nickname: string): string {
-  return nickname.trim() || 'Miembro sin apodo';
+export function memberDisplayName(member: Pick<ClanMember, 'displayName' | 'nickname'>): string {
+  return member.displayName.trim() || member.nickname.trim() || 'Miembro sin apodo';
 }
 
 export function getInitials(name: string): string {

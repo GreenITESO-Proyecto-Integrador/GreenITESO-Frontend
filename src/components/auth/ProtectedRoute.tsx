@@ -32,7 +32,7 @@ export function ProtectedRoute({ children, allowedRoles, fallback }: ProtectedRo
 
   if (isCheckingSession) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-secondary-50 text-sm text-secondary-300">
+      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
         Verificando sesión…
       </div>
     );

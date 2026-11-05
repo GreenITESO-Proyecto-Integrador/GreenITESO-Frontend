@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Trash2,
   Globe,
@@ -8,6 +9,10 @@ import {
   LoaderCircle,
   Bell,
   SunMoon,
+  Upload,
+  Link2,
+  Check,
+  Ban,
 } from 'lucide-react';
 import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ModalContent } from '@/components/custom/ModalContent';
@@ -16,9 +21,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useDialogBusyGuard } from '@/hooks/use-dialog-busy-guard';
-import { updateEcologicalProfile } from '@/lib/api/ecological-profile';
+import {
+  isUploadedAvatarUrl,
+  updateEcologicalProfile,
+  uploadProfileAvatar,
+} from '@/lib/api/ecological-profile';
+import { fetchExchangeableItems, fetchMyInventory } from '@/lib/api/exchangeables';
 import { toFriendlyMessage } from '@/lib/api/errors';
+import { validateImageFile } from '@/lib/api/upload';
+import { IMAGE_FILE_ACCEPT } from '@/lib/image-file';
+import { getUserInitials } from '@/lib/user-initials';
 import type { EcologicalProfile, ProfileVisibility } from '@/types/ecological-profile';
+import type { ExchangeableItem } from '@/types/store';
 
 // Mirrors the backend's avatar_url rules (accounts.serializers._validate_avatar_url).
 const ALLOWED_AVATAR_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
@@ -27,6 +41,11 @@ const MAX_BIO_LENGTH = 500;
 const CLOSE_AFTER_SAVE_MS = 700;
 
 type PreviewStatus = 'loading' | 'loaded' | 'failed';
+
+/** The pasted link the form starts from; an uploaded photo has none. */
+function initialLink(profile: EcologicalProfile): string {
+  return isUploadedAvatarUrl(profile.avatarUrl) ? '' : (profile.avatarUrl ?? '');
+}
 
 /**
  * Validate an avatar URL the same way the backend does. Returns a Spanish error, or null.
@@ -85,7 +104,14 @@ export function EditProfileDialog({
   // Form states
   const [bio, setBio] = useState(profile.bio ?? '');
   const [visibility, setVisibility] = useState<ProfileVisibility>(profile.visibility);
-  const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl ?? '');
+  const [avatarUrl, setAvatarUrl] = useState(initialLink(profile));
+  const [isLinkOpen, setIsLinkOpen] = useState(initialLink(profile) !== '');
+  // A photo picked from the device; it is only uploaded when the form is saved.
+  const [avatarFile, setAvatarFile] = useState<{ file: File; previewUrl: string } | null>(null);
+  const [avatarFileError, setAvatarFileError] = useState<string | null>(null);
+  // "Quitar" on an uploaded photo, which has no link to clear.
+  const [isAvatarRemoved, setIsAvatarRemoved] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   // Load result of the preview image, tagged with the URL it belongs to so a stale
   // result never applies to a newly typed URL.
   const [preview, setPreview] = useState<{ url: string; status: PreviewStatus } | null>(null);
@@ -95,6 +121,17 @@ export function EditProfileDialog({
   const [notifyImpact, setNotifyImpact] = useState<boolean>(initialPrefs.notify_impact !== false);
   const [notifyCampaigns, setNotifyCampaigns] = useState<boolean>(
     initialPrefs.notify_campaigns !== false,
+  );
+
+  // Cosmetic frames and backgrounds states
+  const [exchangeables, setExchangeables] = useState<ExchangeableItem[]>([]);
+  const [inventoryKeys, setInventoryKeys] = useState<string[]>([]);
+  const [isLoadingCosmetics, setIsLoadingCosmetics] = useState(false);
+  const [activeFrameKey, setActiveFrameKey] = useState<string | null>(
+    (initialPrefs.active_frame as string) || null,
+  );
+  const [activeBackgroundKey, setActiveBackgroundKey] = useState<string | null>(
+    (initialPrefs.active_background as string) || null,
   );
 
   // Validation & status states
@@ -118,7 +155,11 @@ export function EditProfileDialog({
     const current = profileRef.current;
     setBio(current.bio ?? '');
     setVisibility(current.visibility);
-    setAvatarUrl(current.avatarUrl ?? '');
+    setAvatarUrl(initialLink(current));
+    setIsLinkOpen(initialLink(current) !== '');
+    setAvatarFile(null);
+    setAvatarFileError(null);
+    setIsAvatarRemoved(false);
     setPreview(null);
     setBioError(null);
     setStatusMessage(null);
@@ -126,27 +167,122 @@ export function EditProfileDialog({
     const prefs = current.preferences ?? {};
     setNotifyImpact(prefs.notify_impact !== false);
     setNotifyCampaigns(prefs.notify_campaigns !== false);
+    setActiveFrameKey((prefs.active_frame as string) || null);
+    setActiveBackgroundKey((prefs.active_background as string) || null);
+
+    // Fetch exchangeables and user inventory when dialog opens
+    let isMounted = true;
+    setIsLoadingCosmetics(true);
+    Promise.all([fetchExchangeableItems().catch(() => []), fetchMyInventory().catch(() => [])])
+      .then(([items, inv]) => {
+        if (!isMounted) return;
+        setExchangeables(items);
+        setInventoryKeys(inv);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingCosmetics(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [open]);
 
   useEffect(() => () => clearTimeout(closeTimerRef.current), []);
 
-  const initials =
-    (profile.firstName?.[0] ?? '') + (profile.lastName?.[0] ?? '') ||
-    profile.email?.[0]?.toUpperCase() ||
-    'U';
+  // Free the picked file's preview once it is replaced or the modal closes.
+  const avatarPreviewUrl = avatarFile?.previewUrl;
+  useEffect(
+    () => () => {
+      if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
+    },
+    [avatarPreviewUrl],
+  );
+
+  const initials = getUserInitials(
+    `${profile.firstName ?? ''} ${profile.lastName ?? ''}`.trim() || profile.email || 'U',
+  );
 
   const trimmedAvatarUrl = avatarUrl.trim();
   const avatarFormatError = validateAvatarUrl(trimmedAvatarUrl);
-  const previewStatus: PreviewStatus =
-    preview?.url === trimmedAvatarUrl ? preview.status : 'loading';
-  const avatarChanged = trimmedAvatarUrl !== (profile.avatarUrl ?? '');
-  // A new URL is only saved once the browser could actually load it, so a broken
-  // link never reaches other users. An unchanged URL never blocks other edits.
+  const hasUploadedAvatar = isUploadedAvatarUrl(profile.avatarUrl);
+  const avatarChanged = trimmedAvatarUrl !== initialLink(profile);
+  // What the preview shows: the picked file, else the typed link, else the
+  // current uploaded photo unless it was removed.
+  const previewSrc =
+    avatarFile?.previewUrl ??
+    (trimmedAvatarUrl !== ''
+      ? trimmedAvatarUrl
+      : hasUploadedAvatar && !isAvatarRemoved
+        ? (profile.avatarUrl ?? '')
+        : '');
+  const previewStatus: PreviewStatus = preview?.url === previewSrc ? preview.status : 'loading';
+  const linkPreviewed = !avatarFile && trimmedAvatarUrl !== '';
+  // A new link is only saved once the browser could actually load it, so a broken
+  // link never reaches other users. An unchanged link never blocks other edits.
   const avatarBlocksSave =
-    avatarChanged &&
-    trimmedAvatarUrl !== '' &&
-    (avatarFormatError !== null || previewStatus !== 'loaded');
-  const showPreviewImage = trimmedAvatarUrl !== '' && avatarFormatError === null;
+    linkPreviewed && avatarChanged && (avatarFormatError !== null || previewStatus !== 'loaded');
+  const showPreviewImage = previewSrc !== '' && (!linkPreviewed || avatarFormatError === null);
+  // A picked file is uploaded on its own request; otherwise a changed link, or
+  // removing an uploaded photo, goes in the PATCH ("" clears either kind).
+  const avatarUrlPatch = avatarFile
+    ? undefined
+    : avatarChanged
+      ? trimmedAvatarUrl
+      : isAvatarRemoved && hasUploadedAvatar
+        ? ''
+        : undefined;
+
+  // Unlocked items calculation
+  const allUnlockedKeys = Array.from(
+    new Set([...(profile.unlockedCosmetics ?? []), ...inventoryKeys]),
+  );
+  const ownedFrames = exchangeables.filter(
+    item => item.category === 'FRAME' && allUnlockedKeys.includes(item.key),
+  );
+  const ownedBackgrounds = exchangeables.filter(
+    item =>
+      (item.category === 'BACKGROUND' || item.category === 'THEME') &&
+      allUnlockedKeys.includes(item.key),
+  );
+
+  const selectedFrameItem = exchangeables.find(item => item.key === activeFrameKey);
+  const selectedBackgroundItem = exchangeables.find(item => item.key === activeBackgroundKey);
+
+  const selectedFrameUrl =
+    selectedFrameItem?.imageUrl ??
+    (activeFrameKey && profile.preferences?.active_frame === activeFrameKey
+      ? (profile.preferences?.active_frame_url as string | undefined)
+      : undefined);
+
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Let the same file be picked again after a removal.
+    e.target.value = '';
+    if (!file) return;
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      setAvatarFileError(validation.error ?? 'Archivo no válido.');
+      return;
+    }
+    setAvatarFileError(null);
+    setAvatarFile({ file, previewUrl: URL.createObjectURL(file) });
+    setAvatarUrl('');
+    setIsAvatarRemoved(false);
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatarFile(null);
+    setAvatarFileError(null);
+    setAvatarUrl('');
+    setIsAvatarRemoved(true);
+  };
+
+  const handleLinkChange = (value: string) => {
+    setAvatarUrl(value);
+    setAvatarFile(null);
+    setAvatarFileError(null);
+  };
   const bioLength = getBioLength(bio);
 
   const handleBioChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -181,19 +317,40 @@ export function EditProfileDialog({
     setBusy(true);
     setIsSubmitting(true);
 
+    let photoSaved = false;
     try {
       // Spread the stored preferences so keys this form doesn't edit (e.g. theme) survive.
       const updatedPreferences: Record<string, unknown> = {
         ...(profile.preferences ?? {}),
         notify_impact: notifyImpact,
         notify_campaigns: notifyCampaigns,
+        active_frame: activeFrameKey,
+        active_frame_url: selectedFrameItem
+          ? selectedFrameItem.imageUrl
+          : (selectedFrameUrl ?? null),
+        active_background: activeBackgroundKey,
+        active_background_url: selectedBackgroundItem
+          ? selectedBackgroundItem.imageUrl
+          : activeBackgroundKey && profile.preferences?.active_background === activeBackgroundKey
+            ? (profile.preferences?.active_background_url as string | null)
+            : null,
       };
+
+      if (avatarFile) {
+        // The upload goes first, so a failed upload saves nothing. Once it succeeds the photo
+        // stays saved even if the PATCH below fails: drop the picked file so a retry only
+        // re-sends the other fields instead of uploading the photo again.
+        const withPhoto = await uploadProfileAvatar(avatarFile.file);
+        photoSaved = true;
+        onProfileUpdated(withPhoto);
+        if (session === sessionRef.current) setAvatarFile(null);
+      }
 
       const updated = await updateEcologicalProfile({
         bio: bio.trim(),
         visibility,
         preferences: updatedPreferences,
-        avatarUrl: avatarChanged ? trimmedAvatarUrl : undefined,
+        avatarUrl: avatarUrlPatch,
       });
 
       // The saved profile is still the latest server state, even if the modal moved on.
@@ -211,9 +368,12 @@ export function EditProfileDialog({
       }, CLOSE_AFTER_SAVE_MS);
     } catch (err) {
       if (session !== sessionRef.current) return;
+      const reason = toFriendlyMessage(err, 'Ocurrió un error al actualizar el perfil.');
       setStatusMessage({
         type: 'error',
-        text: toFriendlyMessage(err, 'Ocurrió un error al actualizar el perfil.'),
+        text: photoSaved
+          ? `La foto se actualizó, pero no se guardaron los demás cambios: ${reason}`
+          : reason,
       });
     } finally {
       setBusy(false);
@@ -237,7 +397,7 @@ export function EditProfileDialog({
             role="alert"
             className={`p-3 rounded-xl text-sm flex items-center gap-2 border font-medium ${
               statusMessage.type === 'success'
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800'
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-700/50 dark:text-emerald-300'
                 : 'bg-destructive/10 text-destructive border-destructive/20'
             }`}
           >
@@ -251,48 +411,63 @@ export function EditProfileDialog({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Avatar URL with Live Preview */}
+          {/* Profile photo: upload from the device, or paste a link */}
           <div className="space-y-3">
-            <Label htmlFor="profile-avatar-url" className="text-sm font-semibold text-foreground">
-              Foto de perfil
-            </Label>
+            <p className="text-sm font-semibold text-foreground">Foto de perfil</p>
             <div className="flex items-center gap-5">
-              {/* Preview */}
-              <div className="size-20 rounded-2xl bg-linear-to-br from-primary-500 to-primary-700 text-white font-extrabold text-2xl flex items-center justify-center shadow-md shrink-0 overflow-hidden border-2 border-border">
-                {showPreviewImage ? (
+              {/* Preview with optional selected cosmetic frame */}
+              <div className="relative size-20 shrink-0 flex items-center justify-center">
+                <div className="size-full rounded-2xl bg-linear-to-br from-primary-500 to-primary-700 text-white font-extrabold text-2xl flex items-center justify-center shadow-md overflow-hidden border-2 border-border">
+                  {showPreviewImage ? (
+                    <img
+                      key={previewSrc}
+                      src={previewSrc}
+                      alt="Previsualización"
+                      className={previewStatus === 'loaded' ? 'size-full object-cover' : 'hidden'}
+                      onLoad={() => setPreview({ url: previewSrc, status: 'loaded' })}
+                      onError={() => setPreview({ url: previewSrc, status: 'failed' })}
+                    />
+                  ) : null}
+                  {!showPreviewImage || previewStatus !== 'loaded' ? (
+                    <span aria-hidden="true">{initials}</span>
+                  ) : null}
+                </div>
+                {selectedFrameUrl ? (
                   <img
-                    key={trimmedAvatarUrl}
-                    src={trimmedAvatarUrl}
-                    alt="Previsualización"
-                    className={previewStatus === 'loaded' ? 'size-full object-cover' : 'hidden'}
-                    onLoad={() => setPreview({ url: trimmedAvatarUrl, status: 'loaded' })}
-                    onError={() => setPreview({ url: trimmedAvatarUrl, status: 'failed' })}
+                    src={selectedFrameUrl}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 size-full scale-[1.14] object-contain pointer-events-none z-10 select-none"
                   />
-                ) : null}
-                {!showPreviewImage || previewStatus !== 'loaded' ? (
-                  <span aria-hidden="true">{initials}</span>
                 ) : null}
               </div>
 
               {/* Actions */}
               <div className="flex-1 min-w-0 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="profile-avatar-url"
-                    type="url"
-                    inputMode="url"
-                    value={avatarUrl}
-                    onChange={e => setAvatarUrl(e.target.value)}
-                    placeholder="https://…/mi-foto.jpg"
-                    aria-invalid={avatarChanged && avatarBlocksSave && previewStatus !== 'loading'}
-                    className="h-11 rounded-xl"
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={IMAGE_FILE_ACCEPT}
+                    onChange={handleAvatarFileChange}
+                    className="hidden"
+                    data-testid="profile-avatar-file"
                   />
-                  {avatarUrl ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex h-11 items-center gap-1.5 rounded-xl font-semibold cursor-pointer"
+                  >
+                    <Upload className="size-4" />
+                    <span>Subir foto</span>
+                  </Button>
+                  {previewSrc ? (
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => setAvatarUrl('')}
+                      onClick={handleRemoveAvatar}
                       className="flex h-11 items-center gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer rounded-xl font-medium"
                     >
                       <Trash2 className="size-4" />
@@ -302,22 +477,73 @@ export function EditProfileDialog({
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                  Pega el enlace https de una imagen JPG, PNG o WEBP. La subida de archivos llegará
-                  cuando se habilite el almacenamiento en la nube.
+                  {avatarFile
+                    ? `Se subirá «${avatarFile.file.name}» al guardar.`
+                    : 'JPG, PNG o WEBP de máximo 5 MB.'}
                 </p>
-                {avatarChanged && avatarFormatError ? (
+                {avatarFileError ? (
+                  <p
+                    role="alert"
+                    className="text-xs text-destructive font-medium flex items-center gap-1"
+                  >
+                    <AlertCircle className="size-3.5" />
+                    <span>{avatarFileError}</span>
+                  </p>
+                ) : null}
+
+                {isLinkOpen ? (
+                  <div className="space-y-1.5 pt-1">
+                    <Label
+                      htmlFor="profile-avatar-url"
+                      className="text-xs font-semibold text-foreground"
+                    >
+                      Enlace de la foto
+                    </Label>
+                    <Input
+                      id="profile-avatar-url"
+                      type="url"
+                      inputMode="url"
+                      value={avatarUrl}
+                      onChange={e => handleLinkChange(e.target.value)}
+                      placeholder="https://…/mi-foto.jpg"
+                      aria-invalid={
+                        avatarChanged && avatarBlocksSave && previewStatus !== 'loading'
+                      }
+                      className="h-11 rounded-xl"
+                    />
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    onClick={() => setIsLinkOpen(true)}
+                    className="h-auto gap-1 px-0 text-xs text-primary-700 dark:text-primary-300 cursor-pointer"
+                  >
+                    <Link2 className="size-3.5" />
+                    Usar un enlace
+                  </Button>
+                )}
+
+                {linkPreviewed && avatarChanged && avatarFormatError ? (
                   <p className="text-xs text-destructive font-medium flex items-center gap-1">
                     <AlertCircle className="size-3.5" />
                     <span>{avatarFormatError}</span>
                   </p>
                 ) : null}
-                {avatarChanged && showPreviewImage && previewStatus === 'loading' ? (
+                {linkPreviewed &&
+                avatarChanged &&
+                showPreviewImage &&
+                previewStatus === 'loading' ? (
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <LoaderCircle className="size-3.5 animate-spin" />
                     <span>Cargando vista previa…</span>
                   </p>
                 ) : null}
-                {avatarChanged && showPreviewImage && previewStatus === 'failed' ? (
+                {linkPreviewed &&
+                avatarChanged &&
+                showPreviewImage &&
+                previewStatus === 'failed' ? (
                   <p className="text-xs text-destructive font-medium flex items-center gap-1">
                     <AlertCircle className="size-3.5" />
                     <span>No se pudo cargar la imagen. Verifica que el enlace sea público.</span>
@@ -325,6 +551,182 @@ export function EditProfileDialog({
                 ) : null}
               </div>
             </div>
+          </div>
+
+          {/* Cosmetic Frames Selection */}
+          <div className="space-y-3 pt-2 border-t border-border">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-semibold text-foreground">Marcos</Label>
+                <p className="text-xs text-muted-foreground">
+                  Elige el marco decorativo para tu foto de perfil.
+                </p>
+              </div>
+              <span className="text-xs font-semibold text-muted-foreground">
+                {ownedFrames.length} {ownedFrames.length === 1 ? 'desbloqueado' : 'desbloqueados'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {/* Sin marco option */}
+              <button
+                type="button"
+                onClick={() => setActiveFrameKey(null)}
+                className={`group relative flex flex-col items-center justify-center p-3 rounded-2xl border text-center cursor-pointer transition-all min-h-28 ${
+                  activeFrameKey === null
+                    ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/30 ring-2 ring-primary-500/20'
+                    : 'border-border bg-card hover:bg-muted/40'
+                }`}
+              >
+                {activeFrameKey === null && (
+                  <div className="absolute top-2 right-2 flex size-5 items-center justify-center rounded-full bg-primary-600 text-white shadow-xs z-20">
+                    <Check className="size-3 stroke-[3]" />
+                  </div>
+                )}
+                <div className="size-12 rounded-xl border border-dashed border-muted-foreground/30 flex items-center justify-center text-muted-foreground mb-2">
+                  <Ban className="size-5" />
+                </div>
+                <span className="text-xs font-bold text-foreground">Sin marco</span>
+              </button>
+
+              {/* Owned frames */}
+              {ownedFrames.map(frame => {
+                const isSelected = activeFrameKey === frame.key;
+                return (
+                  <button
+                    key={frame.id}
+                    type="button"
+                    onClick={() => setActiveFrameKey(frame.key)}
+                    className={`group relative flex flex-col items-center justify-center p-3 rounded-2xl border text-center cursor-pointer transition-all min-h-28 ${
+                      isSelected
+                        ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/30 ring-2 ring-primary-500/20'
+                        : 'border-border bg-card hover:bg-muted/40'
+                    }`}
+                  >
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 flex size-5 items-center justify-center rounded-full bg-primary-600 text-white shadow-xs z-20">
+                        <Check className="size-3 stroke-[3]" />
+                      </div>
+                    )}
+                    <div className="relative size-14 mb-2 flex items-center justify-center">
+                      <div className="size-10 rounded-lg bg-linear-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white text-[10px] font-bold">
+                        {initials}
+                      </div>
+                      <img
+                        src={frame.imageUrl}
+                        alt={frame.name}
+                        className="absolute inset-0 size-full object-contain pointer-events-none select-none z-10"
+                      />
+                    </div>
+                    <span className="text-xs font-bold text-foreground line-clamp-1">
+                      {frame.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {ownedFrames.length === 0 && !isLoadingCosmetics && (
+              <div className="p-3 rounded-xl border border-dashed border-border bg-muted/20 text-center">
+                <p className="text-xs text-muted-foreground">
+                  No tienes marcos desbloqueados.{' '}
+                  <Link
+                    to="/tienda"
+                    className="font-semibold text-primary-600 dark:text-primary-400 hover:underline"
+                  >
+                    Visita la Tienda
+                  </Link>{' '}
+                  para canjearlos con tus puntos ecológicos.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Cosmetic Backgrounds Selection */}
+          <div className="space-y-3 pt-2 border-t border-border">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-semibold text-foreground">Fondos de perfil</Label>
+                <p className="text-xs text-muted-foreground">
+                  Elige el fondo decorativo para la tarjeta de tu perfil.
+                </p>
+              </div>
+              <span className="text-xs font-semibold text-muted-foreground">
+                {ownedBackgrounds.length}{' '}
+                {ownedBackgrounds.length === 1 ? 'desbloqueado' : 'desbloqueados'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {/* Sin fondo option */}
+              <button
+                type="button"
+                onClick={() => setActiveBackgroundKey(null)}
+                className={`group relative flex flex-col items-center justify-center p-3 rounded-2xl border text-center cursor-pointer transition-all min-h-28 ${
+                  activeBackgroundKey === null
+                    ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/30 ring-2 ring-primary-500/20'
+                    : 'border-border bg-card hover:bg-muted/40'
+                }`}
+              >
+                {activeBackgroundKey === null && (
+                  <div className="absolute top-2 right-2 flex size-5 items-center justify-center rounded-full bg-primary-600 text-white shadow-xs z-20">
+                    <Check className="size-3 stroke-[3]" />
+                  </div>
+                )}
+                <div className="w-full h-12 rounded-xl border border-dashed border-muted-foreground/30 bg-muted/40 flex items-center justify-center text-muted-foreground mb-2">
+                  <Ban className="size-5" />
+                </div>
+                <span className="text-xs font-bold text-foreground">Sin fondo</span>
+              </button>
+
+              {/* Owned backgrounds */}
+              {ownedBackgrounds.map(bg => {
+                const isSelected = activeBackgroundKey === bg.key;
+                return (
+                  <button
+                    key={bg.id}
+                    type="button"
+                    onClick={() => setActiveBackgroundKey(bg.key)}
+                    className={`group relative flex flex-col items-center justify-center p-3 rounded-2xl border text-center cursor-pointer transition-all min-h-28 overflow-hidden ${
+                      isSelected
+                        ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/30 ring-2 ring-primary-500/20'
+                        : 'border-border bg-card hover:bg-muted/40'
+                    }`}
+                  >
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 flex size-5 items-center justify-center rounded-full bg-primary-600 text-white shadow-xs z-20">
+                        <Check className="size-3 stroke-[3]" />
+                      </div>
+                    )}
+                    <div className="relative w-full h-12 rounded-xl overflow-hidden mb-2 border border-border">
+                      <img
+                        src={bg.imageUrl}
+                        alt={bg.name}
+                        className="size-full object-cover select-none"
+                      />
+                    </div>
+                    <span className="text-xs font-bold text-foreground line-clamp-1">
+                      {bg.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {ownedBackgrounds.length === 0 && !isLoadingCosmetics && (
+              <div className="p-3 rounded-xl border border-dashed border-border bg-muted/20 text-center">
+                <p className="text-xs text-muted-foreground">
+                  No tienes fondos desbloqueados.{' '}
+                  <Link
+                    to="/tienda"
+                    className="font-semibold text-primary-600 dark:text-primary-400 hover:underline"
+                  >
+                    Visita la Tienda
+                  </Link>{' '}
+                  para canjearlos con tus puntos ecológicos.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Bio Field with Char Counter */}
@@ -371,7 +773,7 @@ export function EditProfileDialog({
                 onClick={() => setVisibility('PUBLIC')}
                 className={`flex items-start gap-3 p-3.5 rounded-2xl border text-left cursor-pointer transition-all ${
                   visibility === 'PUBLIC'
-                    ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/30 ring-2 ring-primary-500/20'
+                    ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-900/30 ring-2 ring-primary-500/20'
                     : 'border-border bg-card hover:bg-muted/50'
                 }`}
               >
@@ -398,7 +800,7 @@ export function EditProfileDialog({
                 onClick={() => setVisibility('PRIVATE')}
                 className={`flex items-start gap-3 p-3.5 rounded-2xl border text-left cursor-pointer transition-all ${
                   visibility === 'PRIVATE'
-                    ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/30 ring-2 ring-primary-500/20'
+                    ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-900/30 ring-2 ring-primary-500/20'
                     : 'border-border bg-card hover:bg-muted/50'
                 }`}
               >
@@ -428,7 +830,7 @@ export function EditProfileDialog({
               {/* Notify Impact toggle */}
               <label className="flex items-center justify-between p-3 rounded-xl border border-border bg-card cursor-pointer hover:bg-muted/30">
                 <div className="flex items-center gap-3">
-                  <div className="size-7 rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 flex items-center justify-center">
+                  <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-700 dark:text-emerald-300">
                     <Bell className="size-4" />
                   </div>
                   <div>
@@ -451,7 +853,7 @@ export function EditProfileDialog({
               {/* Notify Campaigns toggle */}
               <label className="flex items-center justify-between p-3 rounded-xl border border-border bg-card cursor-pointer hover:bg-muted/30">
                 <div className="flex items-center gap-3">
-                  <div className="size-7 rounded-lg bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300 flex items-center justify-center">
+                  <div className="flex size-7 items-center justify-center rounded-lg bg-sky-100 text-sky-700 dark:bg-sky-800 dark:text-sky-300">
                     <SunMoon className="size-4" />
                   </div>
                   <div>

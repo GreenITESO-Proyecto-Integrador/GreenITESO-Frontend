@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Crown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { WRAP_TEXT } from '@/components/campaigns/field-limits';
-import { formatMemberSince, getInitials, memberDisplayName } from '@/lib/clan-meta';
+import { UserAvatar } from '@/components/shared/UserAvatar';
+import { formatMemberSince, memberDisplayName } from '@/lib/clan-meta';
 import type { ClanMember } from '@/types/clan';
 
 interface ClanMembersListProps {
@@ -34,19 +35,18 @@ export function ClanMembersList({ members, viewerId }: ClanMembersListProps) {
       ) : (
         <ul className="flex flex-col gap-2">
           {visible.map(member => {
-            const name = memberDisplayName(member.nickname);
+            const name = memberDisplayName(member);
             const since = formatMemberSince(member.joinedAt);
             return (
               <li
                 key={member.userId}
                 className="flex min-h-14 items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-xs"
               >
-                <div
-                  aria-hidden="true"
-                  className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-primary-500 to-primary-700 text-sm font-extrabold text-white"
-                >
-                  {getInitials(name)}
-                </div>
+                <UserAvatar
+                  src={member.avatarUrl}
+                  name={name}
+                  className="size-11 rounded-xl text-sm"
+                />
                 <div className="min-w-0 flex-1">
                   <p className={`truncate text-sm font-semibold text-foreground ${WRAP_TEXT}`}>
                     {name}

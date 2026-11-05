@@ -38,9 +38,12 @@ export function UserMissionsView() {
 
   return (
     <>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div
+        className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
+        data-tour="campaigns-header"
+      >
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Misiones y campañas</h1>
+          <h1 className="text-2xl font-bold text-foreground">Campañas</h1>
           <p className="text-sm text-muted-foreground sm:text-base">
             Participa en campañas activas y completa misiones para sumar puntos e impacto ambiental.
           </p>
@@ -48,6 +51,7 @@ export function UserMissionsView() {
         <Button
           type="button"
           onClick={() => setCreateOpen(true)}
+          data-tour="campaigns-create"
           className="min-h-11 shrink-0 cursor-pointer rounded-xl bg-primary-500 px-5 font-semibold text-white shadow-sm hover:bg-primary-600"
         >
           <Plus className="size-4" />
@@ -57,9 +61,9 @@ export function UserMissionsView() {
 
       {notice ? <SuccessBanner message={notice} onDismiss={dismissNotice} /> : null}
 
-      <section className="flex flex-col gap-4">
+      <section className="flex flex-col gap-4" data-tour="campaigns-list">
         <h2 className="text-xl font-bold text-foreground">Todas las campañas</h2>
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3" data-tour="campaigns-filters">
           <FilterChips
             label="Filtrar campañas por estado"
             options={STATUS_OPTIONS}
@@ -92,7 +96,7 @@ export function UserMissionsView() {
         </SectionState>
       </section>
 
-      <section className="flex flex-col gap-4">
+      <section className="flex flex-col gap-4" data-tour="campaigns-proposals">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-xl font-bold text-foreground">Mis propuestas</h2>
           <Button

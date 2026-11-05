@@ -46,7 +46,7 @@ function TransferForm({
   const { busy, error, run } = useClanAction(onBusyChange);
   const items = candidates.map(member => ({
     value: member.userId,
-    label: memberDisplayName(member.nickname),
+    label: memberDisplayName(member),
   }));
 
   async function handleConfirm() {

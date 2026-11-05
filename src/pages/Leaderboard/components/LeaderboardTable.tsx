@@ -1,4 +1,5 @@
 import { Trophy } from 'lucide-react';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 import type { LeaderboardEntry, LeaderboardTab } from '@/types/leaderboard';
 import { isClanLeaderboardTab } from '@/types/leaderboard';
 
@@ -55,7 +56,18 @@ export function LeaderboardTable({ entries, tab }: LeaderboardTableProps) {
                 {entry.rank}
               </td>
               <td className="px-4 py-3 text-sm font-semibold text-foreground">
-                {entry.displayName}
+                {isClanTab ? (
+                  entry.displayName
+                ) : (
+                  <span className="flex items-center gap-3">
+                    <UserAvatar
+                      src={entry.avatarUrl}
+                      name={entry.displayName}
+                      className="size-9 text-xs"
+                    />
+                    <span className="min-w-0">{entry.displayName}</span>
+                  </span>
+                )}
               </td>
               <td className="px-4 py-3 text-right text-sm font-bold text-primary-600 tabular-nums dark:text-primary-400">
                 {entry.totalPoints}

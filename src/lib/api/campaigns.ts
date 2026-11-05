@@ -274,8 +274,13 @@ export async function fetchCampaigns(filters: CampaignFilters = {}): Promise<Cam
 export async function fetchCampaignDetail(id: string): Promise<CampaignDetail> {
   const response = await apiFetch(`${CAMPAIGNS_PATH}${id}/`);
   if (!response.ok) throw await readError(response, 'No se pudo cargar la campaña.');
+  return mapDetail(await response.json());
+}
 
-  const payload: unknown = await response.json();
+/**
+ * Map a campaign detail payload (also the response of `start/` and `finish/`).
+ */
+function mapDetail(payload: unknown): CampaignDetail {
   const mapped = mapCampaign(payload);
   if (!mapped || !isRecord(payload)) throw new ApiError(UNREADABLE_RESPONSE);
 
@@ -324,11 +329,12 @@ export async function proposeCampaign(payload: CampaignPayload): Promise<void> {
   );
 }
 
+/** Only the fields the user changed: the backend validates `start_date` whenever it is sent. */
 export interface CampaignUpdate {
-  title: string;
-  description: string;
-  startDate: string;
-  endDate: string;
+  title?: string;
+  description?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 /**
@@ -339,13 +345,37 @@ export async function updateCampaign(campaignId: string, payload: CampaignUpdate
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      title: payload.title,
-      description: payload.description,
-      start_date: payload.startDate,
-      end_date: payload.endDate,
+      ...(payload.title !== undefined ? { title: payload.title } : {}),
+      ...(payload.description !== undefined ? { description: payload.description } : {}),
+      ...(payload.startDate !== undefined ? { start_date: payload.startDate } : {}),
+      ...(payload.endDate !== undefined ? { end_date: payload.endDate } : {}),
     }),
   });
   if (!response.ok) throw await readError(response, 'No se pudo guardar la campaña.');
+}
+
+/**
+ * Move a campaign from PROMOTION to IN_PROGRESS (one way; sets `start_date` to now).
+ */
+export async function startCampaign(campaignId: string): Promise<CampaignDetail> {
+  const response = await postJson(
+    `${CAMPAIGNS_PATH}${campaignId}/start/`,
+    undefined,
+    'No se pudo iniciar la campaña.',
+  );
+  return mapDetail(await response.json());
+}
+
+/**
+ * Move a campaign from IN_PROGRESS to FINISHED (sets `end_date` to now).
+ */
+export async function finishCampaign(campaignId: string): Promise<CampaignDetail> {
+  const response = await postJson(
+    `${CAMPAIGNS_PATH}${campaignId}/finish/`,
+    undefined,
+    'No se pudo finalizar la campaña.',
+  );
+  return mapDetail(await response.json());
 }
 
 /**

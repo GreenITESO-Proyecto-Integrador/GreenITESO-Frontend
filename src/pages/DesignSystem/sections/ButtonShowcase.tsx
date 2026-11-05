@@ -5,7 +5,7 @@ export function ButtonShowcase() {
     <section>
       <h2 className="text-2xl font-bold text-secondary-500 mb-6">Botones</h2>
       <div className="space-y-4">
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
+        <div className="bg-card p-6 rounded-2xl shadow-sm">
           <p className="text-sm text-secondary-300 mb-4">Primario - Estados</p>
           <div className="flex flex-wrap gap-3">
             <Button className="bg-primary-500 hover:bg-primary-600 text-white">Normal</Button>
@@ -16,7 +16,7 @@ export function ButtonShowcase() {
             </Button>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
+        <div className="bg-card p-6 rounded-2xl shadow-sm">
           <p className="text-sm text-secondary-300 mb-4">Secundario / Outlined</p>
           <div className="flex flex-wrap gap-3">
             <Button variant="outline" className="border-secondary-100 text-secondary-500">

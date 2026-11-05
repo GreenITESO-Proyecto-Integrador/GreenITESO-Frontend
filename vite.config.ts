@@ -13,6 +13,8 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
+    // Set by the devcontainer: file events from Windows/macOS hosts don't reach the container.
+    watch: { usePolling: process.env['CHOKIDAR_USEPOLLING'] === 'true' },
   },
   build: {
     outDir: 'dist',

@@ -4,7 +4,7 @@ import { UserDashboard } from './components/UserDashboard';
 export function DashboardPage() {
   const { isAdmin } = useCurrentUser();
 
-  // ADMIN keeps the plain dashboard: campaigns are managed from /missions and /audit.
+  // ADMIN keeps the plain dashboard: campaigns are managed from /campaigns and /audit.
   if (isAdmin) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">

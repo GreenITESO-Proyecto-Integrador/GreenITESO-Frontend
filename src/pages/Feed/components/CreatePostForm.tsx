@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Send, Image as ImageIcon, Upload, X, Link as LinkIcon } from 'lucide-react';
 import { createPost } from '@/lib/api/feed';
 import { uploadImage, validateImageFile } from '@/lib/api/upload';
+import { IMAGE_FILE_ACCEPT } from '@/lib/image-file';
 import type { FeedPost } from '@/types/feed';
 
 interface CreatePostFormProps {
@@ -191,14 +192,14 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
                   onClick={() => fileInputRef.current?.click()}
                   className={`border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer transition-colors ${
                     isDragging
-                      ? 'border-primary-500 bg-primary-500/10 dark:border-primary-400 dark:bg-primary-950/30'
+                      ? 'border-primary-500 bg-primary-500/10 dark:border-primary-400 dark:bg-primary-900/30'
                       : 'border-border bg-muted/20 hover:bg-muted/40 hover:border-muted-foreground/40'
                   }`}
                 >
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/jpeg,image/png,image/webp"
+                    accept={IMAGE_FILE_ACCEPT}
                     className="hidden"
                     onChange={handleFileChange}
                     disabled={isSubmitting}

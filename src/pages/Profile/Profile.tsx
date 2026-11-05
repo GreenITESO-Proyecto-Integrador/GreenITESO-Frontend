@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useCurrentUserAvatar } from '@/hooks/use-current-user-avatar';
 import { useEcologicalProfile } from '@/hooks/use-ecological-profile';
 import { ProfileHeader } from './components/ProfileHeader';
 import { ProgressSection } from './components/ProgressSection';
@@ -12,11 +13,13 @@ import { ProfileSkeleton } from './components/ProfileSkeleton';
 import { ProfileError } from './components/ProfileError';
 import { EditProfileDialog } from './components/EditProfileDialog';
 import { BadgeGallery } from '@/components/shared/BadgeGallery';
+import { ActionHistorySection } from './components/ActionHistorySection';
 
 export function ProfilePage() {
   const navigate = useNavigate();
   const { profile, status, errorMessage, reload, setProfile } = useEcologicalProfile();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const { setAvatarUrl } = useCurrentUserAvatar();
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 space-y-8 pb-24">
@@ -49,13 +52,13 @@ export function ProfilePage() {
           />
 
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-secondary-500 dark:text-secondary-400">
-              Galería de Insignias
-            </h2>
+            <h2 className="text-xl font-bold text-foreground">Galería de Insignias</h2>
             <BadgeGallery />
           </section>
 
           <CampaignsSection finishedCampaigns={profile.finishedCampaigns} />
+
+          <ActionHistorySection />
 
           <EditProfileDialog
             open={isEditDialogOpen}
@@ -63,6 +66,8 @@ export function ProfilePage() {
             profile={profile}
             onProfileUpdated={updated => {
               setProfile(updated);
+              // Keep the navbar photo in sync without a reload.
+              setAvatarUrl(updated.avatarUrl ?? '');
             }}
           />
         </div>

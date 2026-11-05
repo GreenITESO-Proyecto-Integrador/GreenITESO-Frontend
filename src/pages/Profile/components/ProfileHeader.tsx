@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Globe, Lock, Pencil } from 'lucide-react';
 import type { EcologicalProfile } from '@/types/ecological-profile';
+import type { ExchangeableItem } from '@/types/store';
+import { fetchExchangeableItems } from '@/lib/api/exchangeables';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 import { Button } from '@/components/ui/button';
 
 interface ProfileHeaderProps {
@@ -9,15 +12,8 @@ interface ProfileHeaderProps {
 }
 
 export function ProfileHeader({ profile, onEditProfile }: ProfileHeaderProps) {
-  // URL whose image failed to load; falls back to initials until the URL changes.
-  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
-  const showAvatar = Boolean(profile.avatarUrl) && failedAvatarUrl !== profile.avatarUrl;
   const isPublic = profile.visibility === 'PUBLIC';
   const fullName = `${profile.firstName} ${profile.lastName}`.trim() || profile.email;
-  const initials =
-    (profile.firstName?.[0] ?? '') + (profile.lastName?.[0] ?? '') ||
-    profile.email?.[0]?.toUpperCase() ||
-    'U';
 
   const roleLabelMap: Record<string, string> = {
     STUDENT: 'Estudiante',
@@ -26,21 +22,66 @@ export function ProfileHeader({ profile, onEditProfile }: ProfileHeaderProps) {
   };
   const roleLabel = roleLabelMap[profile.role] ?? profile.role;
 
+  const [exchangeables, setExchangeables] = useState<ExchangeableItem[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchExchangeableItems()
+      .then(items => {
+        if (isMounted) setExchangeables(items);
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const activeFrameKey = (profile.preferences?.active_frame as string) || undefined;
+  const activeBackgroundKey = (profile.preferences?.active_background as string) || undefined;
+
+  const frameUrl =
+    (profile.preferences?.active_frame_url as string | undefined) ||
+    (activeFrameKey ? exchangeables.find(i => i.key === activeFrameKey)?.imageUrl : undefined);
+
+  const backgroundUrl =
+    (profile.preferences?.active_background_url as string | undefined) ||
+    (activeBackgroundKey
+      ? exchangeables.find(i => i.key === activeBackgroundKey)?.imageUrl
+      : undefined);
+
   return (
-    <header className="bg-card rounded-3xl p-6 sm:p-8 shadow-sm border border-border">
-      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-        {/* Avatar / Initials */}
-        <div className="size-20 sm:size-24 rounded-2xl bg-linear-to-br from-primary-500 to-primary-700 text-white font-extrabold text-2xl sm:text-3xl flex items-center justify-center shadow-md shrink-0 overflow-hidden">
-          {showAvatar ? (
+    <header className="relative bg-card rounded-3xl p-6 sm:p-8 shadow-sm border border-border overflow-hidden">
+      {backgroundUrl ? (
+        <>
+          <img
+            src={backgroundUrl}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 size-full object-cover select-none pointer-events-none"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-card/85 dark:bg-card/90 backdrop-blur-[2px] transition-colors pointer-events-none"
+          />
+        </>
+      ) : null}
+
+      <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-6">
+        {/* Avatar / Initials with cosmetic frame */}
+        <div className="relative size-20 sm:size-24 shrink-0 flex items-center justify-center">
+          <UserAvatar
+            src={profile.avatarUrl}
+            name={fullName}
+            className="size-full rounded-2xl text-2xl sm:text-3xl shadow-md"
+          />
+          {frameUrl ? (
             <img
-              src={profile.avatarUrl}
-              alt={fullName}
-              className="size-full object-cover"
-              onError={() => setFailedAvatarUrl(profile.avatarUrl ?? null)}
+              src={frameUrl}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 size-full scale-[1.14] object-contain pointer-events-none z-10 select-none"
             />
-          ) : (
-            <span aria-hidden="true">{initials}</span>
-          )}
+          ) : null}
         </div>
 
         {/* User Info */}
@@ -48,7 +89,7 @@ export function ProfileHeader({ profile, onEditProfile }: ProfileHeaderProps) {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 justify-center sm:justify-start">
               <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground">{fullName}</h1>
-              <span className="inline-flex items-center self-center px-3 py-0.5 rounded-full text-xs font-semibold bg-primary-50 text-primary-700 dark:bg-primary-950/60 dark:text-primary-300 border border-primary-200 dark:border-primary-800">
+              <span className="inline-flex items-center self-center rounded-full border border-primary-200 bg-primary-50 px-3 py-0.5 text-xs font-semibold text-primary-700 dark:border-primary-800 dark:bg-primary-900/60 dark:text-primary-300">
                 {roleLabel}
               </span>
             </div>
@@ -77,7 +118,7 @@ export function ProfileHeader({ profile, onEditProfile }: ProfileHeaderProps) {
             <div
               className={`inline-flex items-center gap-1.5 self-center sm:self-start px-3 py-1 rounded-full font-semibold border ${
                 isPublic
-                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-700/40 dark:text-emerald-300'
                   : 'bg-muted text-muted-foreground border-border'
               }`}
             >

@@ -15,11 +15,12 @@ export interface NavLink {
   label: string;
   href: string;
   icon: typeof Home;
+  adminOnly?: boolean;
 }
 
 export const PRIMARY_NAV_LINKS: NavLink[] = [
   { label: 'Inicio', href: '/', icon: Home },
-  { label: 'Misiones', href: '/missions', icon: Target },
+  { label: 'Campañas', href: '/campaigns', icon: Target },
   { label: 'Tienda', href: '/store', icon: Store },
   { label: 'Feed', href: '/feed', icon: Rss },
   { label: 'Notificaciones', href: '/notifications', icon: Bell },
@@ -30,7 +31,11 @@ export const SECONDARY_NAV_LINKS: NavLink[] = [
   { label: 'Catálogo de acciones', href: '/actions', icon: ListChecks },
   { label: 'Clanes', href: '/clans', icon: Users },
   { label: 'Leaderboard', href: '/leaderboard', icon: Trophy },
-  { label: 'Auditoría', href: '/audit', icon: ClipboardCheck },
+  { label: 'Auditoría', href: '/audit', icon: ClipboardCheck, adminOnly: true },
 ];
 
 export const ALL_NAV_LINKS: NavLink[] = [...PRIMARY_NAV_LINKS, ...SECONDARY_NAV_LINKS];
+
+export function filterNavLinks(links: NavLink[], isAdmin: boolean): NavLink[] {
+  return links.filter(link => !link.adminOnly || isAdmin);
+}
