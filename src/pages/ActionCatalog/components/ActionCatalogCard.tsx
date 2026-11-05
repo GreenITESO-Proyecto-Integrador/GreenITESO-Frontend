@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { Camera, ChevronDown, ChevronUp, Droplets, Leaf, Recycle, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -26,27 +26,46 @@ function categoryIcon(iconName: string) {
 }
 
 /**
- * Card for one catalog action, including points, validation, and impact factors.
+ * Reports whether a line-clamped element hides part of its text.
+ * Measuring is paused while `enabled` is false so the last result is kept (e.g. while expanded).
  */
-export function ActionCatalogCard({ action }: ActionCatalogCardProps) {
-  const Icon = categoryIcon(action.category.icon || action.category.code);
-  const requiresPhoto = action.validationType === 'PHOTO';
-  const descriptionRef = useRef<HTMLParagraphElement>(null);
-  const [expanded, setExpanded] = useState(false);
+function useIsTruncated<T extends HTMLElement>(
+  ref: RefObject<T | null>,
+  text: string,
+  enabled: boolean,
+) {
   const [isTruncated, setIsTruncated] = useState(false);
 
-  // Detect whether the clamped description hides text, so "Ver más" only shows when needed.
   useLayoutEffect(() => {
-    const el = descriptionRef.current;
-    if (!el || expanded) return;
+    const el = ref.current;
+    if (!el || !enabled) return;
 
     const measure = () => setIsTruncated(el.scrollHeight > el.clientHeight);
     measure();
 
     const observer = new ResizeObserver(measure);
     observer.observe(el);
+    // Webfonts can reflow text without resizing the box, so measure again once they load.
+    void document.fonts.ready.then(measure);
     return () => observer.disconnect();
-  }, [action.description, expanded]);
+  }, [ref, text, enabled]);
+
+  return isTruncated;
+}
+
+/**
+ * Card for one catalog action, including points, validation, and impact factors.
+ */
+export function ActionCatalogCard({ action }: ActionCatalogCardProps) {
+  const Icon = categoryIcon(action.category.icon || action.category.code);
+  const requiresPhoto = action.validationType === 'PHOTO';
+  const titleRef = useRef<HTMLDivElement>(null);
+  const descriptionRef = useRef<HTMLParagraphElement>(null);
+  const descriptionId = useId();
+  const [expanded, setExpanded] = useState(false);
+  const titleTruncated = useIsTruncated(titleRef, action.name, !expanded);
+  const descriptionTruncated = useIsTruncated(descriptionRef, action.description, !expanded);
+  const canExpand = expanded || titleTruncated || descriptionTruncated;
 
   return (
     <Card className="h-full w-full rounded-2xl bg-card py-0 shadow-sm ring-1 ring-border transition-shadow hover:shadow-md">
@@ -62,7 +81,13 @@ export function ActionCatalogCard({ action }: ActionCatalogCardProps) {
                   {action.category.name}
                 </p>
               ) : null}
-              <CardTitle className="line-clamp-2 min-h-14 text-lg font-semibold text-foreground">
+              <CardTitle
+                ref={titleRef}
+                className={cn(
+                  'text-lg font-semibold text-foreground [overflow-wrap:anywhere]',
+                  !expanded && 'line-clamp-2 min-h-14',
+                )}
+              >
                 {action.name}
               </CardTitle>
             </div>
@@ -73,22 +98,23 @@ export function ActionCatalogCard({ action }: ActionCatalogCardProps) {
         </div>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4 p-4">
-        <div className="flex flex-col items-start gap-1">
+        <div className="flex flex-col gap-1">
           <p
+            id={descriptionId}
             ref={descriptionRef}
             className={cn(
-              'text-sm text-muted-foreground sm:text-base',
+              'text-sm text-muted-foreground [overflow-wrap:anywhere] sm:text-base',
               !expanded && 'line-clamp-2 min-h-10 sm:min-h-12',
             )}
           >
             {action.description}
           </p>
-          {isTruncated || expanded ? (
+          {canExpand ? (
             <button
               type="button"
               onClick={() => setExpanded(value => !value)}
-              aria-expanded={expanded}
-              className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary-700 hover:underline dark:text-primary-300"
+              aria-controls={descriptionId}
+              className="inline-flex min-h-11 items-center gap-1 self-start text-sm font-semibold text-primary-700 hover:underline dark:text-primary-300"
             >
               {expanded ? 'Ver menos' : 'Ver más'}
               {expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
