@@ -1,4 +1,5 @@
 import type { ActionLogStatus } from '@/types/action-audit';
+import type { ActionLog } from '@/types/action-logs';
 import { ACTION_LOGS_PATH } from './action-audit';
 import { apiFetch } from './client';
 import { ApiError, readError } from './errors';
@@ -89,4 +90,67 @@ export async function createActionLog(
     status,
     alreadyLogged: response.status === 200,
   };
+}
+
+function readString(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+/**
+ * Map one snake_case log from `GET /action-logs/mine/`, or null when it is unusable.
+ */
+function mapActionLog(raw: unknown): ActionLog | null {
+  if (!isRecord(raw) || typeof raw.id !== 'string') {
+    return null;
+  }
+  const status = readStatus(raw.status);
+  if (!status) {
+    return null;
+  }
+  const action = isRecord(raw.action) ? raw.action : {};
+
+  return {
+    id: raw.id,
+    action: {
+      id: readString(action.id),
+      code: readString(action.code),
+      name: readString(action.name),
+      validationType: readString(action.validation_type),
+    },
+    status,
+    pointsAwarded: typeof raw.points_awarded === 'number' ? raw.points_awarded : 0,
+    co2KgFactorSnapshot: readString(raw.co2_kg_factor_snapshot),
+    waterLitersFactorSnapshot: readString(raw.water_liters_factor_snapshot),
+    plasticKgFactorSnapshot: readString(raw.plastic_kg_factor_snapshot),
+    hasEvidence: raw.has_evidence === true,
+    isSharedPublicly: raw.is_shared_publicly === true,
+    rejectionReason: readString(raw.rejection_reason),
+    createdAt: readString(raw.created_at),
+  };
+}
+
+/**
+ * Load the signed-in user's own action logs, optionally filtered by status.
+ */
+export async function fetchMyActionLogs(status?: ActionLogStatus): Promise<ActionLog[]> {
+  const query = status ? `?${new URLSearchParams({ status })}` : '';
+  const response = await apiFetch(`${ACTION_LOGS_PATH}mine/${query}`);
+
+  if (!response.ok) {
+    throw await readError(response, 'No se pudo cargar tu historial de acciones.');
+  }
+
+  let raw: unknown;
+  try {
+    raw = await response.json();
+  } catch {
+    throw new ApiError(UNREADABLE_RESPONSE, response.status);
+  }
+
+  const results = Array.isArray(raw) ? raw : isRecord(raw) ? raw.results : null;
+  if (!Array.isArray(results)) {
+    throw new ApiError(UNREADABLE_RESPONSE, response.status);
+  }
+
+  return results.map(mapActionLog).filter((log): log is ActionLog => log !== null);
 }

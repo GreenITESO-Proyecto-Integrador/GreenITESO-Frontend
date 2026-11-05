@@ -15,8 +15,15 @@ else
   exit 0
 fi
 
+# Docker crea el volumen de node_modules como root; darselo al usuario actual.
+if [ -d "$APP_DIR/node_modules" ] && [ ! -w "$APP_DIR/node_modules" ]; then
+  sudo chown "$(id -u):$(id -g)" "$APP_DIR/node_modules"
+fi
+
 echo "==> Instalando dependencias con pnpm en '$APP_DIR'"
-( cd "$APP_DIR" && pnpm install )
+# confirm-modules-purge=false: no preguntar si hay que recrear node_modules.
+# (No usar CI=true: activa --frozen-lockfile y pnpm-lock.yaml no esta en git.)
+( cd "$APP_DIR" && pnpm install --config.confirm-modules-purge=false )
 
 # Navegador de Playwright: solo si el proyecto declara la dependencia.
 if ( cd "$APP_DIR" && pnpm ls @playwright/test >/dev/null 2>&1 ) \

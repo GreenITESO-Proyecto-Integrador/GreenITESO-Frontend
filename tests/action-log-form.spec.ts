@@ -86,6 +86,40 @@ test('should reject photographic evidence larger than 5MB', async ({ page }) => 
   await expect(page.getByText('La evidencia no puede superar 5 MB.')).toBeVisible();
 });
 
+test('should upload a JPEG labeled image/jpg that is under 5MB', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockCatalog(page);
+  let raw = '';
+  await page.route('**/api/v1/action-logs/**', async route => {
+    raw = route.request().postDataBuffer()?.toString('latin1') ?? '';
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        message: 'Action logged successfully.',
+        status: 'PENDING_AUDIT',
+        log_id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+      }),
+    });
+  });
+  await page.goto('/actions/register');
+  await expect(page.getByRole('option', { name: /Usar termo reutilizable/ })).toBeAttached();
+
+  await page.getByLabel('Acción').selectOption('33333333-3333-3333-3333-333333333333');
+  await page.getByLabel(/Evidencia fotográfica/).setInputFiles({
+    name: 'termo.jpg',
+    mimeType: 'image/jpg',
+    buffer: Buffer.alloc(3 * 1024 * 1024, 1),
+  });
+  await page.getByRole('button', { name: 'Registrar' }).click();
+
+  await expect(page.getByText('Quedó pendiente de auditoría.')).toBeVisible();
+  await expect(page.getByText('Usa una imagen JPG, PNG o WEBP.')).toHaveCount(0);
+  await expect(page.getByText('La evidencia no puede superar 5 MB.')).toHaveCount(0);
+  expect(raw).toContain('filename="termo.jpg"');
+  expect(raw).toContain('name="evidence"');
+});
+
 test('should require a photo when the selected action uses PHOTO validation', async ({ page }) => {
   await mockStudentSession(page);
   await mockCatalog(page);

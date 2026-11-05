@@ -1,12 +1,19 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mockStudentSession } from './helpers/auth';
+import { PIXEL_PNG } from './helpers/images';
 
 const usersUrl = '**/api/v1/rankings/users**';
 const rankingsUrl = '**/api/v1/rankings/**';
 
 const globalRanking = [
-  { id: 'user-1', rank: 1, display_name: 'Ana', total_points: 120 },
-  { id: 'user-2', rank: 2, display_name: 'Luis', total_points: 80 },
+  {
+    id: 'user-1',
+    rank: 1,
+    display_name: 'Ana',
+    avatar_url: 'https://images.greeniteso.test/ana.png',
+    total_points: 120,
+  },
+  { id: 'user-2', rank: 2, display_name: 'Luis', avatar_url: '', total_points: 80 },
 ];
 
 const institutionalRanking = [
@@ -75,6 +82,23 @@ test('should show the global ranking table by default', async ({ page }) => {
   );
   await expect(page.getByText('Ana')).toBeVisible();
   await expect(page.getByText('120')).toBeVisible();
+});
+
+test("should show each participant's profile photo, or their initials without one", async ({
+  page,
+}) => {
+  await page.route('https://images.greeniteso.test/**', route =>
+    route.fulfill({ status: 200, contentType: 'image/png', body: PIXEL_PNG }),
+  );
+  await mockRankings(page);
+  await page.goto('/leaderboard');
+
+  const table = page.getByRole('table');
+  await expect(table.getByRole('img', { name: 'Ana' })).toHaveAttribute(
+    'src',
+    'https://images.greeniteso.test/ana.png',
+  );
+  await expect(table.getByText('LU', { exact: true })).toBeVisible();
 });
 
 test('should load the institutional clan ranking from GET /rankings/?type=', async ({ page }) => {

@@ -7,9 +7,24 @@
     "dockerfile": "Dockerfile"
   },
 
-  "forwardPorts": [5173],
+  // node_modules vive en un volumen de Docker, no en la carpeta del host.
+  // - Funciona igual en Windows, macOS y Linux (NTFS, APFS, ext4, btrfs...).
+  // - Mucho mas rapido que un bind mount en Docker Desktop.
+  // - No mezcla binarios nativos del host (darwin/win32) con los del contenedor (linux).
+  // ${devcontainerId} da un volumen distinto por clon/worktree del repo.
+  "mounts": [
+    "source=greeniteso-frontend-nm-${devcontainerId},target=${containerWorkspaceFolder}/node_modules,type=volume"
+  ],
+
+  // En Windows y macOS los eventos de cambio de archivos del host no siempre
+  // llegan al contenedor; vite.config.ts usa polling cuando esta variable existe.
+  "containerEnv": {
+    "CHOKIDAR_USEPOLLING": "true"
+  },
+
+  "forwardPorts": [3000],
   "portsAttributes": {
-    "5173": { "label": "Vite PWA (dev)", "onAutoForward": "openBrowser" }
+    "3000": { "label": "Vite PWA (dev)", "onAutoForward": "openBrowser" }
   },
 
   "postCreateCommand": "bash .devcontainer/post-create.sh",

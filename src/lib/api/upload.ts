@@ -1,4 +1,5 @@
 import { apiFetch } from '@/lib/api/client';
+import { isAcceptedImageFile } from '@/lib/image-file';
 
 declare global {
   interface ErrorConstructor {
@@ -8,7 +9,6 @@ declare global {
 
 const UPLOAD_ENDPOINT = '/api/uploads/';
 
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 export interface ImageValidationResult {
@@ -17,7 +17,7 @@ export interface ImageValidationResult {
 }
 
 export function validateImageFile(file: File): ImageValidationResult {
-  if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+  if (!isAcceptedImageFile(file)) {
     return {
       valid: false,
       error: 'Formato no soportado. Usa imágenes JPG, PNG o WebP.',

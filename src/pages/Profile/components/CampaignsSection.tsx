@@ -31,7 +31,7 @@ export function CampaignsSection({ finishedCampaigns }: CampaignsSectionProps) {
 
       {finishedCampaigns.length === 0 ? (
         <div className="bg-card rounded-2xl p-6 sm:p-8 text-center border border-border shadow-xs">
-          <div className="size-12 bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 rounded-2xl flex items-center justify-center mx-auto mb-3">
+          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-600 dark:bg-sky-800/50 dark:text-sky-400">
             <Flag className="size-6" />
           </div>
           <h3 className="text-base font-bold text-foreground">Sin campañas finalizadas</h3>
@@ -48,7 +48,7 @@ export function CampaignsSection({ finishedCampaigns }: CampaignsSectionProps) {
               className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/40 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-xl shrink-0">
+                <div className="shrink-0 rounded-xl bg-emerald-50 p-2.5 text-emerald-600 dark:bg-emerald-700/50 dark:text-emerald-400">
                   <CalendarCheck className="size-5" />
                 </div>
                 <div>

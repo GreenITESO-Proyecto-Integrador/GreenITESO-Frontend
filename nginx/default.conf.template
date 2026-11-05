@@ -11,6 +11,10 @@ server {
 
     add_header X-Content-Type-Options nosniff always;
 
+    # Evidence and feed photos are allowed up to 5 MiB. Multipart adds a little
+    # framing, and the default of 1m rejects those photos with 413.
+    client_max_body_size 6m;
+
     # BACKEND_URL is https://<backend>.run.app (no trailing slash or path), so
     # the original request URI is forwarded unchanged. Cloud Run routes by Host,
     # so the Host header and TLS SNI must be the backend's hostname. The name is

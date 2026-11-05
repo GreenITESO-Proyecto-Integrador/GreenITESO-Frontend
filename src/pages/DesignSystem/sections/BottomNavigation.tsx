@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 
 export function BottomNavigation() {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-secondary-100 shadow-lg z-50 pb-[env(safe-area-inset-bottom,16px)]">
+    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg z-50 pb-[env(safe-area-inset-bottom,16px)]">
       <div className="flex justify-around items-center h-20 max-w-5xl mx-auto px-4">
         <Button
           variant="ghost"

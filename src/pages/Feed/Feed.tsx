@@ -56,7 +56,7 @@ export function FeedPage() {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-8">
-      <div>
+      <div data-tour="feed-overview">
         <h1 className="text-2xl font-bold text-foreground">Muro Social</h1>
         <p className="text-sm text-muted-foreground sm:text-base">
           Lo que la comunidad GreenITESO está logrando en este momento.

@@ -34,7 +34,7 @@ export function ClansSection({ institutionalClan, activePrivateClan }: ClansSect
           <div className="bg-card rounded-2xl p-6 border border-border shadow-xs flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between gap-2 mb-3">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary-50 dark:bg-primary-950/60 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700 dark:border-primary-800 dark:bg-primary-900/60 dark:text-primary-300">
                   <GraduationCap className="size-3.5" />
                   Clan Institucional
                 </span>
@@ -59,7 +59,7 @@ export function ClansSection({ institutionalClan, activePrivateClan }: ClansSect
           <div className="bg-card rounded-2xl p-6 border border-border shadow-xs flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between gap-2 mb-3">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 dark:border-sky-800 dark:bg-sky-800/60 dark:text-sky-300">
                   <Users className="size-3.5" />
                   Clan Privado Activo
                 </span>

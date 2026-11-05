@@ -1,12 +1,15 @@
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { ALL_NAV_LINKS } from '@/components/layout/nav-links';
+import { ALL_NAV_LINKS, filterNavLinks } from '@/components/layout/nav-links';
+import { useIsAdmin } from '@/hooks/use-has-role';
 
 export function Sidebar() {
+  const isAdmin = useIsAdmin();
+
   return (
     <aside className="fixed inset-y-0 left-0 top-16 hidden w-64 shrink-0 border-r border-border bg-card md:block">
       <nav className="flex flex-col gap-1 p-3">
-        {ALL_NAV_LINKS.map(link => (
+        {filterNavLinks(ALL_NAV_LINKS, isAdmin).map(link => (
           <NavLink
             key={link.href}
             to={link.href}

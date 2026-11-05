@@ -71,7 +71,7 @@ export function ActionCatalogCard({ action }: ActionCatalogCardProps) {
         {action.co2KgFactor > 0 || action.waterLitersFactor > 0 || action.plasticKgFactor > 0 ? (
           <div className="grid grid-cols-3 gap-2">
             {action.co2KgFactor > 0 ? (
-              <div className="rounded-xl border border-primary-200 bg-primary-50 px-2 py-2 text-center dark:border-primary-800 dark:bg-primary-950/40">
+              <div className="rounded-xl border border-primary-200 bg-primary-50 px-2 py-2 text-center dark:border-primary-800 dark:bg-primary-900/40">
                 <Leaf className="mx-auto mb-1 size-4 text-primary-700 dark:text-primary-400" />
                 <p className="text-xs font-bold text-primary-700 tabular-nums dark:text-primary-300">
                   {action.co2KgFactor} kg

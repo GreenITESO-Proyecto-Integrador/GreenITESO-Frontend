@@ -36,6 +36,7 @@ export interface EcologicalProfile {
   bio?: string;
   avatarUrl?: string;
   preferences?: Record<string, unknown>;
+  unlockedCosmetics?: string[];
   totalPoints: number;
   availablePoints: number;
   currentStreak: number;
