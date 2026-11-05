@@ -283,6 +283,7 @@ const privateCampaign = campaign({
   title: 'Reto del Clan',
   scope: 'PRIVATE',
   target_clan: 'clan-private',
+  target_clan_name: 'Clan Reciclaje',
 });
 
 test.describe('Usuario: campañas', () => {
@@ -322,12 +323,24 @@ test.describe('Usuario: campañas', () => {
     );
 
     await statusFilter(page, 'Todas').click();
-    await scopeFilter(page, 'Privadas').click();
+    await scopeFilter(page, 'De clan').click();
     await expect(campaignCard(page, 'Reto del Clan')).toBeVisible();
     await expect(campaignCard(page, 'Reto Verano')).toHaveCount(0);
     expect(api.callsTo('GET', '/campaigns/').some(c => c.query.get('scope') === 'PRIVATE')).toBe(
       true,
     );
+  });
+
+  test('should tell global campaigns and clan campaigns apart', async ({ page }) => {
+    await mockApi(page, { campaigns: [activeCampaign, privateCampaign] });
+    await page.goto('/campaigns');
+
+    await expect(campaignCard(page, 'Reto del Clan')).toContainText('Clan · Clan Reciclaje');
+    await expect(campaignCard(page, 'Cero Plástico')).toContainText('Global');
+    await expect(campaignCard(page, 'Cero Plástico')).not.toContainText('Clan ·');
+
+    await campaignCard(page, 'Reto del Clan').click();
+    await expect(dialogOf(page).getByText('Clan Reciclaje', { exact: true })).toBeVisible();
   });
 
   test('should join a campaign in promotion', async ({ page }) => {

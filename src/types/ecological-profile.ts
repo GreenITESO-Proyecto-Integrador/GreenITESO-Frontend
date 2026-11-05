@@ -32,6 +32,10 @@ export interface EcologicalProfile {
   firstName: string;
   lastName: string;
   role: string;
+  /** Public handle; empty when the user never set one. */
+  nickname: string;
+  /** Points the next nickname change costs: 0 the first time (#175). */
+  nicknameChangeCost: number;
   visibility: ProfileVisibility;
   bio?: string;
   avatarUrl?: string;

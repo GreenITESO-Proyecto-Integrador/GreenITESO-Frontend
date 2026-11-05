@@ -67,7 +67,11 @@ function DetailBody({
   const [notice, setNotice] = useState<string | null>(null);
   const dismissNotice = useCallback(() => setNotice(null), []);
 
-  const clanName = useClanName(detail?.targetClanId ?? null);
+  // The API names the clan; only older backends need the extra lookup.
+  const fetchedClanName = useClanName(
+    detail?.targetClanName ? null : (detail?.targetClanId ?? null),
+  );
+  const clanName = detail?.targetClanName ?? fetchedClanName;
 
   async function handleJoin() {
     setJoining(true);

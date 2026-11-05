@@ -38,6 +38,28 @@ const MESSAGE_RULES: readonly {
   pattern: RegExp;
   message: string | ((match: RegExpMatchArray) => string);
 }[] = [
+  // Account messages (#175, #176) go first too: "You lead a clan" must not fall through to
+  // the clan rules below.
+  { pattern: /already your nickname/i, message: 'Ese ya es tu nickname.' },
+  {
+    pattern: /changing your nickname costs (\d+) points and you have (\d+)/i,
+    message: match =>
+      `Cambiar tu nickname cuesta ${match[1]} puntos y tienes ${match[2]}. Sigue sumando puntos y vuelve a intentarlo.`,
+  },
+  {
+    pattern: /you lead a clan/i,
+    message:
+      'Eres líder de un clan. Transfiere su liderazgo o disuélvelo antes de desactivar tu cuenta.',
+  },
+  {
+    pattern: /last administrator/i,
+    message:
+      'Eres el último administrador. Nombra a otro administrador antes de desactivar tu cuenta.',
+  },
+  {
+    pattern: /confirm that you want to deactivate/i,
+    message: 'Confirma que quieres desactivar tu cuenta.',
+  },
   // Clan messages go first: several campaign rules below (`only .*private`, `already exists`)
   // would otherwise capture them.
   {
