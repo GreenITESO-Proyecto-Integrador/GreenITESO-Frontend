@@ -1,4 +1,4 @@
-import { Award, BellRing, ShieldCheck, Sparkles, Users } from 'lucide-react';
+import { Award, BellRing, Shield, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import type { NotificationType } from '@/types/notification';
 
 export const NOTIFICATION_TYPE_META: Record<
@@ -20,6 +20,10 @@ export const NOTIFICATION_TYPE_META: Record<
   SOCIAL: {
     icon: Users,
     className: 'bg-sky-50 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300',
+  },
+  CLAN: {
+    icon: Shield,
+    className: 'bg-violet-50 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300',
   },
   SYSTEM: {
     icon: BellRing,
