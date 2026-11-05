@@ -6,6 +6,9 @@ export const AUTH_STORAGE_KEYS = {
   user: 'greeniteso.user',
 } as const;
 
+/** One-shot flag: the last sign-in reactivated a deactivated account (#176). */
+const REACTIVATED_NOTICE_KEY = 'greeniteso.reactivated_notice';
+
 const REFRESH_PATH = '/api/v1/auth/refresh/';
 const DEFAULT_API_BASE_URL = 'http://localhost:8000';
 let refreshInFlight: Promise<string | null> | null = null;
@@ -147,4 +150,20 @@ export function persistSession(access: string, refresh: string, user: AuthUser):
 
 export function clearSession(): void {
   Object.values(AUTH_STORAGE_KEYS).forEach(key => sessionStorage.removeItem(key));
+}
+
+/**
+ * Remember that the sign-in just completed reactivated a deactivated account, so the next
+ * page can welcome the user back. Survives the full-page redirect that follows login.
+ */
+export function flagReactivatedNotice(): void {
+  sessionStorage.setItem(REACTIVATED_NOTICE_KEY, '1');
+}
+
+export function hasReactivatedNotice(): boolean {
+  return sessionStorage.getItem(REACTIVATED_NOTICE_KEY) === '1';
+}
+
+export function clearReactivatedNotice(): void {
+  sessionStorage.removeItem(REACTIVATED_NOTICE_KEY);
 }

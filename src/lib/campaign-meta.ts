@@ -8,10 +8,29 @@ import type { CampaignApprovalStatus, CampaignScope, CampaignStatus } from '@/ty
 export const PROGRESS_DARK_COLORS =
   'dark:[&_[data-slot=progress-track]]:bg-white/25 dark:[&_[data-slot=progress-indicator]]:bg-primary-400';
 
-export const SCOPE_META: Record<CampaignScope, { label: string; icon: LucideIcon }> = {
-  GLOBAL: { label: 'Global', icon: Globe },
-  PRIVATE: { label: 'Clan', icon: Users },
+export const SCOPE_META: Record<
+  CampaignScope,
+  { label: string; icon: LucideIcon; iconClassName: string }
+> = {
+  GLOBAL: {
+    label: 'Global',
+    icon: Globe,
+    iconClassName: 'bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300',
+  },
+  PRIVATE: {
+    label: 'Clan',
+    icon: Users,
+    iconClassName: 'bg-sky-50 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
+  },
 };
+
+/**
+ * "Global", or "Clan · Eco Warriors" for a clan campaign whose clan name is known.
+ */
+export function campaignScopeLabel(scope: CampaignScope, clanName: string | null): string {
+  const { label } = SCOPE_META[scope];
+  return scope === 'PRIVATE' && clanName ? `${label} · ${clanName}` : label;
+}
 
 export const STATUS_META: Record<CampaignStatus, { label: string; className: string }> = {
   PROMOTION: {

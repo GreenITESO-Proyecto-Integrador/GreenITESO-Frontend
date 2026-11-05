@@ -13,5 +13,5 @@ export const STATUS_OPTIONS: readonly { value: StatusFilter; label: string }[] =
 export const SCOPE_OPTIONS: readonly { value: ScopeFilter; label: string }[] = [
   { value: 'ALL', label: 'Todas' },
   { value: 'GLOBAL', label: 'Globales' },
-  { value: 'PRIVATE', label: 'Privadas' },
+  { value: 'PRIVATE', label: 'De clan' },
 ];

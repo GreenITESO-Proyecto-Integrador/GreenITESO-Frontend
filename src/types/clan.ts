@@ -46,6 +46,17 @@ export interface ClanMembership {
   joinedAt: string;
 }
 
+/** A pending request to join an invite-only clan (`GET /clans/{id}/requests/`, leader only). */
+export interface ClanJoinRequest {
+  id: string;
+  clanId: string;
+  userId: string;
+  nickname: string;
+  /** Nickname, else full name; never the email. Empty from older backends. */
+  displayName: string;
+  joinedAt: string;
+}
+
 export interface CreateClanPayload {
   name: string;
   description: string;

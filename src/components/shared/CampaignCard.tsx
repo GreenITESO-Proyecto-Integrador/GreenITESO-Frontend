@@ -6,6 +6,7 @@ import {
   PROGRESS_DARK_COLORS,
   SCOPE_META,
   STATUS_META,
+  campaignScopeLabel,
   formatDateRange,
 } from '@/lib/campaign-meta';
 import { cn } from '@/lib/utils';
@@ -17,7 +18,8 @@ interface CampaignCardProps {
 }
 
 export function CampaignCard({ campaign, onSelect }: CampaignCardProps) {
-  const { label: scopeLabel, icon: ScopeIcon } = SCOPE_META[campaign.scope];
+  const { icon: ScopeIcon, iconClassName } = SCOPE_META[campaign.scope];
+  const scopeLabel = campaignScopeLabel(campaign.scope, campaign.targetClanName);
   const statusMeta = STATUS_META[campaign.status];
   const progressValue =
     campaign.missionsTotal > 0
@@ -44,11 +46,16 @@ export function CampaignCard({ campaign, onSelect }: CampaignCardProps) {
       <CardHeader className="gap-3 p-4 pb-0">
         <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">
+            <div
+              className={cn(
+                'flex size-11 shrink-0 items-center justify-center rounded-xl',
+                iconClassName,
+              )}
+            >
               <ScopeIcon className="size-6" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              <p className="truncate text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                 {scopeLabel}
               </p>
               <CardTitle className="truncate text-lg font-semibold text-foreground">

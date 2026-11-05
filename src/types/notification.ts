@@ -1,5 +1,5 @@
 /** Visual category used by the UI; several backend types map onto one category. */
-export type NotificationType = 'MISSION' | 'AUDIT' | 'ACHIEVEMENT' | 'SOCIAL' | 'SYSTEM';
+export type NotificationType = 'MISSION' | 'AUDIT' | 'ACHIEVEMENT' | 'SOCIAL' | 'CLAN' | 'SYSTEM';
 
 export interface Notification {
   id: string;
@@ -17,7 +17,19 @@ export type ApiNotificationType =
   | 'AUDIT_APPROVED'
   | 'AUDIT_REJECT'
   | 'BADGE_EARNED'
+  | 'CAMPAIGN_APPROVED'
+  | 'CAMPAIGN_FINISHED'
   | 'CAMPAIGN_INVITE'
+  | 'CAMPAIGN_REJECTED'
+  | 'CAMPAIGN_STARTED'
+  | 'CLAN_DISSOLVED'
+  | 'CLAN_JOIN_REQUEST'
+  | 'CLAN_KICKED'
+  | 'CLAN_LEADER_CHANGED'
+  | 'CLAN_MEMBER_JOINED'
+  | 'CLAN_MEMBER_LEFT'
+  | 'CLAN_REQ_ACCEPTED'
+  | 'CLAN_REQ_REJECTED'
   | 'MISSION_COMPLETED'
   | 'SOCIAL_FOLLOW'
   | 'SYSTEM';

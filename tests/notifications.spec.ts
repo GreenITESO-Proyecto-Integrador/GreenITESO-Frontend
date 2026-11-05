@@ -475,3 +475,52 @@ test('should show an error when the notification list fails to load', async ({ p
 
   await expect(page.getByRole('alert')).toContainText('No se pudieron cargar las notificaciones.');
 });
+
+const routedTypes = [
+  ['CLAN_JOIN_REQUEST', /\/clans$/],
+  ['CLAN_REQ_ACCEPTED', /\/clans$/],
+  ['CLAN_REQ_REJECTED', /\/clans$/],
+  ['CLAN_KICKED', /\/clans$/],
+  ['CLAN_DISSOLVED', /\/clans$/],
+  ['CLAN_LEADER_CHANGED', /\/clans$/],
+  ['CLAN_MEMBER_JOINED', /\/clans$/],
+  ['CLAN_MEMBER_LEFT', /\/clans$/],
+  ['CAMPAIGN_APPROVED', /\/campaigns$/],
+  ['CAMPAIGN_REJECTED', /\/campaigns$/],
+  ['CAMPAIGN_STARTED', /\/campaigns$/],
+  ['CAMPAIGN_FINISHED', /\/campaigns$/],
+] as const;
+
+for (const [notificationType, destination] of routedTypes) {
+  test(`should open its page when a ${notificationType} notification is clicked`, async ({
+    page,
+  }) => {
+    const title = `Aviso ${notificationType}`;
+    const patches = await mockNotificationApi(page, [
+      { ...storedNotifications[0]!, notification_type: notificationType, title },
+    ]);
+    await mockSocket(page);
+    await page.goto('/notifications');
+
+    await page.getByText(title).click();
+
+    await expect(page).toHaveURL(destination);
+    expect(patches).toEqual(['PATCH {"is_read":true}']);
+  });
+}
+
+test('should show a clan notification pushed live as a toast', async ({ page }) => {
+  await mockNotificationApi(page);
+  const socket = await mockSocket(page);
+  await page.goto('/notifications');
+  await expect.poll(() => socket.frames.length).toBeGreaterThan(0);
+
+  socket.push({
+    ...livePush,
+    title: 'Nueva solicitud de ingreso',
+    message: 'Ana quiere unirse a tu clan "Eco".',
+    notification_type: 'CLAN_JOIN_REQUEST',
+  });
+
+  await expect(page.getByRole('status')).toContainText('Nueva solicitud de ingreso');
+});

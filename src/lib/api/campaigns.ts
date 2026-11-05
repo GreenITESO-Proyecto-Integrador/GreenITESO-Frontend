@@ -28,6 +28,8 @@ export interface CampaignFilters {
   scope?: CampaignScope;
   isActive?: boolean;
   participating?: boolean;
+  /** Only campaigns targeting this clan (a clan's own campaigns). */
+  targetClanId?: string;
 }
 
 export interface MissionPayload {
@@ -158,6 +160,7 @@ function mapCampaign(raw: unknown): MappedCampaign | null {
       approvalStatus: mapApprovalStatus(raw.approval_status, 'APPROVED'),
       creatorId: readRefId(raw.creator),
       targetClanId: readRefId(raw.target_clan) || null,
+      targetClanName: readString(raw.target_clan_name) || null,
       startDate: readString(raw.start_date),
       endDate: readString(raw.end_date),
       createdAt: readString(raw.created_at),
@@ -249,6 +252,7 @@ export async function fetchCampaigns(filters: CampaignFilters = {}): Promise<Cam
   const query = new URLSearchParams();
   if (filters.status) query.set('status', filters.status);
   if (filters.scope) query.set('scope', filters.scope);
+  if (filters.targetClanId) query.set('target_clan', filters.targetClanId);
   if (filters.isActive !== undefined) query.set('is_active', String(filters.isActive));
   if (filters.participating !== undefined)
     query.set('participating', String(filters.participating));
