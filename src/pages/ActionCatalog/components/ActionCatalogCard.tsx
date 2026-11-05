@@ -1,5 +1,7 @@
-import { Camera, Droplets, Leaf, Recycle, Sparkles } from 'lucide-react';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { Camera, ChevronDown, ChevronUp, Droplets, Leaf, Recycle, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import type { CatalogAction } from '@/types/action-catalog';
 
 interface ActionCatalogCardProps {
@@ -29,9 +31,25 @@ function categoryIcon(iconName: string) {
 export function ActionCatalogCard({ action }: ActionCatalogCardProps) {
   const Icon = categoryIcon(action.category.icon || action.category.code);
   const requiresPhoto = action.validationType === 'PHOTO';
+  const descriptionRef = useRef<HTMLParagraphElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [isTruncated, setIsTruncated] = useState(false);
+
+  // Detect whether the clamped description hides text, so "Ver más" only shows when needed.
+  useLayoutEffect(() => {
+    const el = descriptionRef.current;
+    if (!el || expanded) return;
+
+    const measure = () => setIsTruncated(el.scrollHeight > el.clientHeight);
+    measure();
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [action.description, expanded]);
 
   return (
-    <Card className="rounded-2xl bg-card py-0 shadow-sm ring-1 ring-border transition-shadow hover:shadow-md">
+    <Card className="h-full w-full rounded-2xl bg-card py-0 shadow-sm ring-1 ring-border transition-shadow hover:shadow-md">
       <CardHeader className="gap-3 p-4 pb-0">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -44,7 +62,9 @@ export function ActionCatalogCard({ action }: ActionCatalogCardProps) {
                   {action.category.name}
                 </p>
               ) : null}
-              <CardTitle className="text-lg font-semibold text-foreground">{action.name}</CardTitle>
+              <CardTitle className="line-clamp-2 min-h-14 text-lg font-semibold text-foreground">
+                {action.name}
+              </CardTitle>
             </div>
           </div>
           <span className="shrink-0 rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700 tabular-nums dark:bg-primary-900/40 dark:text-primary-300">
@@ -53,7 +73,28 @@ export function ActionCatalogCard({ action }: ActionCatalogCardProps) {
         </div>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4 p-4">
-        <p className="text-sm text-muted-foreground sm:text-base">{action.description}</p>
+        <div className="flex flex-col items-start gap-1">
+          <p
+            ref={descriptionRef}
+            className={cn(
+              'text-sm text-muted-foreground sm:text-base',
+              !expanded && 'line-clamp-2 min-h-10 sm:min-h-12',
+            )}
+          >
+            {action.description}
+          </p>
+          {isTruncated || expanded ? (
+            <button
+              type="button"
+              onClick={() => setExpanded(value => !value)}
+              aria-expanded={expanded}
+              className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary-700 hover:underline dark:text-primary-300"
+            >
+              {expanded ? 'Ver menos' : 'Ver más'}
+              {expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+            </button>
+          ) : null}
+        </div>
         <div className="mt-auto flex flex-wrap gap-2">
           {requiresPhoto ? (
             <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold tracking-wider text-sky-800 dark:bg-sky-900/40 dark:text-sky-200">
