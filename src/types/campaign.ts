@@ -13,6 +13,8 @@ export interface Campaign {
   approvalStatus: CampaignApprovalStatus;
   creatorId: string;
   targetClanId: string | null;
+  /** Name of the targeted clan; null for global campaigns or older backends. */
+  targetClanName: string | null;
   startDate: string;
   endDate: string;
   createdAt: string;

@@ -61,6 +61,15 @@ export function formatMemberSince(isoDate: string): string {
 }
 
 /**
+ * "20 de octubre de 2026" from an ISO date, or an empty string when it cannot be read.
+ */
+export function formatRequestDate(isoDate: string): string {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+/**
  * Clan id from a pasted invite link (`https://…/clans/<id>`) or a bare id; null if none found.
  */
 export function extractClanId(input: string): string | null {

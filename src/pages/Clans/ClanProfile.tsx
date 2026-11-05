@@ -18,8 +18,10 @@ import {
 } from '@/lib/clan-meta';
 import type { ClanDetail } from '@/types/clan';
 import { ClanActions } from './components/ClanActions';
+import { ClanActiveCampaigns } from './components/ClanActiveCampaigns';
 import { ClanMembersList } from './components/ClanMembersList';
 import { ClanNotFound } from './components/ClanNotFound';
+import { PendingRequests } from './components/PendingRequests';
 
 function ClanHeader({ clan }: { clan: ClanDetail }) {
   const privacy = PRIVACY_META[clan.privacy];
@@ -103,6 +105,11 @@ export function ClanProfilePage() {
 
   const viewerId = user?.id ?? null;
   const isActiveClan = clan !== null && profileData.profile?.activePrivateClan?.id === clan.id;
+  const isLeader =
+    clan !== null &&
+    clan.type === 'PRIVATE' &&
+    clan.members.some(member => member.userId === viewerId && member.role === 'LEADER');
+  const isMember = clan !== null && clan.members.some(member => member.userId === viewerId);
 
   function goToClans(message: string) {
     const state: ClanNoticeState = { notice: message };
@@ -179,6 +186,18 @@ export function ClanProfilePage() {
             onNotice={setNotice}
             onLeft={goToClans}
           />
+          {isLeader ? (
+            <PendingRequests
+              clanId={clan.id}
+              privacy={clan.privacy}
+              onAccepted={message => {
+                setNotice(message);
+                void reload({ silent: true });
+              }}
+              onRejected={setNotice}
+            />
+          ) : null}
+          {isMember ? <ClanActiveCampaigns clanId={clan.id} /> : null}
           <ClanMembersList members={clan.members} viewerId={viewerId} />
         </>
       ) : null}

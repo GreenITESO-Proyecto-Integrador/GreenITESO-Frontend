@@ -1,6 +1,7 @@
 import type {
   Clan,
   ClanDetail,
+  ClanJoinRequest,
   ClanListItem,
   ClanMember,
   ClanMemberRole,
@@ -106,6 +107,21 @@ function mapMembership(raw: unknown): ClanMembership | null {
     role: readRole(raw.role),
     status: readMembershipStatus(raw.status),
     isActivePrivate: raw.is_active_private === true,
+    joinedAt: readString(raw.joined_at),
+  };
+}
+
+function mapJoinRequest(raw: unknown): ClanJoinRequest | null {
+  if (!isRecord(raw) || !isRecord(raw.user)) return null;
+  const id = readId(raw.id);
+  const userId = readId(raw.user.id);
+  if (!id || !userId) return null;
+  return {
+    id,
+    clanId: readId(raw.clan_id),
+    userId,
+    nickname: readString(raw.user.nickname),
+    displayName: readString(raw.user.display_name),
     joinedAt: readString(raw.joined_at),
   };
 }
@@ -291,5 +307,74 @@ export async function dissolveClan(clanId: string): Promise<void> {
     `${CLANS_PATH}${encodeURIComponent(clanId)}/`,
     { method: 'DELETE' },
     'No se pudo disolver el clan.',
+  );
+}
+
+/**
+ * Leader only: the PENDING requests to join this clan, newest first (follows pagination if the
+ * backend ever adds it; today it answers a plain list).
+ */
+export async function fetchJoinRequests(clanId: string): Promise<ClanJoinRequest[]> {
+  const requests: ClanJoinRequest[] = [];
+
+  for (let page = 1; page <= MAX_PAGES; page += 1) {
+    const response = await apiFetch(
+      `${CLANS_PATH}${encodeURIComponent(clanId)}/requests/?page=${page}`,
+    );
+    if (!response.ok) throw await readError(response, 'No se pudieron cargar las solicitudes.');
+
+    const payload: unknown = await response.json();
+    const results = Array.isArray(payload)
+      ? payload
+      : isRecord(payload) && Array.isArray(payload.results)
+        ? payload.results
+        : null;
+    if (!results) throw new ApiError(UNREADABLE_RESPONSE);
+
+    for (const raw of results) {
+      const request = mapJoinRequest(raw);
+      if (request) requests.push(request);
+    }
+
+    if (Array.isArray(payload) || !isRecord(payload) || !payload.next) break;
+  }
+
+  return requests;
+}
+
+/**
+ * Leader only: accept a pending request. The applicant becomes an accepted member.
+ */
+export async function acceptJoinRequest(
+  clanId: string,
+  applicantId: string,
+): Promise<ClanMembership> {
+  const response = await apiFetch(`${CLANS_PATH}${encodeURIComponent(clanId)}/accept-request/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ applicant_id: applicantId }),
+  });
+  if (!response.ok) {
+    // The backend reuses the join-limit wording, which the shared rules phrase as "you belong
+    // to N clans". Here it is the applicant who is at the limit, so say that instead.
+    if (response.status === 400 && /already belongs to/i.test(await response.clone().text())) {
+      throw new ApiError(
+        'Esta persona ya está en el máximo de clanes privados y no puede unirse a otro.',
+        response.status,
+      );
+    }
+    throw await readError(response, 'No se pudo aceptar la solicitud.');
+  }
+  return readMembership(response);
+}
+
+/**
+ * Leader only: reject a pending request.
+ */
+export async function rejectJoinRequest(clanId: string, applicantId: string): Promise<void> {
+  await postJson(
+    `${CLANS_PATH}${encodeURIComponent(clanId)}/reject-request/`,
+    { applicant_id: applicantId },
+    'No se pudo rechazar la solicitud.',
   );
 }
