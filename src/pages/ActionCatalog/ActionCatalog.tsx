@@ -13,9 +13,6 @@ export function ActionCatalogPage() {
     <main className="min-h-screen bg-background px-4 pb-24 pt-8">
       <div className="mx-auto max-w-5xl">
         <header className="mb-8" data-tour="actions-overview">
-          <p className="text-xs font-semibold tracking-wider text-primary-600 uppercase dark:text-primary-400">
-            Equipo 1
-          </p>
           <h1 className="text-2xl font-bold text-foreground">Catálogo de acciones</h1>
           <p className="mt-2 text-sm text-muted-foreground sm:text-base">
             Acciones sustentables disponibles y su valor en puntos.

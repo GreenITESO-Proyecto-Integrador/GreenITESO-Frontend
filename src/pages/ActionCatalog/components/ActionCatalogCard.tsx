@@ -1,5 +1,7 @@
-import { Camera, Droplets, Leaf, Recycle, Sparkles } from 'lucide-react';
+import { useId, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { Camera, ChevronDown, ChevronUp, Droplets, Leaf, Recycle, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import type { CatalogAction } from '@/types/action-catalog';
 
 interface ActionCatalogCardProps {
@@ -24,14 +26,49 @@ function categoryIcon(iconName: string) {
 }
 
 /**
+ * Reports whether a line-clamped element hides part of its text.
+ * Measuring is paused while `enabled` is false so the last result is kept (e.g. while expanded).
+ */
+function useIsTruncated<T extends HTMLElement>(
+  ref: RefObject<T | null>,
+  text: string,
+  enabled: boolean,
+) {
+  const [isTruncated, setIsTruncated] = useState(false);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || !enabled) return;
+
+    const measure = () => setIsTruncated(el.scrollHeight > el.clientHeight);
+    measure();
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    // Webfonts can reflow text without resizing the box, so measure again once they load.
+    void document.fonts.ready.then(measure);
+    return () => observer.disconnect();
+  }, [ref, text, enabled]);
+
+  return isTruncated;
+}
+
+/**
  * Card for one catalog action, including points, validation, and impact factors.
  */
 export function ActionCatalogCard({ action }: ActionCatalogCardProps) {
   const Icon = categoryIcon(action.category.icon || action.category.code);
   const requiresPhoto = action.validationType === 'PHOTO';
+  const titleRef = useRef<HTMLDivElement>(null);
+  const descriptionRef = useRef<HTMLParagraphElement>(null);
+  const descriptionId = useId();
+  const [expanded, setExpanded] = useState(false);
+  const titleTruncated = useIsTruncated(titleRef, action.name, !expanded);
+  const descriptionTruncated = useIsTruncated(descriptionRef, action.description, !expanded);
+  const canExpand = expanded || titleTruncated || descriptionTruncated;
 
   return (
-    <Card className="rounded-2xl bg-card py-0 shadow-sm ring-1 ring-border transition-shadow hover:shadow-md">
+    <Card className="h-full w-full rounded-2xl bg-card py-0 shadow-sm ring-1 ring-border transition-shadow hover:shadow-md">
       <CardHeader className="gap-3 p-4 pb-0">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -44,7 +81,15 @@ export function ActionCatalogCard({ action }: ActionCatalogCardProps) {
                   {action.category.name}
                 </p>
               ) : null}
-              <CardTitle className="text-lg font-semibold text-foreground">{action.name}</CardTitle>
+              <CardTitle
+                ref={titleRef}
+                className={cn(
+                  'text-lg font-semibold text-foreground [overflow-wrap:anywhere]',
+                  !expanded && 'line-clamp-2 min-h-14',
+                )}
+              >
+                {action.name}
+              </CardTitle>
             </div>
           </div>
           <span className="shrink-0 rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700 tabular-nums dark:bg-primary-900/40 dark:text-primary-300">
@@ -53,7 +98,29 @@ export function ActionCatalogCard({ action }: ActionCatalogCardProps) {
         </div>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4 p-4">
-        <p className="text-sm text-muted-foreground sm:text-base">{action.description}</p>
+        <div className="flex flex-col gap-1">
+          <p
+            id={descriptionId}
+            ref={descriptionRef}
+            className={cn(
+              'text-sm text-muted-foreground [overflow-wrap:anywhere] sm:text-base',
+              !expanded && 'line-clamp-2 min-h-10 sm:min-h-12',
+            )}
+          >
+            {action.description}
+          </p>
+          {canExpand ? (
+            <button
+              type="button"
+              onClick={() => setExpanded(value => !value)}
+              aria-controls={descriptionId}
+              className="inline-flex min-h-11 items-center gap-1 self-start text-sm font-semibold text-primary-700 hover:underline dark:text-primary-300"
+            >
+              {expanded ? 'Ver menos' : 'Ver más'}
+              {expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+            </button>
+          ) : null}
+        </div>
         <div className="mt-auto flex flex-wrap gap-2">
           {requiresPhoto ? (
             <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold tracking-wider text-sky-800 dark:bg-sky-900/40 dark:text-sky-200">
