@@ -30,6 +30,7 @@ function readLoginResponse(payload: unknown): LoginResponse {
       avatarUrl: readString(user.avatar_url),
     },
     created: payload.created === true,
+    reactivated: payload.reactivated === true,
   };
 
   if (!response.access || !response.refresh || !response.user.id || !response.user.email) {

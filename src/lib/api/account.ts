@@ -2,6 +2,7 @@ import { apiFetch } from './client';
 import { readError } from './errors';
 
 export const NICKNAME_PATH = '/api/v1/profile/me/nickname/';
+export const DEACTIVATE_PATH = '/api/v1/profile/me/deactivate/';
 
 /** Longest nickname the backend accepts (`NicknameChangeSerializer`). */
 export const MAX_NICKNAME_LENGTH = 50;
@@ -55,4 +56,21 @@ export async function changeNickname(nickname: string): Promise<NicknameChangeRe
     availablePoints: readCount(payload.available_points),
     nextChangeCost: readCount(payload.next_change_cost),
   };
+}
+
+/**
+ * Deactivate the signed-in user's own account (#176). This wipes their progress and signs
+ * them out everywhere; signing in again later starts from zero. A leader of a clan or the
+ * last administrator is refused with an `ApiError` whose `fieldErrors.account` says why.
+ */
+export async function deactivateAccount(): Promise<void> {
+  const response = await apiFetch(DEACTIVATE_PATH, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm: true }),
+  });
+
+  if (!response.ok) {
+    throw await readError(response, 'No se pudo desactivar la cuenta.');
+  }
 }

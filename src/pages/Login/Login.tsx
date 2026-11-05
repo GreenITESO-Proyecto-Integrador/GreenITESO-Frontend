@@ -8,6 +8,7 @@ import {
   startMicrosoftLogin,
 } from '@/lib/auth/microsoft';
 import { exchangeMicrosoftSignIn } from '@/lib/auth/microsoft-login';
+import { flagReactivatedNotice } from '@/lib/auth/session';
 
 type LoginStatus = 'idle' | 'loading' | 'error';
 
@@ -52,6 +53,7 @@ export function LoginPage() {
           accessToken: result.accessToken,
         });
         persistLogin(loginResponse);
+        if (loginResponse.reactivated) flagReactivatedNotice();
 
         window.location.assign('/');
       } catch (error) {
