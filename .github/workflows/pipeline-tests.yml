@@ -1,0 +1,29 @@
+name: Pipeline tests
+
+on:
+  push:
+    paths:
+      - '.github/workflows/**'
+      - 'scripts/**'
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - 'scripts/**'
+
+permissions:
+  contents: read
+
+jobs:
+  release-contract:
+    name: Validate release scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Shell syntax check
+        run: bash -n scripts/release.sh scripts/verify-production-source.sh scripts/tests/run.sh
+
+      - name: Run release script tests
+        run: bash scripts/tests/run.sh
