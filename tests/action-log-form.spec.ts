@@ -75,7 +75,7 @@ test('should reject photographic evidence larger than 5MB', async ({ page }) => 
   await page.goto('/actions/register');
   await expect(page.getByRole('option', { name: /Llegar en bicicleta/ })).toBeAttached();
 
-  await page.getByLabel('Acción').selectOption('11111111-1111-1111-1111-111111111111');
+  await page.getByLabel('Acción').selectOption('33333333-3333-3333-3333-333333333333');
   await page.getByLabel(/Evidencia fotográfica/).setInputFiles({
     name: 'evidence.jpg',
     mimeType: 'image/jpeg',
@@ -118,6 +118,46 @@ test('should upload a JPEG labeled image/jpg that is under 5MB', async ({ page }
   await expect(page.getByText('La evidencia no puede superar 5 MB.')).toHaveCount(0);
   expect(raw).toContain('filename="termo.jpg"');
   expect(raw).toContain('name="evidence"');
+});
+
+test('should show the photo field only when the action requires evidence', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockCatalog(page);
+  let body: unknown;
+  await page.route('**/api/v1/action-logs/**', async route => {
+    body = route.request().postDataJSON();
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        message: 'Action logged successfully.',
+        status: 'APPROVED',
+        log_id: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+      }),
+    });
+  });
+  await page.goto('/actions/register');
+  await expect(page.getByRole('option', { name: /Llegar en bicicleta/ })).toBeAttached();
+
+  await expect(page.getByLabel(/Evidencia fotográfica/)).toHaveCount(0);
+
+  await page.getByLabel('Acción').selectOption('33333333-3333-3333-3333-333333333333');
+  await expect(page.getByLabel(/Evidencia fotográfica/)).toBeVisible();
+  await page.getByLabel(/Evidencia fotográfica/).setInputFiles({
+    name: 'termo.jpg',
+    mimeType: 'image/jpeg',
+    buffer: Buffer.from('photo'),
+  });
+
+  await page.getByLabel('Acción').selectOption('11111111-1111-1111-1111-111111111111');
+  await expect(page.getByLabel(/Evidencia fotográfica/)).toHaveCount(0);
+  await page.getByRole('button', { name: 'Registrar' }).click();
+
+  await expect(page.getByText('Los puntos ya se acreditaron.')).toBeVisible();
+  expect(body).toMatchObject({
+    action_id: '11111111-1111-1111-1111-111111111111',
+  });
+  expect(body).not.toHaveProperty('evidence');
 });
 
 test('should require a photo when the selected action uses PHOTO validation', async ({ page }) => {
