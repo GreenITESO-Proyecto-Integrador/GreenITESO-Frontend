@@ -51,6 +51,14 @@ const MESSAGE_RULES: readonly {
     message:
       'Eres líder de un clan. Transfiere su liderazgo o disuélvelo antes de desactivar tu cuenta.',
   },
+  // Admin moderation (ban / unban).
+  { pattern: /cannot ban your own account/i, message: 'No puedes banear tu propia cuenta.' },
+  {
+    pattern: /administrators cannot be banned/i,
+    message: 'Los administradores no se pueden banear. Cambia su rol primero.',
+  },
+  { pattern: /already banned/i, message: 'Esta cuenta ya está baneada.' },
+  { pattern: /account is not banned/i, message: 'Esta cuenta no está baneada.' },
   {
     pattern: /last administrator/i,
     message:
@@ -305,6 +313,13 @@ function collectMessages(value: unknown): string[] {
 export async function readError(response: Response, fallback: string): Promise<ApiError> {
   try {
     const body: unknown = await response.json();
+    if (isRecord(body) && isRecord(body.error) && typeof body.error.message === 'string') {
+      // Moderation answers `{"error": {"code": "...", "message": "..."}}`.
+      return new ApiError(
+        translateMessage(body.error.message, response.status, fallback),
+        response.status,
+      );
+    }
     if (Array.isArray(body)) {
       // DRF `ValidationError("text")` serializes as a bare list of messages.
       const [first] = collectMessages(body).map(text =>
