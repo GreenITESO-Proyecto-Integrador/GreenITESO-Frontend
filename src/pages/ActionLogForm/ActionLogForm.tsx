@@ -108,13 +108,15 @@ export function ActionLogFormPage() {
             onChange={selectAction}
           />
 
-          <EvidenceFileInput
-            file={evidence}
-            error={errors.evidence}
-            requiredPhoto={requiresPhoto}
-            disabled={isCatalogLoading || status === 'error'}
-            onChange={selectEvidence}
-          />
+          {requiresPhoto ? (
+            <EvidenceFileInput
+              file={evidence}
+              error={errors.evidence}
+              requiredPhoto
+              disabled={isCatalogLoading || status === 'error'}
+              onChange={selectEvidence}
+            />
+          ) : null}
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button

@@ -176,6 +176,12 @@ test.describe('Auditoría navigation link visibility', () => {
       await mockStudentSession(page);
       await page.goto('/actions');
 
+      const nav = page.getByRole('navigation', { name: 'Navegación principal' });
+      const tabLabel = nav.getByRole('link', { name: 'Inicio' }).locator('span').last();
+      const moreLabel = nav.getByRole('button', { name: 'Más' }).locator('span').last();
+      await expect(tabLabel).toHaveCSS('font-size', '12px');
+      await expect(moreLabel).toHaveCSS('font-size', '12px');
+
       await page.getByRole('button', { name: 'Más' }).click();
 
       const sheet = page.getByRole('dialog');
