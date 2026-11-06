@@ -7,7 +7,8 @@ declare global {
   }
 }
 
-const UPLOAD_ENDPOINT = '/api/uploads/';
+// Actualizado a la ruta v1
+const UPLOAD_ENDPOINT = '/api/v1/uploads/';
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
@@ -65,16 +66,7 @@ export async function uploadImage(file: File): Promise<string> {
 
     return data.url;
   } catch (error) {
-    // El fallback de prueba únicamente se permite en entorno de desarrollo local
-    if (import.meta.env.DEV) {
-      console.warn(
-        '[DEV] Endpoint de subida no disponible o falló. Usando imagen mock de desarrollo.',
-        error,
-      );
-      return 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&w=1200&q=80';
-    }
-
-    // En producción se propaga el error real para no falsificar la evidencia
+    // Propagamos el error real en todos los entornos
     throw new Error(
       error instanceof Error ? error.message : 'Error al subir la imagen. Inténtalo de nuevo.',
       { cause: error },
