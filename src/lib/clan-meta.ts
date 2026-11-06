@@ -26,8 +26,6 @@ export const PRIVACY_OPTIONS = [
   { value: 'PRIVATE_INVITE', label: PRIVACY_META.PRIVATE_INVITE.label },
 ] as const satisfies readonly { value: ClanPrivacy; label: string }[];
 
-const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-
 export function clanTypeLabel(type: ClanType): string {
   return type === 'INSTITUTIONAL' ? 'Institucional' : 'Privado';
 }
@@ -61,6 +59,20 @@ export function formatMemberSince(isoDate: string): string {
 }
 
 /**
+ * "20 de octubre, 14:30" from an ISO date and time, or an empty string when it cannot be read.
+ */
+export function formatExpiry(isoDate: string): string {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('es-MX', {
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/**
  * "20 de octubre de 2026" from an ISO date, or an empty string when it cannot be read.
  */
 export function formatRequestDate(isoDate: string): string {
@@ -69,12 +81,11 @@ export function formatRequestDate(isoDate: string): string {
   return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-/**
- * Clan id from a pasted invite link (`https://…/clans/<id>`) or a bare id; null if none found.
- */
-export function extractClanId(input: string): string | null {
-  const match = input.trim().match(UUID_PATTERN);
-  return match ? match[0].toLowerCase() : null;
+/** Invite codes are 8 characters shown as `XXXX-XXXX`; case, spaces and the dash do not matter. */
+export const INVITE_CODE_LENGTH = 8;
+
+export function isInviteCodeShape(input: string): boolean {
+  return input.replace(/[\s-]/g, '').length === INVITE_CODE_LENGTH;
 }
 
 export function buildInviteLink(clanId: string): string {
