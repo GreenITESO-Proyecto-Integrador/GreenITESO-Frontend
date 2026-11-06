@@ -54,11 +54,20 @@ export function useActionLogForm(actions: CatalogAction[], initialActionKey = ''
 
   /**
    * Update the selected catalog action and clear its field error.
+   * A photo only applies to PHOTO actions, so any attached file is dropped otherwise.
    */
   function selectAction(nextActionId: string) {
     setActionId(nextActionId);
+    const nextAction = actions.find(action => action.id === nextActionId);
+    if (nextAction?.validationType !== 'PHOTO') {
+      setEvidence(null);
+    }
     clearSubmission();
-    setErrors(current => ({ ...current, actionId: undefined }));
+    setErrors(current => ({
+      ...current,
+      actionId: undefined,
+      ...(nextAction?.validationType === 'PHOTO' ? {} : { evidence: undefined }),
+    }));
   }
 
   /**

@@ -17,9 +17,11 @@ interface BottomNavProps {
 
 const tabClassName = (isActive: boolean) =>
   cn(
-    'relative flex min-h-11 min-w-11 flex-1 flex-col items-center justify-center gap-0.5 text-secondary-300 dark:text-secondary-300',
+    'relative flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 overflow-hidden text-secondary-300 dark:text-secondary-300',
     isActive && 'text-primary-500',
   );
+
+const tabLabelClassName = 'w-full truncate px-0.5 text-center text-xs font-semibold leading-4';
 
 export function BottomNav({ unreadNotifications = 0 }: BottomNavProps) {
   const [moreOpen, setMoreOpen] = useState(false);
@@ -52,9 +54,7 @@ export function BottomNav({ unreadNotifications = 0 }: BottomNavProps) {
                   </span>
                 ) : null}
               </span>
-              <span className="text-[10px] font-semibold truncate max-w-[60px] sm:text-xs text-center">
-                {link.label}
-              </span>
+              <span className={tabLabelClassName}>{link.label}</span>
             </NavLink>
           ))}
 
@@ -64,7 +64,7 @@ export function BottomNav({ unreadNotifications = 0 }: BottomNavProps) {
             className={tabClassName(isSecondaryActive)}
           >
             <MoreHorizontal className="size-6" />
-            <span className="text-xs font-semibold">Más</span>
+            <span className={tabLabelClassName}>Más</span>
           </button>
         </div>
       </nav>
