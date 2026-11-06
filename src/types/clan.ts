@@ -25,6 +25,10 @@ export interface ClanMember {
   displayName: string;
   /** Profile photo URL; empty when the member has none. */
   avatarUrl: string;
+  /** Image of the member's active avatar frame; empty when none. */
+  frameUrl: string;
+  /** Image of the member's active profile background; empty when none. */
+  backgroundUrl: string;
   role: ClanMemberRole;
   joinedAt: string;
 }
