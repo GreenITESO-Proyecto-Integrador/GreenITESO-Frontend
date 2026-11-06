@@ -1,23 +1,41 @@
 import { useState } from 'react';
-import { Crown } from 'lucide-react';
+import { Crown, UserMinus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { WRAP_TEXT } from '@/components/campaigns/field-limits';
 import { UserAvatar } from '@/components/shared/UserAvatar';
+import { kickClanMember } from '@/lib/api/clans';
 import { formatMemberSince, memberDisplayName } from '@/lib/clan-meta';
 import type { ClanMember } from '@/types/clan';
+import { ConfirmClanActionDialog } from './ConfirmClanActionDialog';
 
 interface ClanMembersListProps {
   members: ClanMember[];
   viewerId: string | null;
+  /** The viewer leads this clan, so each other member gets an expel button. */
+  clanId: string;
+  isLeader: boolean;
+  /** A member was expelled: the roster changed, so the page should refresh. */
+  onKicked: (notice: string) => void;
 }
 
 const COLLAPSED_COUNT = 8;
 
 /**
- * Accepted members, leader first. Long rosters start collapsed.
+ * Accepted members, leader first. Long rosters start collapsed. The leader can expel the others.
  */
-export function ClanMembersList({ members, viewerId }: ClanMembersListProps) {
+export function ClanMembersList({
+  members,
+  viewerId,
+  clanId,
+  isLeader,
+  onKicked,
+}: ClanMembersListProps) {
   const [expanded, setExpanded] = useState(false);
+  // The member asked about stays set while the dialog closes, so its text does not flicker.
+  const [target, setTarget] = useState<ClanMember | null>(null);
+  const [kickOpen, setKickOpen] = useState(false);
+  const targetName = target ? memberDisplayName(target) : '';
   const sorted = [...members].sort((a, b) => {
     if (a.role !== b.role) return a.role === 'LEADER' ? -1 : 1;
     return a.joinedAt.localeCompare(b.joinedAt);
@@ -65,6 +83,21 @@ export function ClanMembersList({ members, viewerId }: ClanMembersListProps) {
                     Líder
                   </Badge>
                 ) : null}
+                {isLeader && member.role !== 'LEADER' && member.userId !== viewerId ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    aria-label={`Expulsar a ${name}`}
+                    onClick={() => {
+                      setTarget(member);
+                      setKickOpen(true);
+                    }}
+                    className="min-h-11 cursor-pointer rounded-xl px-3 font-semibold text-red-700 hover:text-red-800"
+                  >
+                    <UserMinus className="size-4" />
+                    <span className="hidden sm:inline">Expulsar</span>
+                  </Button>
+                ) : null}
               </li>
             );
           })}
@@ -80,6 +113,22 @@ export function ClanMembersList({ members, viewerId }: ClanMembersListProps) {
           {expanded ? 'Mostrar menos' : `Mostrar todos (${sorted.length})`}
         </button>
       ) : null}
+
+      <ConfirmClanActionDialog
+        open={kickOpen}
+        onOpenChange={setKickOpen}
+        title={`¿Expulsar a ${targetName}?`}
+        description="Dejará de ser parte del clan y de sus campañas. Sus puntos ya aportados se conservan. Podrá volver a unirse si el clan lo permite."
+        confirmLabel="Expulsar"
+        pendingLabel="Expulsando…"
+        destructive
+        action={() => (target ? kickClanMember(clanId, target.userId) : Promise.resolve())}
+        fallbackError="No se pudo expulsar a la persona."
+        onDone={() => {
+          setKickOpen(false);
+          onKicked(`${targetName} ya no es parte del clan.`);
+        }}
+      />
     </section>
   );
 }

@@ -119,6 +119,48 @@ const MESSAGE_RULES: readonly {
     pattern: /not a valid clan\.privacy/i,
     message: 'Elige una privacidad válida para el clan.',
   },
+  // Clan edit and invite codes (#164, #165).
+  {
+    pattern: /only the clan leader can (edit the clan|manage invitation codes)/i,
+    message: 'Solo el líder del clan puede hacer esto.',
+  },
+  {
+    pattern: /only private clans (can be edited|have invitation codes)/i,
+    message: 'Los clanes institucionales no se pueden editar ni tienen códigos de invitación.',
+  },
+  {
+    pattern: /invalid or expired invitation code/i,
+    message: 'El código no es válido o ya venció. Pídele uno nuevo al líder del clan.',
+  },
+  {
+    pattern: /already a member of this clan/i,
+    message: 'Ya eres miembro de este clan.',
+  },
+  {
+    pattern: /at most (\d+) active invitation codes/i,
+    message: match =>
+      `Este clan ya tiene ${match[1]} códigos activos. Revoca uno para generar otro.`,
+  },
+  {
+    pattern: /only the clan leader can expel members/i,
+    message: 'Solo el líder del clan puede expulsar miembros.',
+  },
+  {
+    pattern: /only private clans allow expelling/i,
+    message: 'No se puede expulsar a nadie de un clan institucional.',
+  },
+  {
+    pattern: /leaders cannot expel themselves|cannot expel a clan leader/i,
+    message: 'No se puede expulsar al líder del clan. Transfiere el liderazgo primero.',
+  },
+  {
+    pattern: /not an accepted member of this clan/i,
+    message: 'Esa persona ya no es miembro del clan.',
+  },
+  {
+    pattern: /public clans don't need invitation codes/i,
+    message: 'Los clanes públicos no necesitan código: cualquiera puede unirse directamente.',
+  },
   {
     pattern: /no pending join request/i,
     message: 'Esta solicitud ya no está pendiente.',

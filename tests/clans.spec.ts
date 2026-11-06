@@ -13,7 +13,7 @@ interface Call {
 const CORS_HEADERS = {
   'access-control-allow-origin': '*',
   'access-control-allow-headers': '*',
-  'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS',
+  'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS',
 };
 
 /** The mocked session user (see tests/helpers/auth.ts). */
@@ -74,6 +74,10 @@ interface ApiSeed {
   hidden?: string[];
   /** Pending join requests (leader view) by clan id. Accepting or rejecting removes one. */
   requests?: Record<string, Json[]>;
+  /** Active invite codes (leader view) by clan id. Generating or revoking one updates the list. */
+  invitations?: Record<string, Json[]>;
+  /** The one invite code that redeems, and the clan it opens. Any other code is refused. */
+  redeem?: { code: string; clanId: string };
   /** Campaigns the campaigns endpoints answer with; `target_clan` and `is_active` filter them. */
   campaigns?: Json[];
   failOn?: Record<string, { status: number; body: unknown }>;
@@ -89,6 +93,7 @@ async function mockClansApi(page: Page, seed: ApiSeed = {}) {
   const details = seed.details ?? {};
   const hidden = new Set(seed.hidden ?? []);
   const pending: Record<string, Json[]> = { ...(seed.requests ?? {}) };
+  const invites: Record<string, Json[]> = { ...(seed.invitations ?? {}) };
 
   await page.route(/\/api\/v1\//, async route => {
     const request = route.request();
@@ -161,6 +166,61 @@ async function mockClansApi(page: Page, seed: ApiSeed = {}) {
       return;
     }
 
+    if (path === '/clans/redeem-invitation/' && method === 'POST') {
+      const typed = String(body?.code ?? '')
+        .replace(/[\s-]/g, '')
+        .toUpperCase();
+      if (!seed.redeem || typed !== seed.redeem.code.replace('-', '')) {
+        await json(400, { code: ['Invalid or expired invitation code.'] });
+        return;
+      }
+      await json(201, {
+        id: 'membership-1',
+        clan: seed.redeem.clanId,
+        user: ME,
+        role: 'MEMBER',
+        status: 'ACCEPTED',
+        is_active_private: false,
+        joined_at: '2026-10-01T10:00:00Z',
+      });
+      return;
+    }
+
+    const kick = path.match(/^\/clans\/([^/]+)\/kick\/$/);
+    if (kick && method === 'POST') {
+      const clanId = kick[1];
+      const current = details[clanId];
+      if (current) {
+        const roster = (current.members as Json[]).filter(item => item.user_id !== body?.user_id);
+        details[clanId] = { ...current, members: roster, member_count: roster.length };
+      }
+      await route.fulfill({ status: 204, headers: CORS_HEADERS });
+      return;
+    }
+
+    const invitationList = path.match(/^\/clans\/([^/]+)\/invitations\/$/);
+    if (invitationList && method === 'GET') {
+      await json(200, invites[invitationList[1]] ?? []);
+      return;
+    }
+    if (invitationList && method === 'POST') {
+      const clanId = invitationList[1];
+      const created = { id: `invite-${(invites[clanId] ?? []).length + 1}`, code: '7K2M-9QXD' };
+      invites[clanId] = [
+        { id: created.id, code_hint: '9QXD', expires_at: '2026-10-03T10:00:00Z' },
+        ...(invites[clanId] ?? []),
+      ];
+      await json(201, { ...created, expires_at: '2026-10-03T10:00:00Z' });
+      return;
+    }
+    const invitationOne = path.match(/^\/clans\/([^/]+)\/invitations\/([^/]+)\/$/);
+    if (invitationOne && method === 'DELETE') {
+      const [, clanId, invitationId] = invitationOne;
+      invites[clanId] = (invites[clanId] ?? []).filter(item => item.id !== invitationId);
+      await route.fulfill({ status: 204, headers: CORS_HEADERS });
+      return;
+    }
+
     const listed = path.match(/^\/clans\/([^/]+)\/requests\/$/);
     if (listed && method === 'GET') {
       await json(200, pending[listed[1]] ?? []);
@@ -230,6 +290,16 @@ async function mockClansApi(page: Page, seed: ApiSeed = {}) {
         return;
       }
       await json(200, details[clanId]);
+      return;
+    }
+    if (one && method === 'PATCH') {
+      const clanId = one[1];
+      const current = details[clanId] ?? clans.find(clan => clan.id === clanId) ?? ECO_CLAN;
+      if (details[clanId]) details[clanId] = { ...details[clanId], ...body };
+      const saved: Json = { ...current, ...body };
+      delete saved.members;
+      delete saved.member_count;
+      await json(200, saved);
       return;
     }
     if (one && method === 'DELETE') {
@@ -503,34 +573,51 @@ test('should join a public clan from its profile', async ({ page }) => {
   expect(calls.some(call => call.path === '/clans/clan-eco/join/')).toBe(true);
 });
 
-test('should request to join an invite-only clan from an invite link', async ({ page }) => {
-  const inviteId = '3f2b8c1e-9d4a-4e6b-8a1c-5d7e9f0a1b2c';
+test('should join an invite-only clan with a single-use code', async ({ page }) => {
   await mockStudentSession(page);
-  const { calls } = await mockClansApi(page, { hidden: [inviteId] });
+  const { calls } = await mockClansApi(page, {
+    redeem: { code: '7K2M-9QXD', clanId: 'clan-secret' },
+    details: {
+      'clan-secret': detail({ ...ECO_CLAN, id: 'clan-secret', name: 'Clan Secreto' }, []),
+    },
+  });
   await page.goto('/clans');
 
   await page.getByRole('button', { name: 'Tengo una invitación' }).click();
-  await page.getByLabel('Enlace de invitación').fill(`http://localhost:3000/clans/${inviteId}`);
-  await page.getByRole('dialog').getByRole('button', { name: 'Continuar' }).click();
+  await page.getByLabel('Código de invitación').fill('7k2m 9qxd');
+  await page.getByRole('dialog').getByRole('button', { name: 'Unirme al clan' }).click();
 
-  await expect(page).toHaveURL(new RegExp(`/clans/${inviteId}$`));
-  await expect(page.getByRole('heading', { name: 'No encontramos este clan' })).toBeVisible();
-
-  await page.getByRole('button', { name: 'Solicitar unirme' }).click();
-  await expect(page.getByRole('heading', { name: 'Solicitud enviada' })).toBeVisible();
-  expect(calls.some(call => call.path === `/clans/${inviteId}/join/`)).toBe(true);
+  await expect(page).toHaveURL(/\/clans\/clan-secret$/);
+  await expect(page.getByText('Te uniste al clan con el código de invitación.')).toBeVisible();
+  expect(calls.find(call => call.path === '/clans/redeem-invitation/')?.body).toEqual({
+    code: '7K2M 9QXD',
+  });
 });
 
-test('should reject an invite link without a clan id', async ({ page }) => {
+test('should explain that a wrong or expired code cannot be used', async ({ page }) => {
   await mockStudentSession(page);
-  await mockClansApi(page);
+  await mockClansApi(page, { redeem: { code: '7K2M-9QXD', clanId: 'clan-secret' } });
   await page.goto('/clans');
 
   await page.getByRole('button', { name: 'Tengo una invitación' }).click();
-  await page.getByLabel('Enlace de invitación').fill('esto no es un enlace');
-  await page.getByRole('dialog').getByRole('button', { name: 'Continuar' }).click();
+  await page.getByLabel('Código de invitación').fill('AAAA-BBBB');
+  await page.getByRole('dialog').getByRole('button', { name: 'Unirme al clan' }).click();
 
-  await expect(page.getByText(/No encontramos un clan en ese enlace/)).toBeVisible();
+  await expect(page.getByText(/El código no es válido o ya venció/)).toBeVisible();
+  await expect(page).toHaveURL(/\/clans$/);
+});
+
+test('should not send a code that is too short', async ({ page }) => {
+  await mockStudentSession(page);
+  const { calls } = await mockClansApi(page);
+  await page.goto('/clans');
+
+  await page.getByRole('button', { name: 'Tengo una invitación' }).click();
+  await page.getByLabel('Código de invitación').fill('ABC');
+  await page.getByRole('dialog').getByRole('button', { name: 'Unirme al clan' }).click();
+
+  await expect(page.getByText(/El código tiene 8 caracteres/)).toBeVisible();
+  expect(calls.filter(call => call.path === '/clans/redeem-invitation/')).toEqual([]);
 });
 
 test('should show the clans link in the sidebar navigation', async ({ page }) => {
@@ -872,4 +959,208 @@ test('should not load clan campaigns for someone who is not a member', async ({ 
   await expect(page.getByRole('heading', { name: 'Miembros (1)' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Campañas activas' })).toHaveCount(0);
   expect(campaignQueries).toEqual([]);
+});
+
+test('should let the leader generate an invite code and show it once', async ({ page }) => {
+  await mockStudentSession(page);
+  const { calls } = await mockClansApi(page, { details: { 'clan-eco': INVITE_LEADER_DETAIL } });
+  await page.goto('/clans/clan-eco');
+
+  await page.getByRole('button', { name: 'Invitar con código' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText('No hay códigos activos.')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Generar código' }).click();
+
+  await expect(dialog.getByTestId('new-invite-code')).toHaveText('7K2M-9QXD');
+  await expect(dialog.getByText('••••-9QXD')).toBeVisible();
+  expect(calls.filter(call => call.path === '/clans/clan-eco/invitations/')).toHaveLength(1);
+
+  // Reopening the dialog lists the code by its last characters only.
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await page.getByRole('button', { name: 'Invitar con código' }).click();
+  await expect(page.getByTestId('new-invite-code')).toHaveCount(0);
+  await expect(page.getByText('••••-9QXD')).toBeVisible();
+});
+
+test('should let the leader revoke an active invite code', async ({ page }) => {
+  await mockStudentSession(page);
+  const { calls } = await mockClansApi(page, {
+    details: { 'clan-eco': INVITE_LEADER_DETAIL },
+    invitations: {
+      'clan-eco': [{ id: 'invite-1', code_hint: 'AB12', expires_at: '2026-10-03T10:00:00Z' }],
+    },
+  });
+  await page.goto('/clans/clan-eco');
+
+  await page.getByRole('button', { name: 'Invitar con código' }).click();
+  await page.getByRole('button', { name: 'Revocar código que termina en AB12' }).click();
+
+  await expect(page.getByText('No hay códigos activos.')).toBeVisible();
+  expect(
+    calls.some(
+      call => call.method === 'DELETE' && call.path === '/clans/clan-eco/invitations/invite-1/',
+    ),
+  ).toBe(true);
+});
+
+test('should show the invite code button only to the leader of an invite-only clan', async ({
+  page,
+}) => {
+  await mockStudentSession(page);
+  await mockClansApi(page, {
+    details: {
+      // Public clan led by the user: anyone can join, so the link is the way to invite.
+      'clan-eco': LEADER_DETAIL,
+      // Invite-only clan where the user is only a member: they cannot generate codes.
+      'clan-rio': detail({ ...RIO_CLAN, privacy: 'PRIVATE_INVITE' }, [
+        member('leader-1', 'Ana Líder', 'LEADER'),
+        member(ME, 'Usuario Prueba', 'MEMBER'),
+      ]),
+    },
+  });
+
+  await page.goto('/clans/clan-eco');
+  await expect(page.getByRole('button', { name: 'Copiar enlace de invitación' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Invitar con código' })).toHaveCount(0);
+
+  await page.goto('/clans/clan-rio');
+  await expect(page.getByRole('heading', { name: 'Clan Río' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Invitar con código' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Copiar enlace de invitación' })).toHaveCount(0);
+});
+
+test('should let the leader edit only the fields that changed', async ({ page }) => {
+  await mockStudentSession(page);
+  const { calls } = await mockClansApi(page, { details: { 'clan-eco': LEADER_DETAIL } });
+  await page.goto('/clans/clan-eco');
+
+  await page.getByRole('button', { name: 'Editar clan' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByLabel('Nombre')).toHaveValue('Eco Warriors');
+  await expect(dialog.getByLabel('Descripción (opcional)')).toHaveValue(
+    'Reciclamos todo el semestre',
+  );
+  // Nothing changed yet, so there is nothing to save.
+  await expect(dialog.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled();
+
+  await dialog.getByLabel('Nombre').fill('Eco Warriors MX');
+  await dialog.getByRole('button', { name: 'Guardar cambios' }).click();
+
+  await expect(page.getByText('Guardamos los cambios del clan.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Eco Warriors MX' })).toBeVisible();
+  expect(calls.find(call => call.method === 'PATCH')?.body).toEqual({ name: 'Eco Warriors MX' });
+});
+
+test('should send the new privacy when the leader switches it', async ({ page }) => {
+  await mockStudentSession(page);
+  const { calls } = await mockClansApi(page, { details: { 'clan-eco': INVITE_LEADER_DETAIL } });
+  await page.goto('/clans/clan-eco');
+
+  await page.getByRole('button', { name: 'Editar clan' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Pública' }).click();
+  await expect(dialog.getByText(/seguirás aprobando tú/)).toBeVisible();
+  await dialog.getByRole('button', { name: 'Guardar cambios' }).click();
+
+  await expect(page.getByText('Guardamos los cambios del clan.')).toBeVisible();
+  expect(calls.find(call => call.method === 'PATCH')?.body).toEqual({ privacy: 'PUBLIC' });
+});
+
+test('should show a duplicate clan name under the name field', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockClansApi(page, {
+    details: { 'clan-eco': LEADER_DETAIL },
+    failOn: {
+      'PATCH /clans/clan-eco/': {
+        status: 400,
+        body: { name: "A clan named 'Clan Río' already exists." },
+      },
+    },
+  });
+  await page.goto('/clans/clan-eco');
+
+  await page.getByRole('button', { name: 'Editar clan' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Nombre').fill('Clan Río');
+  await dialog.getByRole('button', { name: 'Guardar cambios' }).click();
+
+  await expect(dialog.getByText('Ya existe un clan con ese nombre. Elige otro.')).toBeVisible();
+  await expect(dialog).toBeVisible();
+});
+
+test('should not offer clan editing to a member who is not the leader', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockClansApi(page, { details: { 'clan-eco': MEMBER_DETAIL } });
+  await page.goto('/clans/clan-eco');
+
+  await expect(page.getByRole('heading', { name: 'Eco Warriors' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Editar clan' })).toHaveCount(0);
+});
+
+test('should let the leader expel a member after confirming', async ({ page }) => {
+  await mockStudentSession(page);
+  const { calls } = await mockClansApi(page, { details: { 'clan-eco': LEADER_DETAIL } });
+  await page.goto('/clans/clan-eco');
+  await expect(page.getByRole('heading', { name: 'Miembros (2)' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Expulsar a Luis Miembro' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText('¿Expulsar a Luis Miembro?')).toBeVisible();
+  // Nothing is sent until the leader confirms.
+  expect(calls.filter(call => call.path === '/clans/clan-eco/kick/')).toEqual([]);
+  await dialog.getByRole('button', { name: 'Expulsar' }).click();
+
+  await expect(page.getByText('Luis Miembro ya no es parte del clan.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Miembros (1)' })).toBeVisible();
+  expect(calls.find(call => call.path === '/clans/clan-eco/kick/')?.body).toEqual({
+    user_id: 'member-2',
+  });
+});
+
+test('should only offer to expel other members, and only to the leader', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockClansApi(page, {
+    details: {
+      // The user leads this clan: the only expellable row is the other member.
+      'clan-eco': LEADER_DETAIL,
+      // The user is a regular member here: nobody can be expelled.
+      'clan-rio': detail(RIO_CLAN, [
+        member('leader-1', 'Ana Líder', 'LEADER'),
+        member(ME, 'Usuario Prueba', 'MEMBER'),
+        member('member-3', 'Pedro Miembro', 'MEMBER'),
+      ]),
+    },
+  });
+
+  await page.goto('/clans/clan-eco');
+  await expect(page.getByRole('heading', { name: 'Miembros (2)' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Expulsar a / })).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Expulsar a Usuario Prueba' })).toHaveCount(0);
+
+  await page.goto('/clans/clan-rio');
+  await expect(page.getByRole('heading', { name: 'Miembros (3)' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Expulsar a / })).toHaveCount(0);
+});
+
+test('should explain why a member could not be expelled', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockClansApi(page, {
+    details: { 'clan-eco': LEADER_DETAIL },
+    failOn: {
+      'POST /clans/clan-eco/kick/': {
+        status: 400,
+        body: { user_id: 'User is not an accepted member of this clan.' },
+      },
+    },
+  });
+  await page.goto('/clans/clan-eco');
+
+  await page.getByRole('button', { name: 'Expulsar a Luis Miembro' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Expulsar' }).click();
+
+  await expect(dialog.getByText('Esa persona ya no es miembro del clan.')).toBeVisible();
+  // The roster behind the dialog is untouched (the open dialog hides it from role queries).
+  await expect(page.locator('#clan-members-title')).toHaveText('Miembros (2)');
 });
