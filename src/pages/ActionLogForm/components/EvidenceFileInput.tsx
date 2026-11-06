@@ -48,7 +48,7 @@ export function EvidenceFileInput({
       />
       <p id={helpId} className="mt-2 text-xs text-muted-foreground">
         JPG, PNG o WEBP. Máximo {formatFileSize(MAX_EVIDENCE_FILE_BYTES)}.
-        {requiredPhoto ? ' Esta acción exige foto.' : ' Opcional si la acción no pide evidencia.'}
+        {requiredPhoto ? ' Esta acción exige foto.' : ''}
       </p>
       {file ? (
         <p className="mt-1 text-xs font-semibold text-foreground">
