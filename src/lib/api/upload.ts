@@ -39,37 +39,56 @@ interface UploadResponse {
   url: string;
 }
 
+interface UploadErrorResponse {
+  error?: string;
+  detail?: string;
+}
+
 export async function uploadImage(file: File): Promise<string> {
   const validation = validateImageFile(file);
   if (!validation.valid) {
     throw new Error(validation.error || 'Archivo no válido.');
   }
 
-  try {
-    const formData = new FormData();
-    formData.append('image', file);
+  const formData = new FormData();
+  formData.append('image', file);
 
-    const response = await apiFetch(UPLOAD_ENDPOINT, {
+  let response: Response;
+  try {
+    response = await apiFetch(UPLOAD_ENDPOINT, {
       method: 'POST',
       body: formData,
     });
-
-    if (!response.ok) {
-      throw new Error('Error al subir la imagen al servidor.');
-    }
-
-    const data = (await response.json()) as UploadResponse;
-
-    if (!data?.url) {
-      throw new Error('Respuesta inválida del servidor de subida.');
-    }
-
-    return data.url;
   } catch (error) {
-    // Propagamos el error real en todos los entornos
     throw new Error(
-      error instanceof Error ? error.message : 'Error al subir la imagen. Inténtalo de nuevo.',
+      error instanceof Error
+        ? error.message
+        : 'Error de red al subir la imagen. Inténtalo de nuevo.',
       { cause: error },
     );
   }
+
+  if (!response.ok) {
+    let serverMessage: string | undefined;
+    try {
+      const errorData = (await response.json()) as UploadErrorResponse;
+      serverMessage = errorData?.error || errorData?.detail;
+    } catch {
+      // Si la respuesta no es JSON (ej. 502 Bad Gateway de Cloud Run), usamos fallback
+    }
+
+    if (response.status === 429) {
+      throw new Error('Has subido demasiadas imágenes. Espera un minuto e inténtalo de nuevo.');
+    }
+
+    throw new Error(serverMessage || 'Error al subir la imagen al servidor.');
+  }
+
+  const data = (await response.json()) as UploadResponse;
+
+  if (!data?.url) {
+    throw new Error('Respuesta inválida del servidor de subida.');
+  }
+
+  return data.url;
 }
