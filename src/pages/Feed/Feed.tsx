@@ -137,11 +137,11 @@ export function FeedPage() {
           ))}
         </div>
 
-        <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-lg self-start sm:self-auto">
+        <div className="flex w-full sm:w-auto items-center gap-1 bg-muted/40 p-1 rounded-lg">
           <button
             type="button"
             onClick={() => setOrdering('recent')}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+            className={`flex flex-1 sm:flex-initial items-center justify-center gap-1 px-2.5 py-1.5 sm:py-1 rounded-md text-xs font-medium transition-colors ${
               ordering === 'recent'
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
@@ -153,7 +153,7 @@ export function FeedPage() {
           <button
             type="button"
             onClick={() => setOrdering('popular')}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+            className={`flex flex-1 sm:flex-initial items-center justify-center gap-1 px-2.5 py-1.5 sm:py-1 rounded-md text-xs font-medium transition-colors ${
               ordering === 'popular'
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
