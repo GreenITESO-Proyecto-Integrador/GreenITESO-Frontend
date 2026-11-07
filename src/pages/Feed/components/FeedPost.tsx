@@ -61,7 +61,6 @@ function getBadgeIcon(iconName?: string): LucideIcon {
   return BADGE_ICONS.get(iconName.toLowerCase()) ?? Award;
 }
 
-// 1. Agregamos onToggleLike aquí en las props que recibe el componente
 export function FeedPost({ post, currentUserId, onDelete, onUpdate, onToggleLike }: FeedPostProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
@@ -96,8 +95,8 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate, onToggleLike
   const timeLabel = post.relative_time || formattedDate;
   const isEdited = Boolean(
     post.updated_at &&
-      post.created_at &&
-      new Date(post.updated_at).getTime() - new Date(post.created_at).getTime() > 3000,
+    post.created_at &&
+    new Date(post.updated_at).getTime() - new Date(post.created_at).getTime() > 3000,
   );
 
   const isAuthor = Boolean(
@@ -224,25 +223,22 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate, onToggleLike
           </div>
         )}
 
-        {/* 2. El botón de Kudos ahora está correctamente fuera del contenedor de la imagen */}
         {!isEditing && (
           <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between">
             <button
               type="button"
               onClick={() => onToggleLike?.(post.id)}
-              aria-label={post.liked_by_me ? 'Quitar kudos' : 'Dar kudos'}
+              aria-label={post.liked_by_me ? 'Quitar Like' : 'Dar Like'}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                 post.liked_by_me
                   ? 'bg-primary-500/15 text-primary-700 border border-primary-300 dark:bg-primary-900/40 dark:text-primary-300 dark:border-primary-800'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent'
               }`}
             >
-              <ThumbsUp
-                className={`w-4 h-4 ${post.liked_by_me ? 'fill-current' : ''}`}
-              />
+              <ThumbsUp className={`w-4 h-4 ${post.liked_by_me ? 'fill-current' : ''}`} />
               <span>Like</span>
               {(post.likes_count ?? 0) > 0 && (
-                <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-background/80 text-foreground">
+                <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-background/80 text-foreground">
                   {post.likes_count}
                 </span>
               )}
