@@ -13,6 +13,7 @@ export interface AuthorInfo {
   first_name?: string;
   last_name?: string;
   nickname?: string;
+  display_name?: string;
   avatar_url?: string | null;
 }
 
@@ -34,6 +35,8 @@ export interface FeedPost {
   image_url?: string | null;
   badge_user?: string | null;
   badge_info?: BadgeInfo | null;
+  likes_count?: number;
+  liked_by_me?: boolean;
   relative_time?: string;
   created_at: string;
   updated_at: string;

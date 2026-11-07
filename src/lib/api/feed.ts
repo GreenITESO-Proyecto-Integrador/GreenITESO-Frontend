@@ -1,12 +1,31 @@
 import { apiFetch } from './client';
 import type { FeedResponse, PostType } from '@/types/feed';
 
-export async function getFeed(page = 1, postType?: string): Promise<FeedResponse> {
+export async function getFeed(
+  page = 1,
+  postType?: string,
+  ordering?: 'recent' | 'popular',
+): Promise<FeedResponse> {
   const params = new URLSearchParams({ page: page.toString() });
   if (postType) params.append('post_type', postType);
+  if (ordering === 'popular') params.append('ordering', 'popular');
 
   const response = await apiFetch(`/api/v1/feed/?${params.toString()}`);
   if (!response.ok) throw new Error('Fallo al obtener el feed social');
+  return response.json();
+}
+
+export async function togglePostLike(
+  postId: number,
+): Promise<{ liked_by_me: boolean; likes_count: number }> {
+  const response = await apiFetch(`/api/v1/feed/${postId}/like/`, {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    throw new Error('Error al reaccionar a la publicación');
+  }
+
   return response.json();
 }
 

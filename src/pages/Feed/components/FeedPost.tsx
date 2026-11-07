@@ -13,6 +13,7 @@ import {
   Recycle,
   TreePine,
   ShieldCheck,
+  ThumbsUp,
   type LucideIcon,
 } from 'lucide-react';
 import { UserAvatar } from '@/components/shared/UserAvatar';
@@ -23,6 +24,7 @@ interface FeedPostProps {
   currentUserId?: string;
   onDelete?: (postId: number) => void;
   onUpdate?: (postId: number, newContent: string) => Promise<void>;
+  onToggleLike?: (postId: number) => Promise<void>;
 }
 
 const typeConfig = {
@@ -59,7 +61,8 @@ function getBadgeIcon(iconName?: string): LucideIcon {
   return BADGE_ICONS.get(iconName.toLowerCase()) ?? Award;
 }
 
-export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostProps) {
+// 1. Agregamos onToggleLike aquí en las props que recibe el componente
+export function FeedPost({ post, currentUserId, onDelete, onUpdate, onToggleLike }: FeedPostProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
   const [isSaving, setIsSaving] = useState(false);
@@ -74,7 +77,13 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
     .filter(Boolean)
     .join(' ')
     .trim();
-  const authorName = fullName || post.author?.nickname || post.author?.email || 'Usuario Ecológico';
+  const emailPrefix = post.author?.email?.split('@')[0]?.trim();
+  const authorName =
+    post.author?.display_name?.trim() ||
+    post.author?.nickname?.trim() ||
+    fullName ||
+    emailPrefix ||
+    'Usuario GreenITESO';
 
   const dateObj = new Date(post.created_at);
   const formattedDate = dateObj.toLocaleDateString('es-MX', {
@@ -87,8 +96,8 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
   const timeLabel = post.relative_time || formattedDate;
   const isEdited = Boolean(
     post.updated_at &&
-    post.created_at &&
-    new Date(post.updated_at).getTime() - new Date(post.created_at).getTime() > 3000,
+      post.created_at &&
+      new Date(post.updated_at).getTime() - new Date(post.created_at).getTime() > 3000,
   );
 
   const isAuthor = Boolean(
@@ -212,6 +221,32 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
               alt="Evidencia"
               className="w-full h-auto object-cover max-h-96"
             />
+          </div>
+        )}
+
+        {/* 2. El botón de Kudos ahora está correctamente fuera del contenedor de la imagen */}
+        {!isEditing && (
+          <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => onToggleLike?.(post.id)}
+              aria-label={post.liked_by_me ? 'Quitar kudos' : 'Dar kudos'}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                post.liked_by_me
+                  ? 'bg-primary-500/15 text-primary-700 border border-primary-300 dark:bg-primary-900/40 dark:text-primary-300 dark:border-primary-800'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent'
+              }`}
+            >
+              <ThumbsUp
+                className={`w-4 h-4 ${post.liked_by_me ? 'fill-current' : ''}`}
+              />
+              <span>Like</span>
+              {(post.likes_count ?? 0) > 0 && (
+                <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-background/80 text-foreground">
+                  {post.likes_count}
+                </span>
+              )}
+            </button>
           </div>
         )}
       </div>
