@@ -22,19 +22,24 @@ interface OnboardingMock {
 async function mockOnboarding(
   page: Page,
   options: OnboardingMock,
-): Promise<{ posted: unknown[]; stateReads: () => number }> {
+): Promise<{ posted: unknown[]; stateReads: () => number; recoverCareers: () => void }> {
   const posted: unknown[] = [];
   let assigned = options.assigned;
   let reads = 0;
+  // Every careers request fails until the test calls `recoverCareers`.
+  let careersFailing = options.careers === 'error';
   await page.route(careersUrl, async route => {
-    if (options.careers === 'error') {
+    if (careersFailing) {
       await route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
       return;
     }
+    const careers = Array.isArray(options.careers)
+      ? options.careers
+      : ['Arquitectura', 'Ingeniería Civil'];
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ careers: options.careers ?? ['Arquitectura', 'Ingeniería Civil'] }),
+      body: JSON.stringify({ careers }),
     });
   });
   await page.route(onboardingUrl, async route => {
@@ -67,7 +72,13 @@ async function mockOnboarding(
       }),
     });
   });
-  return { posted, stateReads: () => reads };
+  return {
+    posted,
+    stateReads: () => reads,
+    recoverCareers: () => {
+      careersFailing = false;
+    },
+  };
 }
 
 function onboardingDialog(page: Page) {
@@ -126,18 +137,16 @@ test.describe('Career onboarding modal (#163)', () => {
     expect(posted).toEqual([]);
   });
 
-  test('accepts a career that is not in the list', async ({ page }) => {
+  test('only offers careers from the catalog (#213)', async ({ page }) => {
     await mockStudentSession(page);
-    const { posted } = await mockOnboarding(page, { assigned: false });
+    await mockOnboarding(page, { assigned: false });
 
     await page.goto('/');
     const dialog = onboardingDialog(page);
-    await dialog.getByLabel('Carrera').selectOption({ label: 'Mi carrera no está en la lista' });
-    await dialog.getByLabel('Escribe tu carrera').fill('Ingeniería en Biotecnología');
-    await dialog.getByRole('button', { name: 'Continuar' }).click();
+    const options = dialog.getByLabel('Carrera').locator('option');
 
-    await expect(dialog).toBeHidden();
-    expect(posted).toEqual([{ career: 'Ingeniería en Biotecnología', visibility: 'PUBLIC' }]);
+    await expect(options).toHaveText(['Selecciona tu carrera', 'Arquitectura', 'Ingeniería Civil']);
+    await expect(dialog.getByRole('textbox', { name: /carrera/i })).toHaveCount(0);
   });
 
   test('stays open and usable after pressing Escape', async ({ page }) => {
@@ -185,9 +194,9 @@ test.describe('Career onboarding modal (#163)', () => {
     await expect(dialog.getByRole('button', { name: 'Continuar' })).toBeEnabled();
   });
 
-  test('warns and falls back to free text when the careers list fails', async ({ page }) => {
+  test('blocks onboarding when the careers list fails', async ({ page }) => {
     await mockStudentSession(page);
-    await mockOnboarding(page, { assigned: false, careers: 'error' });
+    const { posted } = await mockOnboarding(page, { assigned: false, careers: 'error' });
 
     await page.goto('/');
     const dialog = onboardingDialog(page);
@@ -195,7 +204,45 @@ test.describe('Career onboarding modal (#163)', () => {
     await expect(
       dialog.getByText('No se pudo cargar la lista de carreras.', { exact: false }),
     ).toBeVisible();
-    await expect(dialog.getByRole('textbox', { name: 'Carrera' })).toBeVisible();
+    await expect(dialog.getByLabel('Carrera')).toBeDisabled();
+    await expect(dialog.getByRole('button', { name: 'Continuar' })).toBeDisabled();
+    await expect(dialog.getByRole('textbox', { name: /carrera/i })).toHaveCount(0);
+    expect(posted).toEqual([]);
+  });
+
+  test('blocks onboarding when the catalog is empty', async ({ page }) => {
+    await mockStudentSession(page);
+    await mockOnboarding(page, { assigned: false, careers: [] });
+
+    await page.goto('/');
+    const dialog = onboardingDialog(page);
+
+    await expect(
+      dialog.getByText('Todavía no hay carreras disponibles.', { exact: false }),
+    ).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Continuar' })).toBeDisabled();
+  });
+
+  test('loads the careers again after a retry', async ({ page }) => {
+    await mockStudentSession(page);
+    const { posted, recoverCareers } = await mockOnboarding(page, {
+      assigned: false,
+      careers: 'error',
+    });
+
+    await page.goto('/');
+    const dialog = onboardingDialog(page);
+    const retry = dialog.getByRole('button', { name: 'Reintentar' });
+    await expect(retry).toBeVisible();
+    recoverCareers();
+    await retry.click();
+
+    await expect(dialog.getByRole('alert')).toBeHidden();
+    await dialog.getByLabel('Carrera').selectOption('Arquitectura');
+    await dialog.getByRole('button', { name: 'Continuar' }).click();
+
+    await expect(dialog).toBeHidden();
+    expect(posted).toEqual([{ career: 'Arquitectura', visibility: 'PUBLIC' }]);
   });
 
   test('lets the user sign out from the modal', async ({ page }) => {

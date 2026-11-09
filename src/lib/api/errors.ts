@@ -66,6 +66,15 @@ const MESSAGE_RULES: readonly {
     pattern: /a clan named .* already exists/i,
     message: 'Ya existe un clan con ese nombre. Elige otro.',
   },
+  // Career catalog (#213).
+  {
+    pattern: /is reserved for an institutional clan/i,
+    message: 'Ese nombre es de un clan de carrera. Elige otro.',
+  },
+  {
+    pattern: /is not in the career catalog/i,
+    message: 'Elige una carrera de la lista.',
+  },
   {
     pattern: /already leads a clan/i,
     message: 'Ya eres líder de un clan. Solo puedes liderar uno a la vez.',
