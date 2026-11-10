@@ -12,8 +12,8 @@ import { ConfirmClanActionDialog } from './ConfirmClanActionDialog';
 interface ClanMembersListProps {
   members: ClanMember[];
   viewerId: string | null;
-  /** The viewer leads this clan, so each other member gets an expel button. */
   clanId: string;
+  /** The viewer leads this clan, so each other member gets an expel button. */
   isLeader: boolean;
   /** A member was expelled: the roster changed, so the page should refresh. */
   onKicked: (notice: string) => void;

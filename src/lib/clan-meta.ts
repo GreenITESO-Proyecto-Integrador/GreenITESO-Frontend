@@ -84,8 +84,13 @@ export function formatRequestDate(isoDate: string): string {
 /** Invite codes are 8 characters shown as `XXXX-XXXX`; case, spaces and the dash do not matter. */
 export const INVITE_CODE_LENGTH = 8;
 
+/** The code as the backend takes it: no spaces or dashes, upper case. */
+export function normalizeInviteCode(input: string): string {
+  return input.replace(/[\s-]/g, '').toUpperCase();
+}
+
 export function isInviteCodeShape(input: string): boolean {
-  return input.replace(/[\s-]/g, '').length === INVITE_CODE_LENGTH;
+  return normalizeInviteCode(input).length === INVITE_CODE_LENGTH;
 }
 
 export function buildInviteLink(clanId: string): string {

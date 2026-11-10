@@ -15,22 +15,26 @@ export function useClanInvitations(clanId: string) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const latestRequest = useRef(0);
 
-  const load = useCallback(async () => {
-    const requestId = ++latestRequest.current;
-    setStatus('loading');
-    setErrorMessage(null);
-    try {
-      const items = await fetchClanInvitations(clanId);
-      if (requestId !== latestRequest.current) return;
-      setInvitations(items);
-      setStatus('success');
-    } catch (error) {
-      if (requestId !== latestRequest.current) return;
-      setInvitations([]);
-      setStatus('error');
-      setErrorMessage(toFriendlyMessage(error, 'No se pudieron cargar los códigos.'));
-    }
-  }, [clanId]);
+  // `silent` keeps the list on screen while it refreshes, instead of showing "Cargando…".
+  const load = useCallback(
+    async (silent = false) => {
+      const requestId = ++latestRequest.current;
+      if (!silent) setStatus('loading');
+      setErrorMessage(null);
+      try {
+        const items = await fetchClanInvitations(clanId);
+        if (requestId !== latestRequest.current) return;
+        setInvitations(items);
+        setStatus('success');
+      } catch (error) {
+        if (requestId !== latestRequest.current) return;
+        setInvitations([]);
+        setStatus('error');
+        setErrorMessage(toFriendlyMessage(error, 'No se pudieron cargar los códigos.'));
+      }
+    },
+    [clanId],
+  );
 
   useEffect(() => {
     void load();
@@ -40,11 +44,14 @@ export function useClanInvitations(clanId: string) {
     };
   }, [load]);
 
+  // A load that started before the change would answer with a list that predates it.
   const add = useCallback((invitation: ClanInvitation) => {
+    latestRequest.current += 1;
     setInvitations(current => [invitation, ...current]);
   }, []);
 
   const remove = useCallback((id: string) => {
+    latestRequest.current += 1;
     setInvitations(current => current.filter(invitation => invitation.id !== id));
   }, []);
 

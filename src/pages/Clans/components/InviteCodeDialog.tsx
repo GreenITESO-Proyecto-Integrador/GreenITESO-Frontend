@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Copy, KeyRound, Trash2 } from 'lucide-react';
 import { ModalContent } from '@/components/custom/ModalContent';
 import { Button } from '@/components/ui/button';
@@ -79,11 +79,13 @@ function NewCode({ created }: { created: ClanInvitationCreated }) {
 function ActiveCodeRow({
   invitation,
   onRevoke,
+  onBusyChange,
 }: {
   invitation: ClanInvitation;
   onRevoke: (invitation: ClanInvitation) => Promise<void>;
+  onBusyChange: (busy: boolean) => void;
 }) {
-  const { busy, error, run } = useClanAction();
+  const { busy, error, run } = useClanAction(onBusyChange);
   const expires = formatExpiry(invitation.expiresAt);
 
   return (
@@ -120,7 +122,13 @@ function InviteCodeBody({
   onBusyChange: (busy: boolean) => void;
 }) {
   const { invitations, status, errorMessage, reload, add, remove } = useClanInvitations(clanId);
-  const { busy, error, run } = useClanAction(onBusyChange);
+  // Generating and revoking can overlap, so the dialog stays locked until all of them end.
+  const running = useRef(0);
+  const trackBusy = (isBusy: boolean) => {
+    running.current += isBusy ? 1 : -1;
+    onBusyChange(running.current > 0);
+  };
+  const { busy, error, run } = useClanAction(trackBusy);
   const [created, setCreated] = useState<ClanInvitationCreated | null>(null);
 
   async function handleGenerate() {
@@ -133,6 +141,9 @@ function InviteCodeBody({
         expiresAt: invitation.expiresAt,
         createdAt: new Date().toISOString(),
       });
+      // The row above uses the browser's clock and the code's last digits: the list the
+      // server sends back has the real values.
+      void reload(true);
     }, 'No se pudo generar el código.');
   }
 
@@ -148,7 +159,7 @@ function InviteCodeBody({
       <Button
         type="button"
         onClick={() => void handleGenerate()}
-        disabled={busy}
+        disabled={busy || status === 'loading'}
         className="min-h-11 cursor-pointer self-start rounded-xl bg-primary-500 px-5 font-semibold text-white hover:bg-primary-600"
       >
         <KeyRound className="size-4" />
@@ -184,7 +195,12 @@ function InviteCodeBody({
         {status === 'success' && invitations.length > 0 ? (
           <ul className="flex flex-col gap-2">
             {invitations.map(invitation => (
-              <ActiveCodeRow key={invitation.id} invitation={invitation} onRevoke={handleRevoke} />
+              <ActiveCodeRow
+                key={invitation.id}
+                invitation={invitation}
+                onRevoke={handleRevoke}
+                onBusyChange={trackBusy}
+              />
             ))}
           </ul>
         ) : null}

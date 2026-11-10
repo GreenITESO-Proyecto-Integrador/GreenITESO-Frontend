@@ -590,7 +590,7 @@ test('should join an invite-only clan with a single-use code', async ({ page }) 
   await expect(page).toHaveURL(/\/clans\/clan-secret$/);
   await expect(page.getByText('Te uniste al clan con el código de invitación.')).toBeVisible();
   expect(calls.find(call => call.path === '/clans/redeem-invitation/')?.body).toEqual({
-    code: '7K2M 9QXD',
+    code: '7K2M9QXD',
   });
 });
 
@@ -1004,6 +1004,55 @@ test('should let the leader revoke an active invite code', async ({ page }) => {
   ).toBe(true);
 });
 
+test('should not let the leader generate a code before the list has loaded', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockClansApi(page, { details: { 'clan-eco': INVITE_LEADER_DETAIL } });
+  let release: () => void = () => {};
+  const gate = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  await page.route(/\/api\/v1\/clans\/clan-eco\/invitations\/$/, async route => {
+    if (route.request().method() === 'GET') await gate;
+    await route.fallback();
+  });
+  await page.goto('/clans/clan-eco');
+
+  await page.getByRole('button', { name: 'Invitar con código' }).click();
+  const generate = page.getByRole('dialog').getByRole('button', { name: 'Generar código' });
+  await expect(generate).toBeDisabled();
+
+  release();
+  await expect(generate).toBeEnabled();
+});
+
+test('should keep the invite dialog open while a code is being revoked', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockClansApi(page, {
+    details: { 'clan-eco': INVITE_LEADER_DETAIL },
+    invitations: {
+      'clan-eco': [{ id: 'invite-1', code_hint: 'AB12', expires_at: '2026-10-03T10:00:00Z' }],
+    },
+  });
+  let release: () => void = () => {};
+  const gate = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  await page.route(/\/api\/v1\/clans\/clan-eco\/invitations\/invite-1\/$/, async route => {
+    if (route.request().method() === 'DELETE') await gate;
+    await route.fallback();
+  });
+  await page.goto('/clans/clan-eco');
+
+  await page.getByRole('button', { name: 'Invitar con código' }).click();
+  await page.getByRole('button', { name: 'Revocar código que termina en AB12' }).click();
+  // Closing now would hide a failure, and the leader would think the code was revoked.
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toBeVisible();
+
+  release();
+  await expect(page.getByText('No hay códigos activos.')).toBeVisible();
+});
+
 test('should show the invite code button only to the leader of an invite-only clan', async ({
   page,
 }) => {
@@ -1050,6 +1099,18 @@ test('should let the leader edit only the fields that changed', async ({ page })
   await expect(page.getByText('Guardamos los cambios del clan.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Eco Warriors MX' })).toBeVisible();
   expect(calls.find(call => call.method === 'PATCH')?.body).toEqual({ name: 'Eco Warriors MX' });
+});
+
+test('should ignore stray spaces when deciding whether the clan changed', async ({ page }) => {
+  await mockStudentSession(page);
+  await mockClansApi(page, { details: { 'clan-eco': LEADER_DETAIL } });
+  await page.goto('/clans/clan-eco');
+
+  await page.getByRole('button', { name: 'Editar clan' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Nombre').fill('  Eco Warriors  ');
+
+  await expect(dialog.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled();
 });
 
 test('should send the new privacy when the leader switches it', async ({ page }) => {

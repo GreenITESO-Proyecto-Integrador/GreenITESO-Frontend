@@ -21,10 +21,10 @@ function changedFields(
   values: ClanFormValues,
 ): UpdateClanPayload {
   const payload: UpdateClanPayload = {};
-  if (values.name.trim() !== clan.name) payload.name = values.name.trim();
-  if (values.description.trim() !== clan.description) {
-    payload.description = values.description.trim();
-  }
+  const name = values.name.trim();
+  const description = values.description.trim();
+  if (name !== clan.name.trim()) payload.name = name;
+  if (description !== (clan.description ?? '').trim()) payload.description = description;
   if (values.privacy !== clan.privacy) payload.privacy = values.privacy;
   return payload;
 }

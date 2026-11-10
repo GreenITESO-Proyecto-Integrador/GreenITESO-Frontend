@@ -8,7 +8,7 @@ import { FieldError } from '@/components/campaigns/FieldError';
 import { useDialogBusyGuard } from '@/hooks/use-dialog-busy-guard';
 import { redeemClanInvitation } from '@/lib/api/clans';
 import { toFriendlyMessage } from '@/lib/api/errors';
-import { isInviteCodeShape } from '@/lib/clan-meta';
+import { isInviteCodeShape, normalizeInviteCode } from '@/lib/clan-meta';
 import type { ClanMembership } from '@/types/clan';
 
 interface JoinByCodeDialogProps {
@@ -45,7 +45,7 @@ function JoinByCodeForm({
     setSubmitting(true);
     setError(undefined);
     try {
-      onJoined(await redeemClanInvitation(value.trim()));
+      onJoined(await redeemClanInvitation(normalizeInviteCode(value)));
     } catch (caught) {
       setError(toFriendlyMessage(caught, 'No se pudo canjear el código.'));
     } finally {
