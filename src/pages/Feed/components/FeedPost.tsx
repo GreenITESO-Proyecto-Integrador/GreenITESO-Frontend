@@ -16,7 +16,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { CosmeticAvatar } from '@/components/shared/CosmeticAvatar';
-import { CosmeticBackdrop } from '@/components/shared/CosmeticBackdrop';
+import { CosmeticBackground } from '@/components/shared/CosmeticBackground';
+import { cosmeticHostClass } from '@/lib/safe-image-url';
 import type { FeedPost as FeedPostType } from '@/types/feed';
 
 interface FeedPostProps {
@@ -120,68 +121,69 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
 
   return (
     <div className="mb-6 bg-card text-card-foreground rounded-xl border border-border shadow-sm overflow-hidden transition-colors">
-      <CosmeticBackdrop url={post.author?.background_url} className="border-b border-border/60">
-        <div className="p-4 flex flex-row items-center gap-4">
-          <CosmeticAvatar
-            src={post.author?.avatar_url}
-            name={authorName}
-            frameUrl={post.author?.frame_url}
-            className="size-12 text-lg"
-          />
+      <div
+        className={`p-4 flex flex-row items-center gap-4 border-b border-border/60 ${cosmeticHostClass(post.author?.background_url)}`}
+      >
+        <CosmeticBackground url={post.author?.background_url} />
+        <CosmeticAvatar
+          src={post.author?.avatar_url}
+          name={authorName}
+          frameUrl={post.author?.frame_url}
+          className="size-12 text-lg"
+        />
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-foreground truncate">{authorName}</h3>
-              {post.badge_info && (
-                <span
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/80"
-                  title={post.badge_info.description}
-                >
-                  <BadgeIcon className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                  {post.badge_info.name}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center text-xs text-muted-foreground mt-1">
-              <Clock className="w-3 h-3 mr-1 shrink-0" />
-              {timeLabel}
-              {isEdited && <span className="ml-1 italic">(Editado)</span>}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div
-              className={`px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 border ${config.color}`}
-            >
-              <TypeIcon className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{config.label}</span>
-            </div>
-
-            {isAuthor && !isEditing && (
-              <div className="flex items-center ml-1 border-l border-border pl-2 gap-1">
-                {onUpdate && (
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
-                    title="Editar publicación"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                )}
-                {onDelete && (
-                  <button
-                    onClick={() => onDelete(post.id)}
-                    className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
-                    title="Eliminar publicación"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="font-semibold text-foreground truncate">{authorName}</h3>
+            {post.badge_info && (
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/80"
+                title={post.badge_info.description}
+              >
+                <BadgeIcon className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                {post.badge_info.name}
+              </span>
             )}
           </div>
+          <div className="flex items-center text-xs text-muted-foreground mt-1">
+            <Clock className="w-3 h-3 mr-1 shrink-0" />
+            {timeLabel}
+            {isEdited && <span className="ml-1 italic">(Editado)</span>}
+          </div>
         </div>
-      </CosmeticBackdrop>
+
+        <div className="flex items-center gap-2">
+          <div
+            className={`px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 border ${config.color}`}
+          >
+            <TypeIcon className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{config.label}</span>
+          </div>
+
+          {isAuthor && !isEditing && (
+            <div className="flex items-center ml-1 border-l border-border pl-2 gap-1">
+              {onUpdate && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                  title="Editar publicación"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={() => onDelete(post.id)}
+                  className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                  title="Eliminar publicación"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="p-4">
         {isEditing ? (

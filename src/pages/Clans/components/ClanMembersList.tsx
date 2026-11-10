@@ -3,7 +3,8 @@ import { Crown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { WRAP_TEXT } from '@/components/campaigns/field-limits';
 import { CosmeticAvatar } from '@/components/shared/CosmeticAvatar';
-import { CosmeticBackdrop } from '@/components/shared/CosmeticBackdrop';
+import { CosmeticBackground } from '@/components/shared/CosmeticBackground';
+import { cosmeticHostClass } from '@/lib/safe-image-url';
 import { formatMemberSince, memberDisplayName } from '@/lib/clan-meta';
 import type { ClanMember } from '@/types/clan';
 
@@ -39,42 +40,35 @@ export function ClanMembersList({ members, viewerId }: ClanMembersListProps) {
             const name = memberDisplayName(member);
             const since = formatMemberSince(member.joinedAt);
             return (
-              <li key={member.userId}>
-                <CosmeticBackdrop
-                  url={member.backgroundUrl}
-                  className="rounded-2xl border border-border bg-card shadow-xs"
-                >
-                  <div className="flex min-h-14 items-center gap-3 p-3">
-                    <CosmeticAvatar
-                      src={member.avatarUrl}
-                      name={name}
-                      frameUrl={member.frameUrl}
-                      className="size-11 rounded-xl text-sm"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className={`truncate text-sm font-semibold text-foreground ${WRAP_TEXT}`}>
-                        {name}
-                        {member.userId === viewerId ? (
-                          <span className="ml-2 text-xs font-medium text-muted-foreground">
-                            (tú)
-                          </span>
-                        ) : null}
-                      </p>
-                      {since ? (
-                        <p className="text-xs text-muted-foreground">Desde {since}</p>
-                      ) : null}
-                    </div>
-                    {member.role === 'LEADER' ? (
-                      <Badge
-                        variant="outline"
-                        className="border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
-                      >
-                        <Crown />
-                        Líder
-                      </Badge>
+              <li
+                key={member.userId}
+                className={`flex min-h-14 items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-xs ${cosmeticHostClass(member.backgroundUrl)}`}
+              >
+                <CosmeticBackground url={member.backgroundUrl} />
+                <CosmeticAvatar
+                  src={member.avatarUrl}
+                  name={name}
+                  frameUrl={member.frameUrl}
+                  className="size-11 rounded-xl text-sm"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className={`truncate text-sm font-semibold text-foreground ${WRAP_TEXT}`}>
+                    {name}
+                    {member.userId === viewerId ? (
+                      <span className="ml-2 text-xs font-medium text-muted-foreground">(tú)</span>
                     ) : null}
-                  </div>
-                </CosmeticBackdrop>
+                  </p>
+                  {since ? <p className="text-xs text-muted-foreground">Desde {since}</p> : null}
+                </div>
+                {member.role === 'LEADER' ? (
+                  <Badge
+                    variant="outline"
+                    className="border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                  >
+                    <Crown />
+                    Líder
+                  </Badge>
+                ) : null}
               </li>
             );
           })}

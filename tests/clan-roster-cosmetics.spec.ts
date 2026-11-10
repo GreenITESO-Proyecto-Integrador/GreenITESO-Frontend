@@ -1,42 +1,13 @@
-import { expect, test, type Page } from '@playwright/test';
-import { failUnmockedApiCalls } from './helpers/api';
+import { expect, test } from '@playwright/test';
+import { failUnmockedApiCalls, mockJsonApi } from './helpers/api';
 import { mockStudentSession } from './helpers/auth';
-import { PIXEL_PNG } from './helpers/images';
-
-const CORS_HEADERS = {
-  'access-control-allow-origin': '*',
-  'access-control-allow-headers': '*',
-  'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS',
-};
-
-const FRAME_URL = 'https://images.greeniteso.test/frame.png';
-const BACKGROUND_URL = 'https://images.greeniteso.test/background.png';
-
-async function mockImages(page: Page) {
-  await page.route('https://images.greeniteso.test/**', route =>
-    route.fulfill({ status: 200, contentType: 'image/png', body: PIXEL_PNG }),
-  );
-}
-
-/** Serve `payload` for the one API path; an OPTIONS preflight gets the CORS headers. */
-async function mockApi(page: Page, pathPattern: RegExp, payload: unknown) {
-  await page.route(pathPattern, route =>
-    route.request().method() === 'OPTIONS'
-      ? route.fulfill({ status: 204, headers: CORS_HEADERS })
-      : route.fulfill({
-          status: 200,
-          headers: CORS_HEADERS,
-          contentType: 'application/json',
-          body: JSON.stringify(payload),
-        }),
-  );
-}
+import { BACKGROUND_URL, FRAME_URL, mockCosmeticImages } from './helpers/images';
 
 test("should show each member's frame and background in the clan roster", async ({ page }) => {
   await mockStudentSession(page);
   await failUnmockedApiCalls(page);
-  await mockImages(page);
-  await mockApi(page, /\/api\/v1\/clans\/clan-eco\/$/, {
+  await mockCosmeticImages(page);
+  await mockJsonApi(page, /\/api\/v1\/clans\/clan-eco\/$/, {
     id: 'clan-eco',
     name: 'Eco Warriors',
     description: '',
@@ -74,8 +45,9 @@ test("should show each member's frame and background in the clan roster", async 
 
   await expect(page.getByTestId('avatar-frame')).toHaveCount(1);
   await expect(page.getByTestId('avatar-frame')).toHaveAttribute('src', FRAME_URL);
-  const backdrop = page.getByTestId('cosmetic-backdrop');
-  await expect(backdrop).toHaveCount(1);
-  await expect(backdrop.getByText('Ana')).toBeVisible();
-  await expect(backdrop.locator(`img[src="${BACKGROUND_URL}"]`)).toHaveCount(1);
+  const background = page.getByTestId('cosmetic-background');
+  await expect(background).toHaveCount(1);
+  await expect(background).toHaveAttribute('src', BACKGROUND_URL);
+  // It sits in Ana's own row, with her name on top.
+  await expect(background.locator('..').getByText('Ana')).toBeVisible();
 });
