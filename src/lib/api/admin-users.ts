@@ -3,8 +3,6 @@ import { apiFetch } from './client';
 import { ApiError, readError } from './errors';
 
 export const USERS_PATH = '/api/v1/users/';
-/** Accounts per page; the backend paginates its list by 50. */
-export const ADMIN_USERS_PAGE_SIZE = 50;
 const UNREADABLE_RESPONSE = 'No se pudo leer la respuesta del servidor.';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -35,6 +33,16 @@ function mapAdminUser(raw: unknown): AdminUser | null {
   };
 }
 
+/**
+ * Pages in the list, from what the backend says about this one. A page with a `next` link is a
+ * full page, so its size is the page size; without a `next` link this is the last page.
+ */
+function countPages(payload: Record<string, unknown>, shown: number, page: number): number {
+  const count = typeof payload.count === 'number' ? payload.count : shown;
+  if (!payload.next || shown === 0) return Math.max(1, page);
+  return Math.max(page, Math.ceil(count / shown));
+}
+
 interface FetchAdminUsersOptions {
   filter?: AdminUserFilter;
   /** An account id, or part of an email or name. */
@@ -63,8 +71,7 @@ export async function fetchAdminUsers({
     throw new ApiError(UNREADABLE_RESPONSE);
   }
   const users = payload.results.flatMap(raw => mapAdminUser(raw) ?? []);
-  const count = typeof payload.count === 'number' ? payload.count : users.length;
-  return { users, totalPages: Math.max(1, Math.ceil(count / ADMIN_USERS_PAGE_SIZE)) };
+  return { users, totalPages: countPages(payload, users.length, page) };
 }
 
 async function postUserAction(

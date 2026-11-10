@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { Search, Users } from 'lucide-react';
 import { SuccessBanner } from '@/components/campaigns/SuccessBanner';
 import { FilterChips } from '@/components/shared/FilterChips';
+import { ConfirmActionDialog } from '@/components/shared/ConfirmActionDialog';
 import { Pagination } from '@/components/shared/Pagination';
 import { SectionState } from '@/components/shared/SectionState';
 import { Input } from '@/components/ui/input';
@@ -10,7 +11,6 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { banUser, unbanUser } from '@/lib/api/admin-users';
 import { cn } from '@/lib/utils';
 import type { AdminUser } from '@/types/admin-user';
-import { ConfirmClanActionDialog } from '@/pages/Clans/components/ConfirmClanActionDialog';
 import { AdminUserCard } from './components/AdminUserCard';
 import { displayName, FILTER_OPTIONS } from './components/admin-user-meta';
 
@@ -25,7 +25,9 @@ interface PendingAction {
 export function AdminUsersPage() {
   const { user: currentUser } = useCurrentUser();
   const data = useAdminUsers();
+  // `pending` stays after the dialog closes, so its text does not change while it fades out.
   const [pending, setPending] = useState<PendingAction | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const dismissNotice = useCallback(() => setNotice(null), []);
 
@@ -33,14 +35,19 @@ export function AdminUsersPage() {
   const name = target ? displayName(target) : '';
   const isBan = pending?.kind === 'ban';
 
+  function askToConfirm(kind: PendingAction['kind'], account: AdminUser) {
+    setPending({ kind, user: account });
+    setConfirmOpen(true);
+  }
+
   function handleDone() {
     if (!pending) return;
     setNotice(
       pending.kind === 'ban'
-        ? `${displayName(pending.user)} fue baneado y su sesión se cerró.`
-        : `${displayName(pending.user)} fue desbaneado y ya puede iniciar sesión.`,
+        ? `Se baneó la cuenta de ${displayName(pending.user)} y se cerró su sesión.`
+        : `Se desbaneó la cuenta de ${displayName(pending.user)}: ya puede iniciar sesión.`,
     );
-    setPending(null);
+    setConfirmOpen(false);
     void data.reload();
   }
 
@@ -107,8 +114,8 @@ export function AdminUsersPage() {
                 key={user.id}
                 user={user}
                 currentUserId={currentUser?.id}
-                onBan={account => setPending({ kind: 'ban', user: account })}
-                onUnban={account => setPending({ kind: 'unban', user: account })}
+                onBan={account => askToConfirm('ban', account)}
+                onUnban={account => askToConfirm('unban', account)}
               />
             ))}
           </ul>
@@ -122,15 +129,13 @@ export function AdminUsersPage() {
         />
       </div>
 
-      <ConfirmClanActionDialog
-        open={pending !== null}
-        onOpenChange={open => {
-          if (!open) setPending(null);
-        }}
+      <ConfirmActionDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
         title={isBan ? `¿Banear a ${name}?` : `¿Desbanear a ${name}?`}
         description={
           isBan
-            ? 'Se cerrará su sesión en todos sus dispositivos y no podrá iniciar sesión. Sus datos se conservan y puedes desbanearla cuando quieras.'
+            ? 'Se cerrará su sesión en todos sus dispositivos y no podrá iniciar sesión. Sus datos se conservan y podrás revertir el ban más adelante.'
             : 'Podrá iniciar sesión de nuevo con su cuenta tal como la dejó.'
         }
         confirmLabel={isBan ? 'Banear' : 'Desbanear'}

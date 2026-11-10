@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchAdminUsers } from '@/lib/api/admin-users';
-import { toFriendlyMessage } from '@/lib/api/errors';
+import { ApiError, toFriendlyMessage } from '@/lib/api/errors';
 import type { AdminUser, AdminUserFilter } from '@/types/admin-user';
 import { useDebouncedValue } from './use-debounced-value';
 
@@ -8,14 +8,23 @@ export type AdminUsersStatus = 'loading' | 'success' | 'error';
 
 /**
  * Accounts for the admin "Usuarios" window: filter, search (debounced) and page.
- * Changing the filter or the search goes back to page 1 and refreshes in place, so the
- * list is dimmed instead of blanked.
+ * A new filter or search starts again at page 1 and refreshes in place, so the list is dimmed
+ * instead of blanked. After an error, retrying shows "Cargando…" again.
  */
 export function useAdminUsers() {
   const [filter, setFilterState] = useState<AdminUserFilter>('all');
   const [searchInput, setSearchInput] = useState('');
-  const [page, setPage] = useState(1);
   const search = useDebouncedValue(searchInput.trim());
+
+  // The page belongs to the query it was chosen for: another filter or search is page 1 again,
+  // and only once the debounced search is applied, so no request goes out for the old text.
+  const queryKey = `${filter}|${search}`;
+  const [chosen, setChosen] = useState({ key: queryKey, page: 1 });
+  const page = chosen.key === queryKey ? chosen.page : 1;
+  const setPage = useCallback(
+    (next: number) => setChosen({ key: queryKey, page: next }),
+    [queryKey],
+  );
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -23,56 +32,46 @@ export function useAdminUsers() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const latestRequest = useRef(0);
-  const hasLoaded = useRef(false);
+  const statusRef = useRef<AdminUsersStatus>('loading');
 
-  const load = useCallback(
-    async (silent: boolean) => {
-      const requestId = latestRequest.current + 1;
-      latestRequest.current = requestId;
-      if (silent) setRefreshing(true);
-      else setStatus('loading');
-      setErrorMessage(null);
-      try {
-        const result = await fetchAdminUsers({ filter, search, page });
-        if (requestId !== latestRequest.current) return;
-        setUsers(result.users);
-        setTotalPages(result.totalPages);
-        setStatus('success');
-        hasLoaded.current = true;
-      } catch (error) {
-        if (requestId !== latestRequest.current) return;
-        setUsers([]);
-        setStatus('error');
-        setErrorMessage(toFriendlyMessage(error, 'No se pudo cargar la lista de usuarios.'));
-      } finally {
-        if (requestId === latestRequest.current) setRefreshing(false);
+  const changeStatus = useCallback((next: AdminUsersStatus) => {
+    statusRef.current = next;
+    setStatus(next);
+  }, []);
+
+  const load = useCallback(async () => {
+    const requestId = latestRequest.current + 1;
+    latestRequest.current = requestId;
+    // Keep the list on screen while it refreshes, except after an error or on the first load.
+    if (statusRef.current === 'success') setRefreshing(true);
+    else changeStatus('loading');
+    setErrorMessage(null);
+    try {
+      const result = await fetchAdminUsers({ filter, search, page });
+      if (requestId !== latestRequest.current) return;
+      setUsers(result.users);
+      setTotalPages(result.totalPages);
+      changeStatus('success');
+    } catch (error) {
+      if (requestId !== latestRequest.current) return;
+      if (error instanceof ApiError && error.status === 404 && page > 1) {
+        // The list shrank and this page no longer exists: step back to the one before.
+        setPage(page - 1);
+        return;
       }
-    },
-    [filter, search, page],
-  );
+      setUsers([]);
+      changeStatus('error');
+      setErrorMessage(toFriendlyMessage(error, 'No se pudo cargar la lista de usuarios.'));
+    } finally {
+      if (requestId === latestRequest.current) setRefreshing(false);
+    }
+  }, [filter, search, page, changeStatus, setPage]);
 
   useEffect(() => {
-    void load(hasLoaded.current);
+    void load();
   }, [load]);
 
-  const setFilter = useCallback((next: AdminUserFilter) => {
-    setFilterState(next);
-    setPage(1);
-  }, []);
-
-  const setSearch = useCallback((next: string) => {
-    setSearchInput(next);
-    setPage(1);
-  }, []);
-
-  // After a ban or unban the list may shrink: leave an emptied page for the one before it.
-  const reload = useCallback(async () => {
-    if (filter !== 'all' && users.length === 1 && page > 1) {
-      setPage(page - 1);
-      return;
-    }
-    await load(true);
-  }, [filter, load, page, users.length]);
+  const setFilter = useCallback((next: AdminUserFilter) => setFilterState(next), []);
 
   return {
     users,
@@ -83,10 +82,10 @@ export function useAdminUsers() {
     setFilter,
     searchInput,
     search,
-    setSearch,
+    setSearch: setSearchInput,
     page,
     setPage,
     totalPages,
-    reload,
+    reload: load,
   };
 }

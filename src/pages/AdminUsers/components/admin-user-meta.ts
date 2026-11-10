@@ -32,8 +32,11 @@ export function displayName(user: AdminUser): string {
 }
 
 /**
- * Whether the admin may ban this account. Admins and the signed-in admin cannot be banned.
+ * Whether the admin may ban this account. Admins and the signed-in admin cannot be banned, and
+ * nothing is offered until the signed-in admin is known, so their own row is never mistaken for
+ * someone else's.
  */
 export function canBan(user: AdminUser, currentUserId: string | undefined): boolean {
+  if (!currentUserId) return false;
   return user.status === 'ACTIVE' && user.role !== USER_ROLES.ADMIN && user.id !== currentUserId;
 }

@@ -39,8 +39,10 @@ const MYSELF = account(ME, 'usuario.test@iteso.mx', { role: 'ADMIN' });
 
 interface ApiSeed {
   users?: Json[];
-  /** Total accounts the backend reports (to test the pager). */
+  /** Total accounts the backend reports (to test the pager); each page serves all `users`. */
   count?: number;
+  /** After the first ban or unban, every page after the first is gone (the list shrank). */
+  shrinkAfterAction?: boolean;
   failOn?: Record<string, { status: number; body: unknown }>;
 }
 
@@ -51,6 +53,7 @@ async function mockUsersApi(page: Page, seed: ApiSeed = {}) {
   const users = (seed.users ?? [ANA, BETO, CARLA, ROOT, MYSELF]).map(user => ({ ...user }));
   const queries: URLSearchParams[] = [];
   const actions: string[] = [];
+  let shrunk = false;
 
   await failUnmockedApiCalls(page);
   await page.route(/\/api\/v1\/users\//, async route => {
@@ -72,6 +75,11 @@ async function mockUsersApi(page: Page, seed: ApiSeed = {}) {
 
     if (path === '/users/' && request.method() === 'GET') {
       queries.push(url.searchParams);
+      const pageNumber = Number(url.searchParams.get('page') ?? '1');
+      if (shrunk && pageNumber > 1) {
+        await json(404, { detail: 'Invalid page.' });
+        return;
+      }
       const status = url.searchParams.get('status');
       const search = (url.searchParams.get('search') ?? '').toLowerCase();
       const rows = users.filter(user => {
@@ -83,7 +91,13 @@ async function mockUsersApi(page: Page, seed: ApiSeed = {}) {
           String(user.email).toLowerCase().includes(search)
         );
       });
-      await json(200, { count: seed.count ?? rows.length, next: null, results: rows });
+      const total = seed.count ?? rows.length;
+      const hasNext = rows.length > 0 && total > pageNumber * rows.length;
+      await json(200, {
+        count: total,
+        next: hasNext ? `http://localhost/api/v1/users/?page=${pageNumber + 1}` : null,
+        results: rows,
+      });
       return;
     }
 
@@ -102,6 +116,7 @@ async function mockUsersApi(page: Page, seed: ApiSeed = {}) {
         return;
       }
       user.status = action === 'ban' ? 'BANNED' : 'ACTIVE';
+      shrunk = seed.shrinkAfterAction ?? false;
       await json(200, user);
       return;
     }
@@ -197,7 +212,7 @@ test.describe('Admin users window', () => {
 
     await dialog.getByRole('button', { name: 'Banear', exact: true }).click();
 
-    await expect(page.getByRole('status').filter({ hasText: 'fue baneado' })).toBeVisible();
+    await expect(page.getByRole('status').filter({ hasText: 'Se baneó la cuenta' })).toBeVisible();
     expect(api.actions).toEqual([`ban ${ANA.id}`]);
     const ana = page.getByRole('listitem').filter({ hasText: 'ana@iteso.mx' });
     await expect(ana.getByText('Baneada')).toBeVisible();
@@ -224,7 +239,9 @@ test.describe('Admin users window', () => {
     await page.getByRole('button', { name: /^Desbanear a beto/ }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Desbanear', exact: true }).click();
 
-    await expect(page.getByRole('status').filter({ hasText: 'fue desbaneado' })).toBeVisible();
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Se desbaneó la cuenta' }),
+    ).toBeVisible();
     expect(api.actions).toEqual([`unban ${BETO.id}`]);
     const beto = page.getByRole('listitem').filter({ hasText: 'beto@iteso.mx' });
     await expect(beto.getByText('Activa')).toBeVisible();
@@ -279,6 +296,101 @@ test.describe('Admin users window', () => {
     await expect(page.getByRole('navigation', { name: 'Paginación de usuarios' })).toBeVisible();
     await page.getByRole('button', { name: 'Página siguiente' }).click();
     await expect.poll(() => api.queries.at(-1)?.get('page')).toBe('2');
+  });
+
+  test('goes back a page when the one it was on no longer exists', async ({ page }) => {
+    await mockAdminSession(page);
+    // 10 accounts in 2 pages of 5; the second page disappears once one is banned.
+    const api = await mockUsersApi(page, { count: 10, shrinkAfterAction: true });
+    await page.goto('/admin/users');
+
+    await page.getByRole('button', { name: 'Página siguiente' }).click();
+    await expect.poll(() => api.queries.at(-1)?.get('page')).toBe('2');
+
+    await page.getByRole('button', { name: /^Banear a ana/ }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Banear', exact: true }).click();
+
+    // The reload of page 2 answers 404: the window shows page 1 instead of an error.
+    await expect(page.getByRole('status').filter({ hasText: 'Se baneó la cuenta' })).toBeVisible();
+    await expect.poll(() => api.queries.at(-1)?.get('page')).toBe('1');
+    await expect(
+      page.getByRole('heading', { name: 'No se pudieron cargar los usuarios' }),
+    ).toHaveCount(0);
+    await expect(page.getByRole('listitem').filter({ hasText: 'ana@iteso.mx' })).toBeVisible();
+  });
+
+  test('does not ask for the old search on a new page when the search changes', async ({
+    page,
+  }) => {
+    await mockAdminSession(page);
+    const api = await mockUsersApi(page, { count: 120 });
+    await page.goto('/admin/users');
+    await page.getByRole('button', { name: 'Página siguiente' }).click();
+    await expect.poll(() => api.queries.at(-1)?.get('page')).toBe('2');
+    const before = api.queries.length;
+
+    await page.getByRole('searchbox', { name: 'Buscar por ID, correo o nombre' }).fill('ana');
+    await expect.poll(() => api.queries.at(-1)?.get('search')).toBe('ana');
+
+    // Every request after typing is for the new search, from page 1.
+    const after = api.queries.slice(before);
+    expect(after.every(query => query.get('search') === 'ana' && query.get('page') === '1')).toBe(
+      true,
+    );
+  });
+
+  test('shows that it is loading again when retrying after an error', async ({ page }) => {
+    await mockAdminSession(page);
+    await mockUsersApi(page);
+    let phase: 'fail' | 'hold' = 'fail';
+    let release: () => void = () => {};
+    const gate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    await page.route(/\/api\/v1\/users\/(\?.*)?$/, async route => {
+      if (route.request().method() === 'GET') {
+        if (phase === 'fail') {
+          await route.fulfill({ status: 500, headers: CORS_HEADERS, body: '{}' });
+          return;
+        }
+        await gate;
+      }
+      await route.fallback();
+    });
+    await page.goto('/admin/users');
+    await expect(page.getByRole('button', { name: 'Reintentar' })).toBeVisible();
+
+    phase = 'hold';
+    await page.getByRole('button', { name: 'Reintentar' }).click();
+    await expect(page.getByText('Cargando usuarios…')).toBeVisible();
+
+    release();
+    await expect(page.getByRole('listitem').filter({ hasText: 'ana@iteso.mx' })).toBeVisible();
+  });
+
+  test('explains in Spanish that a clan leader cannot be banned', async ({ page }) => {
+    await mockAdminSession(page);
+    await mockUsersApi(page, {
+      failOn: {
+        [`ban ${ANA.id}`]: {
+          status: 400,
+          body: {
+            error: {
+              code: 'VALIDATION_ERROR',
+              message:
+                'This account leads a clan. Ask them to transfer its leadership or dissolve it before banning.',
+            },
+          },
+        },
+      },
+    });
+    await page.goto('/admin/users');
+
+    await page.getByRole('button', { name: /^Banear a ana/ }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('button', { name: 'Banear', exact: true }).click();
+
+    await expect(dialog.getByRole('alert')).toContainText('lidera un clan');
   });
 
   test('is listed in the sidebar for admins only', async ({ page }) => {
