@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Send, Image as ImageIcon, Upload, X, Link as LinkIcon } from 'lucide-react';
 import { createPost } from '@/lib/api/feed';
 import { uploadImage, validateImageFile } from '@/lib/api/upload';
@@ -23,6 +23,13 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
   const [error, setError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const handleFileSelection = (file: File) => {
     setError(null);
