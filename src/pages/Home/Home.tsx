@@ -1,4 +1,5 @@
-import { Leaf, ArrowRight, BarChart3, Target, Trophy, ShieldCheck, User } from 'lucide-react';
+import { ArrowRight, BarChart3, Target, Trophy, ShieldCheck, User } from 'lucide-react';
+import { BrandLogo } from '@/components/custom/BrandLogo';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { RequireRole } from '@/components/auth/RequireRole';
@@ -13,9 +14,7 @@ export function HomePage() {
       <div className="flex-1 flex items-center justify-center px-4 py-16">
         <div className="text-center max-w-2xl">
           <div className="mb-6 flex justify-center">
-            <div className="bg-primary-500 p-6 rounded-3xl">
-              <Leaf className="size-16 text-white" />
-            </div>
+            <BrandLogo className="h-28" decorative />
           </div>
 
           <h1 className="text-5xl sm:text-6xl font-extrabold text-foreground mb-4">GreenITESO</h1>
