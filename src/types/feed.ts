@@ -14,6 +14,10 @@ export interface AuthorInfo {
   last_name?: string;
   nickname?: string;
   avatar_url?: string | null;
+  /** Image of the author's active avatar frame; empty when none. */
+  frame_url?: string | null;
+  /** Image of the author's active profile background; empty when none. */
+  background_url?: string | null;
 }
 
 export interface BadgeInfo {

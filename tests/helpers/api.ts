@@ -15,3 +15,23 @@ export async function failUnmockedApiCalls(page: Page): Promise<void> {
     route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }),
   );
 }
+
+const CORS_HEADERS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-headers': '*',
+  'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS',
+};
+
+/** Serve `payload` for the one API path; an OPTIONS preflight gets the CORS headers. */
+export async function mockJsonApi(page: Page, pathPattern: RegExp, payload: unknown) {
+  await page.route(pathPattern, route =>
+    route.request().method() === 'OPTIONS'
+      ? route.fulfill({ status: 204, headers: CORS_HEADERS })
+      : route.fulfill({
+          status: 200,
+          headers: CORS_HEADERS,
+          contentType: 'application/json',
+          body: JSON.stringify(payload),
+        }),
+  );
+}
