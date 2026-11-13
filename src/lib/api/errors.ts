@@ -4,12 +4,23 @@
 export class ApiError extends Error {
   readonly status: number;
   readonly fieldErrors: Record<string, string>;
+  /** Machine-readable code of a `{"error": {...}}` response, e.g. `VALIDATION_ERROR`. */
+  readonly code?: string;
+  /** Extra data of a `{"error": {...}}` response, as the backend sent it. */
+  readonly details?: unknown;
 
-  constructor(message: string, status = 0, fieldErrors: Record<string, string> = {}) {
+  constructor(
+    message: string,
+    status = 0,
+    fieldErrors: Record<string, string> = {},
+    extra: { code?: string; details?: unknown } = {},
+  ) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.fieldErrors = fieldErrors;
+    this.code = extra.code;
+    this.details = extra.details;
   }
 }
 
@@ -328,11 +339,35 @@ const MESSAGE_RULES: readonly {
 ];
 
 /**
+ * Admin moderation (ban / unban). Only checked for `{"error": {...}}` responses, so these
+ * patterns never reach messages from other endpoints.
+ */
+const MODERATION_RULES: typeof MESSAGE_RULES = [
+  { pattern: /cannot ban your own account/i, message: 'No puedes banear tu propia cuenta.' },
+  {
+    pattern: /administrators cannot be banned/i,
+    message: 'Los administradores no se pueden banear. Cambia su rol primero.',
+  },
+  {
+    pattern: /account leads a clan/i,
+    message:
+      'Esta cuenta lidera un clan. Pídele que transfiera el liderazgo o que lo disuelva antes de banearla.',
+  },
+  { pattern: /already banned/i, message: 'Esta cuenta ya está baneada.' },
+  { pattern: /account is not banned/i, message: 'Esta cuenta no está baneada.' },
+];
+
+/**
  * Translate one backend message. Unknown text falls back to a status-based message,
  * so raw English never reaches the user.
  */
-export function translateMessage(message: string, status: number, fallback: string): string {
-  for (const rule of MESSAGE_RULES) {
+export function translateMessage(
+  message: string,
+  status: number,
+  fallback: string,
+  rules: typeof MESSAGE_RULES = MESSAGE_RULES,
+): string {
+  for (const rule of rules) {
     const match = message.match(rule.pattern);
     if (match) return typeof rule.message === 'function' ? rule.message(match) : rule.message;
   }
@@ -356,6 +391,21 @@ function collectMessages(value: unknown): string[] {
 export async function readError(response: Response, fallback: string): Promise<ApiError> {
   try {
     const body: unknown = await response.json();
+    if (isRecord(body) && isRecord(body.error) && typeof body.error.message === 'string') {
+      // Some endpoints answer `{"error": {"code": "...", "message": "..."}}`.
+      return new ApiError(
+        translateMessage(body.error.message, response.status, fallback, [
+          ...MODERATION_RULES,
+          ...MESSAGE_RULES,
+        ]),
+        response.status,
+        {},
+        {
+          code: typeof body.error.code === 'string' ? body.error.code : undefined,
+          details: body.error.details,
+        },
+      );
+    }
     if (Array.isArray(body)) {
       // DRF `ValidationError("text")` serializes as a bare list of messages.
       const [first] = collectMessages(body).map(text =>
