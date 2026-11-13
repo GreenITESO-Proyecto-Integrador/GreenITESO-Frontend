@@ -150,6 +150,9 @@ export function persistSession(access: string, refresh: string, user: AuthUser):
 
 export function clearSession(): void {
   Object.values(AUTH_STORAGE_KEYS).forEach(key => sessionStorage.removeItem(key));
+  // The flag belongs to the session that set it: the next person to sign in on this tab must not
+  // be welcomed back.
+  clearReactivatedNotice();
 }
 
 /**

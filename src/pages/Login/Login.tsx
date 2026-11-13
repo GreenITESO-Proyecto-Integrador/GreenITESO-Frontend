@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Leaf, LoaderCircle, ShieldCheck } from 'lucide-react';
+import { LoaderCircle, ShieldCheck } from 'lucide-react';
+import { BrandLogo } from '@/components/custom/BrandLogo';
 import { Button } from '@/components/ui/button';
 import { persistLogin } from '@/lib/api/auth';
 import {
@@ -8,7 +9,7 @@ import {
   startMicrosoftLogin,
 } from '@/lib/auth/microsoft';
 import { exchangeMicrosoftSignIn } from '@/lib/auth/microsoft-login';
-import { flagReactivatedNotice } from '@/lib/auth/session';
+import { clearReactivatedNotice, flagReactivatedNotice } from '@/lib/auth/session';
 
 type LoginStatus = 'idle' | 'loading' | 'error';
 
@@ -53,7 +54,10 @@ export function LoginPage() {
           accessToken: result.accessToken,
         });
         persistLogin(loginResponse);
+        // Set or clear on every sign-in, so a flag an admin never consumed cannot reach the next
+        // person (admins do not mount the dashboard that clears it).
         if (loginResponse.reactivated) flagReactivatedNotice();
+        else clearReactivatedNotice();
 
         window.location.assign('/');
       } catch (error) {
@@ -91,9 +95,7 @@ export function LoginPage() {
       <div className="w-full max-w-md">
         <section className="rounded-2xl bg-card p-6 shadow-sm sm:p-8">
           <div className="mb-8 text-center">
-            <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-3xl bg-primary-500">
-              <Leaf className="size-9 text-white" aria-hidden="true" />
-            </div>
+            <BrandLogo className="mx-auto mb-5 h-16" decorative />
             <p className="text-xs font-semibold tracking-wider text-primary-600 uppercase">
               GreenITESO
             </p>
