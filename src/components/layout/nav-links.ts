@@ -3,6 +3,7 @@ import {
   ClipboardCheck,
   Home,
   ListChecks,
+  MessageSquarePlus,
   Rss,
   Store,
   Target,
@@ -31,6 +32,7 @@ export const SECONDARY_NAV_LINKS: NavLink[] = [
   { label: 'Catálogo de acciones', href: '/actions', icon: ListChecks },
   { label: 'Clanes', href: '/clans', icon: Users },
   { label: 'Leaderboard', href: '/leaderboard', icon: Trophy },
+  { label: 'Buzón de feedback', href: '/feedback', icon: MessageSquarePlus },
   { label: 'Auditoría', href: '/audit', icon: ClipboardCheck, adminOnly: true },
 ];
 
