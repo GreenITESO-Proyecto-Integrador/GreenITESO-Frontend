@@ -201,7 +201,9 @@ async function openEditor(page: Page) {
 
 test.describe('Profile Editing (T2-23)', () => {
   test('should open edit profile modal with current data', async ({ page }) => {
-    await setupProfile(page);
+    const { profileGets } = await setupProfile(page);
+    // /profile loads the profile once and shares the photo with the navbar (#94).
+    expect(profileGets).toHaveLength(1);
     await openEditor(page);
 
     await expect(
@@ -574,6 +576,8 @@ test.describe('Profile Editing (T2-23)', () => {
     await page.mouse.click(5, 5);
     await expect(page.getByRole('heading', { name: 'Editar perfil' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Guardando…' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Subir foto' })).toBeDisabled();
+    await expect(page.getByTestId('profile-avatar-file')).toBeDisabled();
 
     releasePatch();
     await expect(page.getByText('¡Perfil actualizado correctamente!')).toBeVisible();
@@ -766,10 +770,24 @@ test.describe('Profile Editing (T2-23)', () => {
     const navbarPhoto = page.getByRole('button', { name: 'Menú de usuario' }).locator('img');
     await expect(navbarPhoto).toHaveAttribute('src', uploadedAvatarUrl(1));
 
+    const heldLookup = page.waitForResponse(
+      response =>
+        response.url().includes('/api/v1/profile/me/') && response.request().method() === 'GET',
+    );
     release();
-    // Give the held (stale) response time to land, then check it was ignored.
-    await page.waitForTimeout(500);
+    // Wait for the held (stale) response to land, then check it was ignored.
+    await (await heldLookup).finished();
     await expect(navbarPhoto).toHaveAttribute('src', uploadedAvatarUrl(1));
+  });
+
+  test('should treat an external URL with /api/v1/avatars/ path as a pasted link', async ({
+    page,
+  }) => {
+    const externalUrl = `${imageHost}/api/v1/avatars/external.jpg`;
+    await setupProfile(page, { profile: { avatar_url: externalUrl } });
+    await openEditor(page);
+
+    await expect(page.getByLabel('Enlace de la foto')).toHaveValue(externalUrl);
   });
 });
 

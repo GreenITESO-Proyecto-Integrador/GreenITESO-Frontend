@@ -366,10 +366,12 @@ test("should show each member's profile photo, or their initials without one", a
   await page.goto('/clans/clan-eco');
 
   const members = page.getByRole('region', { name: /Miembros/ });
-  await expect(members.getByRole('img', { name: 'Ana Líder' })).toHaveAttribute(
+  await expect(members.locator('img')).toHaveAttribute(
     'src',
     'https://images.greeniteso.test/ana.png',
   );
+  // Decorative next to the member's name so screen readers do not announce the name twice.
+  await expect(members.getByRole('img')).toHaveCount(0);
   await expect(members.getByText('UP', { exact: true })).toBeVisible();
 });
 
