@@ -19,7 +19,12 @@ async function render(file, size, inner, background) {
     .png()
     .toBuffer();
   await sharp({
-    create: { width: size, height: size, channels: 4, background: background ?? { r: 0, g: 0, b: 0, alpha: 0 } },
+    create: {
+      width: size,
+      height: size,
+      channels: 4,
+      background: background ?? { r: 0, g: 0, b: 0, alpha: 0 },
+    },
   })
     .composite([{ input: logo, gravity: 'center' }])
     .png()
