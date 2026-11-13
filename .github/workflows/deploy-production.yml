@@ -1,0 +1,127 @@
+name: Release - production
+
+# Runs on a push to prod, not on pull_request: GitHub matches the production
+# Environment's deployment-branch rule against the run's ref, and a pull_request
+# run uses refs/pull/<n>/merge, which a prod-only rule rejects. prod only changes
+# through a merged preprod -> prod pull request, and the first job re-verifies
+# that before the release job can use the Environment's secrets.
+on:
+  push:
+    branches: [prod]
+
+# One release at a time; a newer push waits instead of cancelling a deploy that
+# is already moving traffic.
+concurrency:
+  group: release-production
+  cancel-in-progress: false
+
+jobs:
+  verify-source:
+    # Its own switch, off until the Google Cloud side (Infra) and this
+    # repository's production Environment secrets exist.
+    if: vars.CLOUD_PRODUCTION_DEPLOY_ENABLED == 'true'
+    name: Verify the push is a merged preprod promotion
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check out the pushed commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Require a merged same-repository preprod pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: scripts/verify-production-source.sh
+
+  release:
+    needs: verify-source
+    if: vars.CLOUD_PRODUCTION_DEPLOY_ENABLED == 'true'
+    name: Build and release production
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RELEASE_ENVIRONMENT: production
+      RELEASE_SHA: ${{ github.sha }}
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      GCP_REGION: ${{ secrets.GCP_REGION }}
+      ARTIFACT_REGISTRY_LOCATION: ${{ secrets.ARTIFACT_REGISTRY_LOCATION }}
+      ARTIFACT_REGISTRY_REPO: ${{ secrets.ARTIFACT_REGISTRY_REPO }}
+      CLOUD_RUN_SERVICE: ${{ secrets.CLOUD_RUN_SERVICE }}
+      BACKEND_URL: ${{ secrets.BACKEND_URL }}
+      VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+      VITE_MICROSOFT_CLIENT_ID: ${{ secrets.VITE_MICROSOFT_CLIENT_ID }}
+      VITE_MICROSOFT_AUTHORITY: ${{ secrets.VITE_MICROSOFT_AUTHORITY }}
+    steps:
+      - name: Check out the release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Reject a stale release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/branches/prod" --jq '.commit.sha')"
+          if [ "$current_sha" != "$RELEASE_SHA" ]; then
+            echo "Stale release: prod is ${current_sha}, this run is for ${RELEASE_SHA}." >&2
+            exit 1
+          fi
+
+      - name: Validate release configuration
+        env:
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          # The two Google login secrets are used by the login action, not by
+          # release.sh, so check them here with the same whitespace rule.
+          for name in GCP_WORKLOAD_IDENTITY_PROVIDER GCP_SERVICE_ACCOUNT; do
+            value="${!name:-}"
+            if [ -z "$value" ]; then
+              echo "${name} is required in the 'production' GitHub Environment." >&2
+              exit 2
+            fi
+            case "$value" in
+              *[[:space:]]*)
+                echo "${name} must not contain spaces or line breaks; re-enter that GitHub secret without a trailing newline." >&2
+                exit 2
+                ;;
+            esac
+          done
+          scripts/release.sh --check-config
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
+
+      - name: Build, deploy a candidate, health-check it, then shift traffic
+        run: scripts/release.sh
+
+      - name: Record the released image digest
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: frontend-release-${{ github.sha }}
+          path: release-record.txt
+          if-no-files-found: error
+          retention-days: 90
