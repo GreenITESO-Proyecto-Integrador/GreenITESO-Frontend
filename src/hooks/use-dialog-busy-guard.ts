@@ -15,6 +15,9 @@ export function useDialogBusyGuard(onOpenChange: (open: boolean) => void) {
     busy.current = next;
   }, []);
 
+  /** Whether a request is in flight right now, without waiting for a re-render. */
+  const isBusy = useCallback(() => busy.current, []);
+
   const handleOpenChange = useCallback(
     (next: boolean) => {
       if (!next && busy.current) return;
@@ -23,5 +26,5 @@ export function useDialogBusyGuard(onOpenChange: (open: boolean) => void) {
     [onOpenChange],
   );
 
-  return { handleOpenChange, setBusy };
+  return { handleOpenChange, setBusy, isBusy };
 }

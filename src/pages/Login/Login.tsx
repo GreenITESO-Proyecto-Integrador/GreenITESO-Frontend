@@ -8,7 +8,7 @@ import {
   startMicrosoftLogin,
 } from '@/lib/auth/microsoft';
 import { exchangeMicrosoftSignIn } from '@/lib/auth/microsoft-login';
-import { flagReactivatedNotice } from '@/lib/auth/session';
+import { clearReactivatedNotice, flagReactivatedNotice } from '@/lib/auth/session';
 
 type LoginStatus = 'idle' | 'loading' | 'error';
 
@@ -53,7 +53,10 @@ export function LoginPage() {
           accessToken: result.accessToken,
         });
         persistLogin(loginResponse);
+        // Set or clear on every sign-in, so a flag an admin never consumed cannot reach the next
+        // person (admins do not mount the dashboard that clears it).
         if (loginResponse.reactivated) flagReactivatedNotice();
+        else clearReactivatedNotice();
 
         window.location.assign('/');
       } catch (error) {
