@@ -3,8 +3,10 @@ import { Crown, UserMinus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { WRAP_TEXT } from '@/components/campaigns/field-limits';
-import { UserAvatar } from '@/components/shared/UserAvatar';
+import { CosmeticAvatar } from '@/components/shared/CosmeticAvatar';
+import { CosmeticBackground } from '@/components/shared/CosmeticBackground';
 import { kickClanMember } from '@/lib/api/clans';
+import { cosmeticHostClass } from '@/lib/safe-image-url';
 import { formatMemberSince, memberDisplayName } from '@/lib/clan-meta';
 import type { ClanMember } from '@/types/clan';
 import { ConfirmClanActionDialog } from './ConfirmClanActionDialog';
@@ -58,11 +60,13 @@ export function ClanMembersList({
             return (
               <li
                 key={member.userId}
-                className="flex min-h-14 items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-xs"
+                className={`flex min-h-14 items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-xs ${cosmeticHostClass(member.backgroundUrl)}`}
               >
-                <UserAvatar
+                <CosmeticBackground url={member.backgroundUrl} />
+                <CosmeticAvatar
                   src={member.avatarUrl}
                   name={name}
+                  frameUrl={member.frameUrl}
                   className="size-11 rounded-xl text-sm"
                 />
                 <div className="min-w-0 flex-1">

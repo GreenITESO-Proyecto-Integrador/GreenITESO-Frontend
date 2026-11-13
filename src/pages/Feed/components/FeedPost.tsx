@@ -15,7 +15,9 @@ import {
   ShieldCheck,
   type LucideIcon,
 } from 'lucide-react';
-import { UserAvatar } from '@/components/shared/UserAvatar';
+import { CosmeticAvatar } from '@/components/shared/CosmeticAvatar';
+import { CosmeticBackground } from '@/components/shared/CosmeticBackground';
+import { cosmeticHostClass } from '@/lib/safe-image-url';
 import type { FeedPost as FeedPostType } from '@/types/feed';
 
 interface FeedPostProps {
@@ -119,8 +121,16 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
 
   return (
     <div className="mb-6 bg-card text-card-foreground rounded-xl border border-border shadow-sm overflow-hidden transition-colors">
-      <div className="p-4 flex flex-row items-center gap-4 border-b border-border/60">
-        <UserAvatar src={post.author?.avatar_url} name={authorName} className="size-12 text-lg" />
+      <div
+        className={`p-4 flex flex-row items-center gap-4 border-b border-border/60 ${cosmeticHostClass(post.author?.background_url)}`}
+      >
+        <CosmeticBackground url={post.author?.background_url} />
+        <CosmeticAvatar
+          src={post.author?.avatar_url}
+          name={authorName}
+          frameUrl={post.author?.frame_url}
+          className="size-12 text-lg"
+        />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
