@@ -22,8 +22,6 @@ import { clearSession, getStoredUser } from '@/lib/auth/session';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { cn } from '@/lib/utils';
 
-const OTHER_CAREER = '__other__';
-const CAREER_MAX_LENGTH = 150;
 const NICKNAME_MAX_LENGTH = 50;
 /** Fields with their own error line; any other field error goes to the general alert. */
 const FIELD_KEYS = ['career', 'nickname'];
@@ -39,17 +37,20 @@ const onboardedUserIds = new Set<string>();
 function OnboardingForm({
   careers,
   careersFailed,
+  retrying,
+  onRetry,
   initial,
   onDone,
 }: {
   careers: string[];
   careersFailed: boolean;
+  retrying: boolean;
+  onRetry: () => void;
   /** Current profile state, so the form never reverts an earlier choice. */
   initial: OnboardingState;
   onDone: () => void;
 }) {
-  const [selected, setSelected] = useState(careers.length > 0 ? '' : OTHER_CAREER);
-  const [otherCareer, setOtherCareer] = useState('');
+  const [selected, setSelected] = useState('');
   const [nickname, setNickname] = useState(initial.nickname);
   const [isPrivate, setIsPrivate] = useState(initial.visibility === 'PRIVATE');
   // The backend never replaces an existing nickname, so it is shown read-only.
@@ -60,10 +61,13 @@ function OnboardingForm({
   // Blocks a second submit fired before React disables the button.
   const inFlight = useRef(false);
 
-  const career = (selected === OTHER_CAREER ? otherCareer : selected).trim();
+  // The backend only accepts catalog careers (#213), so without the list there is nothing to pick.
+  const catalogMissing = careersFailed || careers.length === 0;
+  const career = selected.trim();
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (catalogMissing) return;
     const found: Record<string, string> = {};
     if (!career) found.career = 'Elige tu carrera.';
     setErrors(found);
@@ -102,43 +106,45 @@ function OnboardingForm({
     <form onSubmit={event => void handleSubmit(event)} className="flex flex-col gap-5" noValidate>
       <div className="flex flex-col gap-2">
         <Label htmlFor="onboarding-career">Carrera</Label>
-        {careers.length > 0 ? (
-          <select
-            id="onboarding-career"
-            value={selected}
-            onChange={event => setSelected(event.target.value)}
-            aria-invalid={errors.career && selected !== OTHER_CAREER ? true : undefined}
-            className={SELECT_CLASSES}
-          >
-            <option value="">Selecciona tu carrera</option>
-            {careers.map(name => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-            <option value={OTHER_CAREER}>Mi carrera no está en la lista</option>
-          </select>
-        ) : null}
-        {selected === OTHER_CAREER ? (
-          <Input
-            id={careers.length > 0 ? 'onboarding-other-career' : 'onboarding-career'}
-            aria-label={careers.length > 0 ? 'Escribe tu carrera' : undefined}
-            placeholder="Escribe el nombre de tu carrera"
-            value={otherCareer}
-            maxLength={CAREER_MAX_LENGTH}
-            onChange={event => setOtherCareer(event.target.value)}
-            aria-invalid={errors.career ? true : undefined}
-            className="h-11 rounded-xl px-3"
-            autoComplete="off"
-          />
-        ) : null}
+        <select
+          id="onboarding-career"
+          value={selected}
+          onChange={event => setSelected(event.target.value)}
+          disabled={catalogMissing}
+          aria-invalid={errors.career ? true : undefined}
+          className={SELECT_CLASSES}
+        >
+          <option value="">Selecciona tu carrera</option>
+          {careers.map(name => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
         <p className="text-xs text-muted-foreground">
           Te une al clan de tu carrera. Tus acciones suman puntos a ese clan.
         </p>
-        {careersFailed ? (
-          <p role="status" className="text-xs text-amber-700 dark:text-amber-300">
-            No se pudo cargar la lista de carreras. Escribe el nombre completo de tu carrera.
-          </p>
+        {catalogMissing ? (
+          <div
+            role="alert"
+            className="flex flex-col gap-2 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+          >
+            <p>
+              {careersFailed
+                ? 'No se pudo cargar la lista de carreras.'
+                : 'Todavía no hay carreras disponibles.'}{' '}
+              Inténtalo de nuevo en un momento.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onRetry}
+              disabled={retrying}
+              className="min-h-11 cursor-pointer self-start rounded-xl px-4 font-semibold"
+            >
+              {retrying ? 'Cargando…' : 'Reintentar'}
+            </Button>
+          </div>
         ) : null}
         <FieldError message={errors.career} />
       </div>
@@ -189,7 +195,7 @@ function OnboardingForm({
 
       <Button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || catalogMissing}
         className="min-h-11 cursor-pointer rounded-xl bg-primary-500 px-5 font-semibold text-white hover:bg-primary-600"
       >
         {submitting ? 'Guardando…' : 'Continuar'}
@@ -209,6 +215,7 @@ export function OnboardingGate({ onReady }: { onReady?: () => void }) {
   const [careers, setCareers] = useState<string[] | null>(null);
   const [initial, setInitial] = useState<OnboardingState | null>(null);
   const [careersFailed, setCareersFailed] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -254,6 +261,18 @@ export function OnboardingGate({ onReady }: { onReady?: () => void }) {
 
   if (!open || careers === null || initial === null) return null;
 
+  async function handleRetry() {
+    setRetrying(true);
+    try {
+      setCareers(await fetchCareers());
+      setCareersFailed(false);
+    } catch {
+      setCareersFailed(true);
+    } finally {
+      setRetrying(false);
+    }
+  }
+
   function handleDone() {
     onboardedUserIds.add(getStoredUser()?.id ?? '');
     // Pages already loaded the profile without a clan; reload so they show the new one.
@@ -282,6 +301,8 @@ export function OnboardingGate({ onReady }: { onReady?: () => void }) {
         <OnboardingForm
           careers={careers}
           careersFailed={careersFailed}
+          retrying={retrying}
+          onRetry={() => void handleRetry()}
           initial={initial}
           onDone={handleDone}
         />

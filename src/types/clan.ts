@@ -25,6 +25,10 @@ export interface ClanMember {
   displayName: string;
   /** Profile photo URL; empty when the member has none. */
   avatarUrl: string;
+  /** Image of the member's active avatar frame; empty when none. */
+  frameUrl: string;
+  /** Image of the member's active profile background; empty when none. */
+  backgroundUrl: string;
   role: ClanMemberRole;
   joinedAt: string;
 }
@@ -61,4 +65,23 @@ export interface CreateClanPayload {
   name: string;
   description: string;
   privacy: ClanPrivacy;
+}
+
+/** Fields the leader can change (`PATCH /clans/{id}/`); omitted ones stay as they are. */
+export type UpdateClanPayload = Partial<CreateClanPayload>;
+
+/** An active single-use invite code as listed to the leader; the full code is never listed. */
+export interface ClanInvitation {
+  id: string;
+  /** Last four characters, enough to tell active codes apart. */
+  codeHint: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+/** A freshly generated invite code: the only time the full `code` (`XXXX-XXXX`) is returned. */
+export interface ClanInvitationCreated {
+  id: string;
+  code: string;
+  expiresAt: string;
 }
