@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Link2, Plus, Search, Shield } from 'lucide-react';
+import { KeyRound, Plus, Search, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SuccessBanner } from '@/components/campaigns/SuccessBanner';
@@ -11,11 +11,11 @@ import { useRouteNotice } from '@/hooks/use-route-notice';
 import type { ClanNoticeState } from '@/lib/clan-meta';
 import { ClanGrid } from './components/ClanGrid';
 import { CreateClanDialog } from './components/CreateClanDialog';
-import { JoinByLinkDialog } from './components/JoinByLinkDialog';
+import { JoinByCodeDialog } from './components/JoinByCodeDialog';
 import { MyClansSection } from './components/MyClansSection';
 
 /**
- * Clans directory: search, create a clan, and open one through an invite link.
+ * Clans directory: search, create a clan, and join an invite-only clan with a single-use code.
  */
 export function ClansPage() {
   const navigate = useNavigate();
@@ -46,7 +46,7 @@ export function ClansPage() {
             onClick={() => setJoinOpen(true)}
             className="min-h-11 cursor-pointer rounded-xl px-5 font-semibold"
           >
-            <Link2 className="size-4" />
+            <KeyRound className="size-4" />
             Tengo una invitación
           </Button>
           <Button
@@ -108,12 +108,15 @@ export function ClansPage() {
           navigate(`/clans/${clan.id}`, { state });
         }}
       />
-      <JoinByLinkDialog
+      <JoinByCodeDialog
         open={joinOpen}
         onOpenChange={setJoinOpen}
-        onResolved={clanId => {
+        onJoined={membership => {
           setJoinOpen(false);
-          navigate(`/clans/${clanId}`);
+          const state: ClanNoticeState = {
+            notice: 'Te uniste al clan con el código de invitación.',
+          };
+          navigate(`/clans/${membership.clanId}`, { state });
         }}
       />
     </div>
