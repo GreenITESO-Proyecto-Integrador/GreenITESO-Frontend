@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Copy, Crown, DoorOpen, Star, Trash2, UserPlus } from 'lucide-react';
+import { Copy, Crown, DoorOpen, KeyRound, Pencil, Star, Trash2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useClanAction } from '@/hooks/use-clan-action';
 import { dissolveClan, joinClan, leaveClan, selectActiveClan } from '@/lib/api/clans';
 import { buildInviteLink } from '@/lib/clan-meta';
 import type { ClanDetail } from '@/types/clan';
 import { ConfirmClanActionDialog } from './ConfirmClanActionDialog';
+import { EditClanDialog } from './EditClanDialog';
+import { InviteCodeDialog } from './InviteCodeDialog';
 import { TransferLeadershipDialog } from './TransferLeadershipDialog';
 
 interface ClanActionsProps {
@@ -26,8 +28,9 @@ const PRIMARY_BUTTON =
 const SECONDARY_BUTTON = 'min-h-11 cursor-pointer rounded-xl px-5 font-semibold';
 
 /**
- * What the current user can do on a clan page: join, set it as the active clan, share the link,
- * leave, and (leader only) transfer leadership or dissolve.
+ * What the current user can do on a clan page: join, set it as the active clan, invite (a link
+ * for public clans, single-use codes for invite-only ones), leave, and (leader only) edit the
+ * clan, transfer leadership or dissolve.
  */
 export function ClanActions({
   clan,
@@ -41,6 +44,8 @@ export function ClanActions({
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [dissolveOpen, setDissolveOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
 
   if (clan.type !== 'PRIVATE') {
@@ -123,7 +128,7 @@ export function ClanActions({
           )
         ) : null}
 
-        {isMember ? (
+        {isMember && clan.privacy === 'PUBLIC' ? (
           <Button
             type="button"
             variant="outline"
@@ -132,6 +137,18 @@ export function ClanActions({
           >
             <Copy className="size-4" />
             Copiar enlace de invitación
+          </Button>
+        ) : null}
+
+        {isLeader && clan.privacy === 'PRIVATE_INVITE' ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setInviteOpen(true)}
+            className={SECONDARY_BUTTON}
+          >
+            <KeyRound className="size-4" />
+            Invitar con código
           </Button>
         ) : null}
 
@@ -149,6 +166,15 @@ export function ClanActions({
 
         {isLeader ? (
           <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditOpen(true)}
+              className={SECONDARY_BUTTON}
+            >
+              <Pencil className="size-4" />
+              Editar clan
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -217,6 +243,21 @@ export function ClanActions({
         fallbackError="No se pudo disolver el clan."
         onDone={() => onLeft(`${clan.name} se disolvió.`)}
       />
+
+      {isLeader ? (
+        <>
+          <EditClanDialog
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            clan={clan}
+            onSaved={() => {
+              setEditOpen(false);
+              onChanged('Guardamos los cambios del clan.');
+            }}
+          />
+          <InviteCodeDialog open={inviteOpen} onOpenChange={setInviteOpen} clanId={clan.id} />
+        </>
+      ) : null}
 
       <TransferLeadershipDialog
         open={transferOpen}

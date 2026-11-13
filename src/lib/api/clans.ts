@@ -1,6 +1,8 @@
 import type {
   Clan,
   ClanDetail,
+  ClanInvitation,
+  ClanInvitationCreated,
   ClanJoinRequest,
   ClanListItem,
   ClanMember,
@@ -9,6 +11,7 @@ import type {
   ClanMembershipStatus,
   ClanPrivacy,
   CreateClanPayload,
+  UpdateClanPayload,
 } from '@/types/clan';
 import { apiFetch } from './client';
 import { ApiError, readError } from './errors';
@@ -125,6 +128,18 @@ function mapJoinRequest(raw: unknown): ClanJoinRequest | null {
     nickname: readString(raw.user.nickname),
     displayName: readString(raw.user.display_name),
     joinedAt: readString(raw.joined_at),
+  };
+}
+
+function mapInvitation(raw: unknown): ClanInvitation | null {
+  if (!isRecord(raw)) return null;
+  const id = readId(raw.id);
+  if (!id) return null;
+  return {
+    id,
+    codeHint: readString(raw.code_hint),
+    expiresAt: readString(raw.expires_at),
+    createdAt: readString(raw.created_at),
   };
 }
 
@@ -378,5 +393,99 @@ export async function rejectJoinRequest(clanId: string, applicantId: string): Pr
     `${CLANS_PATH}${encodeURIComponent(clanId)}/reject-request/`,
     { applicant_id: applicantId },
     'No se pudo rechazar la solicitud.',
+  );
+}
+
+/**
+ * Leader only: edit the clan's name, description or privacy. Only the fields in `payload` change.
+ * The avatar has its own endpoint.
+ */
+export async function updateClan(
+  clanId: string,
+  payload: UpdateClanPayload,
+): Promise<ClanListItem> {
+  const response = await sendClanRequest(
+    `${CLANS_PATH}${encodeURIComponent(clanId)}/`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    'No se pudo guardar el clan.',
+  );
+  const clan = mapClanListItem(await response.json());
+  if (!clan) throw new ApiError(UNREADABLE_RESPONSE);
+  return clan;
+}
+
+/**
+ * Leader only: the clan's active invite codes (not used, revoked or expired). The backend never
+ * returns the full code here, only its last four characters.
+ */
+export async function fetchClanInvitations(clanId: string): Promise<ClanInvitation[]> {
+  const response = await apiFetch(`${CLANS_PATH}${encodeURIComponent(clanId)}/invitations/`);
+  if (!response.ok) throw await readError(response, 'No se pudieron cargar los códigos.');
+
+  const payload: unknown = await response.json();
+  const results = Array.isArray(payload)
+    ? payload
+    : isRecord(payload) && Array.isArray(payload.results)
+      ? payload.results
+      : null;
+  if (!results) throw new ApiError(UNREADABLE_RESPONSE);
+  return results
+    .map(mapInvitation)
+    .filter((invitation): invitation is ClanInvitation => invitation !== null);
+}
+
+/**
+ * Leader only: generate a single-use invite code (valid 48 hours) for an invite-only clan.
+ * The full code is only returned by this call, so the caller has to show it right away.
+ */
+export async function createClanInvitation(clanId: string): Promise<ClanInvitationCreated> {
+  const response = await sendClanRequest(
+    `${CLANS_PATH}${encodeURIComponent(clanId)}/invitations/`,
+    { method: 'POST' },
+    'No se pudo generar el código.',
+  );
+  const raw: unknown = await response.json();
+  const id = isRecord(raw) ? readId(raw.id) : '';
+  const code = isRecord(raw) ? readString(raw.code) : '';
+  if (!isRecord(raw) || !id || !code) throw new ApiError(UNREADABLE_RESPONSE);
+  return { id, code, expiresAt: readString(raw.expires_at) };
+}
+
+/**
+ * Leader only: invalidate an invite code that has not been used yet.
+ */
+export async function revokeClanInvitation(clanId: string, invitationId: string): Promise<void> {
+  await sendClanRequest(
+    `${CLANS_PATH}${encodeURIComponent(clanId)}/invitations/${encodeURIComponent(invitationId)}/`,
+    { method: 'DELETE' },
+    'No se pudo revocar el código.',
+  );
+}
+
+/**
+ * Join an invite-only clan with the single-use code its leader shared. The membership is
+ * accepted right away. Errors come back on the `code` field.
+ */
+export async function redeemClanInvitation(code: string): Promise<ClanMembership> {
+  const response = await postJson(
+    `${CLANS_PATH}redeem-invitation/`,
+    { code },
+    'No se pudo canjear el código.',
+  );
+  return readMembership(response);
+}
+
+/**
+ * Leader only: expel an accepted member. The leader cannot expel themselves or another leader.
+ */
+export async function kickClanMember(clanId: string, userId: string): Promise<void> {
+  await postJson(
+    `${CLANS_PATH}${encodeURIComponent(clanId)}/kick/`,
+    { user_id: userId },
+    'No se pudo expulsar a la persona.',
   );
 }
