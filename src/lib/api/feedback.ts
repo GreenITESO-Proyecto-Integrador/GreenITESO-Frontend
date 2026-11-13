@@ -106,3 +106,16 @@ export async function fetchMyFeedback(): Promise<PaginatedFeedback> {
 export function getFeedbackScreenshotUrl(submissionId: string): string {
   return `${getApiBaseUrl()}${FEEDBACK_PATH}${submissionId}/screenshot/`;
 }
+
+/**
+ * Load the protected feedback screenshot using the stored access token,
+ * returning a revocable Object URL for direct image display.
+ */
+export async function fetchFeedbackScreenshotBlobUrl(submissionId: string): Promise<string> {
+  const response = await apiFetch(`${FEEDBACK_PATH}${submissionId}/screenshot/`);
+  if (!response.ok) {
+    throw new Error(`Error al obtener la captura (${response.status})`);
+  }
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
+}
