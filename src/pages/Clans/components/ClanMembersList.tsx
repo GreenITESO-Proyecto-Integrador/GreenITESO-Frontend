@@ -45,6 +45,7 @@ export function ClanMembersList({ members, viewerId }: ClanMembersListProps) {
                 <UserAvatar
                   src={member.avatarUrl}
                   name={name}
+                  decorative
                   className="size-11 rounded-xl text-sm"
                 />
                 <div className="min-w-0 flex-1">
