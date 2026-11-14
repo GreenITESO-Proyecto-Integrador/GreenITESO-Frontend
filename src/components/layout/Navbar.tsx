@@ -1,4 +1,4 @@
-import { Bell, Leaf, LogOut, Search, User as UserIcon } from 'lucide-react';
+import { Bell, Leaf, LogOut, MessageSquarePlus, Search, User as UserIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BrandLogo } from '@/components/custom/BrandLogo';
 import { Input } from '@/components/ui/input';
@@ -87,6 +87,10 @@ export function Navbar({ unreadNotifications = 0, userNickname = 'Usuario' }: Na
               <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
                 <UserIcon />
                 Perfil
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/feedback')} className="cursor-pointer">
+                <MessageSquarePlus />
+                Buzón de feedback
               </DropdownMenuItem>
               {canReplay ? (
                 <DropdownMenuItem onClick={startSimple} className="cursor-pointer">
