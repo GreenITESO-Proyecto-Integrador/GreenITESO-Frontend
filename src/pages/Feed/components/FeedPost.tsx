@@ -87,12 +87,12 @@ export function FeedPost({
     .filter(Boolean)
     .join(' ')
     .trim();
-  const emailPrefix = post.author?.email?.split('@')[0]?.trim();
+  // `display_name` already follows the author's privacy (backend #272). Never fall back to the
+  // institutional email: it would expose who is behind a private or nickname-only profile.
   const authorName =
     post.author?.display_name?.trim() ||
     post.author?.nickname?.trim() ||
     fullName ||
-    emailPrefix ||
     'Usuario GreenITESO';
 
   const likedByMe = Boolean(post.liked_by_me);
