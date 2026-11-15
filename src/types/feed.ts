@@ -7,6 +7,15 @@ export type PostType =
   | 'ACHIEVEMENT'
   | 'GENERAL';
 
+/** Listing order accepted by `GET /api/v1/feed/?ordering=`. */
+export type FeedOrdering = 'recent' | 'popular';
+
+/** Like state of a post as the backend confirms it after a like or unlike. */
+export interface PostLikeState {
+  liked_by_me: boolean;
+  likes_count: number;
+}
+
 export interface AuthorInfo {
   id: string | number;
   email?: string;

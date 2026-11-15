@@ -26,7 +26,9 @@ interface FeedPostProps {
   currentUserId?: string;
   onDelete?: (postId: number) => void;
   onUpdate?: (postId: number, newContent: string) => Promise<void>;
-  onToggleLike?: (postId: number) => Promise<void>;
+  onToggleLike?: (postId: number) => void;
+  /** True while this post's like or unlike request is in flight. */
+  isLikePending?: boolean;
 }
 
 const typeConfig = {
@@ -63,7 +65,14 @@ function getBadgeIcon(iconName?: string): LucideIcon {
   return BADGE_ICONS.get(iconName.toLowerCase()) ?? Award;
 }
 
-export function FeedPost({ post, currentUserId, onDelete, onUpdate, onToggleLike }: FeedPostProps) {
+export function FeedPost({
+  post,
+  currentUserId,
+  onDelete,
+  onUpdate,
+  onToggleLike,
+  isLikePending = false,
+}: FeedPostProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
   const [isSaving, setIsSaving] = useState(false);
@@ -85,6 +94,9 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate, onToggleLike
     fullName ||
     emailPrefix ||
     'Usuario GreenITESO';
+
+  const likedByMe = Boolean(post.liked_by_me);
+  const likesCount = post.likes_count ?? 0;
 
   const dateObj = new Date(post.created_at);
   const formattedDate = dateObj.toLocaleDateString('es-MX', {
@@ -238,18 +250,27 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate, onToggleLike
             <button
               type="button"
               onClick={() => onToggleLike?.(post.id)}
-              aria-label={post.liked_by_me ? 'Quitar Like' : 'Dar Like'}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                post.liked_by_me
+              disabled={!onToggleLike || isLikePending}
+              aria-pressed={likedByMe}
+              aria-busy={isLikePending}
+              aria-label={`Like, ${likesCount} ${likesCount === 1 ? 'like' : 'likes'}`}
+              className={`inline-flex min-h-11 items-center gap-1.5 px-3 rounded-lg text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
+                likedByMe
                   ? 'bg-primary-500/15 text-primary-700 border border-primary-300 dark:bg-primary-900/40 dark:text-primary-300 dark:border-primary-800'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent'
               }`}
             >
-              <ThumbsUp className={`w-4 h-4 ${post.liked_by_me ? 'fill-current' : ''}`} />
+              <ThumbsUp
+                aria-hidden="true"
+                className={`size-4 ${likedByMe ? 'fill-current' : ''}`}
+              />
               <span>Like</span>
-              {(post.likes_count ?? 0) > 0 && (
-                <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-background/80 text-foreground">
-                  {post.likes_count}
+              {likesCount > 0 && (
+                <span
+                  aria-hidden="true"
+                  className="ml-0.5 px-1.5 py-0.5 rounded-full bg-background/80 text-foreground"
+                >
+                  {likesCount}
                 </span>
               )}
             </button>

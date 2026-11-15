@@ -1,10 +1,10 @@
 import { apiFetch } from './client';
-import type { FeedResponse, PostType } from '@/types/feed';
+import type { FeedOrdering, FeedResponse, PostLikeState, PostType } from '@/types/feed';
 
 export async function getFeed(
   page = 1,
-  postType?: string,
-  ordering?: 'recent' | 'popular',
+  postType?: PostType,
+  ordering?: FeedOrdering,
 ): Promise<FeedResponse> {
   const params = new URLSearchParams({ page: page.toString() });
   if (postType) params.append('post_type', postType);
@@ -15,18 +15,31 @@ export async function getFeed(
   return response.json();
 }
 
-export async function togglePostLike(
-  postId: number,
-): Promise<{ liked_by_me: boolean; likes_count: number }> {
+function readLikeState(payload: unknown): PostLikeState {
+  if (typeof payload === 'object' && payload !== null) {
+    const { liked_by_me: likedByMe, likes_count: likesCount } = payload as Record<string, unknown>;
+    if (typeof likedByMe === 'boolean' && typeof likesCount === 'number') {
+      return { liked_by_me: likedByMe, likes_count: likesCount };
+    }
+  }
+  throw new Error('Respuesta inesperada al reaccionar a la publicación');
+}
+
+/**
+ * Set whether the current user likes a post: `POST` likes it and `DELETE` removes the like.
+ *
+ * Both requests are idempotent on the backend, so a retry never undoes the user's choice.
+ */
+export async function setPostLike(postId: number, liked: boolean): Promise<PostLikeState> {
   const response = await apiFetch(`/api/v1/feed/${postId}/like/`, {
-    method: 'POST',
+    method: liked ? 'POST' : 'DELETE',
   });
 
   if (!response.ok) {
     throw new Error('Error al reaccionar a la publicación');
   }
 
-  return response.json();
+  return readLikeState(await response.json());
 }
 
 // CREATE:

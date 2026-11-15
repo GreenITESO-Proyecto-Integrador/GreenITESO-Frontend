@@ -1,24 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Flame, Clock } from 'lucide-react';
-import { getFeed, deletePost, updatePost, togglePostLike } from '@/lib/api/feed';
+import { getFeed, deletePost, updatePost, setPostLike } from '@/lib/api/feed';
 import { getStoredUser } from '@/lib/auth/session';
 import { FeedPost } from './components/FeedPost';
 import { CreatePostForm } from './components/CreatePostForm';
-import type { FeedPost as FeedPostType } from '@/types/feed';
+import type { FeedOrdering, FeedPost as FeedPostType, PostLikeState, PostType } from '@/types/feed';
 
-const FILTER_TABS = [
+const FILTER_TABS: readonly { value: PostType | ''; label: string }[] = [
   { value: '', label: 'Todos' },
   { value: 'SHARED_EVIDENCE', label: 'Evidencias' },
   { value: 'COMMUNITY_MILESTONE', label: 'Hitos' },
   { value: 'OFFICIAL_ANNOUNCEMENT', label: 'Anuncios' },
-] as const;
+];
 
 export function FeedPage() {
   const [posts, setPosts] = useState<FeedPostType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedType, setSelectedType] = useState<string>('');
-  const [ordering, setOrdering] = useState<'recent' | 'popular'>('recent');
+  const [selectedType, setSelectedType] = useState<PostType | ''>('');
+  const [ordering, setOrdering] = useState<FeedOrdering>('recent');
+  const pendingLikesRef = useRef(new Set<number>());
+  const [pendingLikeIds, setPendingLikeIds] = useState<ReadonlySet<number>>(() => new Set());
+  const [likeError, setLikeError] = useState<string | null>(null);
 
   const currentUser = getStoredUser();
   const currentUserId = currentUser?.id;
@@ -76,35 +79,48 @@ export function FeedPage() {
     }
   };
 
-  const handleToggleLike = async (postId: number) => {
-    // Optimistic UI update
+  const patchLikeState = (postId: number, state: PostLikeState) => {
     setPosts(prevPosts =>
-      prevPosts.map(post => {
-        if (post.id !== postId) return post;
-        const currentlyLiked = Boolean(post.liked_by_me);
-        const currentCount = post.likes_count ?? 0;
-        return {
-          ...post,
-          liked_by_me: !currentlyLiked,
-          likes_count: currentlyLiked ? Math.max(0, currentCount - 1) : currentCount + 1,
-        };
-      }),
+      prevPosts.map(post => (post.id === postId ? { ...post, ...state } : post)),
     );
+  };
+
+  const handleToggleLike = async (postId: number) => {
+    // The ref blocks a second click before React re-renders the disabled button.
+    if (pendingLikesRef.current.has(postId)) return;
+    const target = posts.find(post => post.id === postId);
+    if (!target) return;
+
+    const previous: PostLikeState = {
+      liked_by_me: Boolean(target.liked_by_me),
+      likes_count: target.likes_count ?? 0,
+    };
+    const wantLiked = !previous.liked_by_me;
+
+    pendingLikesRef.current.add(postId);
+    setPendingLikeIds(new Set(pendingLikesRef.current));
+    setLikeError(null);
+    patchLikeState(postId, {
+      liked_by_me: wantLiked,
+      likes_count: Math.max(0, previous.likes_count + (wantLiked ? 1 : -1)),
+    });
 
     try {
-      const result = await togglePostLike(postId);
+      patchLikeState(postId, await setPostLike(postId, wantLiked));
+    } catch (err) {
+      console.error(err);
+      // Undo only this post, and only if nothing newer (a refetch) replaced the optimistic value.
       setPosts(prevPosts =>
         prevPosts.map(post =>
-          post.id === postId
-            ? { ...post, liked_by_me: result.liked_by_me, likes_count: result.likes_count }
+          post.id === postId && Boolean(post.liked_by_me) === wantLiked
+            ? { ...post, ...previous }
             : post,
         ),
       );
-    } catch (err) {
-      console.error(err);
-      // Rollback on error
-      const data = await getFeed(1, selectedType || undefined, ordering);
-      setPosts(data.results);
+      setLikeError('No se pudo registrar tu Like. Intenta de nuevo.');
+    } finally {
+      pendingLikesRef.current.delete(postId);
+      setPendingLikeIds(new Set(pendingLikesRef.current));
     }
   };
 
@@ -175,6 +191,14 @@ export function FeedPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-4">
+          {likeError && (
+            <p
+              role="alert"
+              className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive"
+            >
+              {likeError}
+            </p>
+          )}
           {posts.length === 0 ? (
             <p className="py-12 text-center text-sm text-muted-foreground">
               No hay publicaciones por mostrar. ¡Sé el primero en compartir tu impacto!
@@ -188,6 +212,7 @@ export function FeedPage() {
                 onDelete={handlePostDeleted}
                 onUpdate={handlePostUpdated}
                 onToggleLike={handleToggleLike}
+                isLikePending={pendingLikeIds.has(post.id)}
               />
             ))
           )}
