@@ -22,15 +22,17 @@ export function FeedPage() {
   const pendingLikesRef = useRef(new Set<number>());
   const [pendingLikeIds, setPendingLikeIds] = useState<ReadonlySet<number>>(() => new Set());
   const [likeError, setLikeError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  /** Why the post the user just created is not in the visible list, if it is not. */
+  const [hiddenNewPost, setHiddenNewPost] = useState<'type' | 'ordering' | null>(null);
 
   const currentUser = getStoredUser();
   const currentUserId = currentUser?.id;
 
   useEffect(() => {
+    // `active` drops the response of a filter the user already left.
     let active = true;
     async function loadFeed() {
-      setLoading(true);
-      setError(null);
       try {
         const data = await getFeed(1, selectedType || undefined, ordering);
         if (active) {
@@ -44,6 +46,7 @@ export function FeedPage() {
       } finally {
         if (active) {
           setLoading(false);
+          setIsRefreshing(false);
         }
       }
     }
@@ -53,8 +56,29 @@ export function FeedPage() {
     };
   }, [selectedType, ordering]);
 
+  const changeFilters = (next: { type?: PostType | ''; ordering?: FeedOrdering }) => {
+    const nextType = next.type ?? selectedType;
+    const nextOrdering = next.ordering ?? ordering;
+    if (nextType === selectedType && nextOrdering === ordering) return;
+
+    setSelectedType(nextType);
+    setOrdering(nextOrdering);
+    // Keep the current list on screen (marked busy) instead of blanking it on every click.
+    setIsRefreshing(true);
+    setError(null);
+    setLikeError(null);
+    setHiddenNewPost(null);
+  };
+
   const handlePostCreated = (newPost: FeedPostType) => {
-    setPosts(prevPosts => [newPost, ...prevPosts]);
+    const matchesType = selectedType === '' || newPost.post_type === selectedType;
+    if (matchesType && ordering === 'recent') {
+      setHiddenNewPost(null);
+      setPosts(prevPosts => [newPost, ...prevPosts]);
+      return;
+    }
+    // Prepending it here would show a post the active filter or order does not contain.
+    setHiddenNewPost(matchesType ? 'ordering' : 'type');
   };
 
   const handlePostDeleted = async (postId: number) => {
@@ -135,13 +159,29 @@ export function FeedPage() {
 
       <CreatePostForm onPostCreated={handlePostCreated} />
 
+      {hiddenNewPost && (
+        <div
+          role="status"
+          className="flex flex-col gap-3 rounded-lg border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-700 sm:flex-row sm:items-center sm:justify-between dark:border-primary-800 dark:bg-primary-900/40 dark:text-primary-300"
+        >
+          <p>Tu publicación se creó, pero no aparece con el filtro u orden que tienes activo.</p>
+          <button
+            type="button"
+            onClick={() => changeFilters({ type: '', ordering: 'recent' })}
+            className="min-h-11 shrink-0 rounded-lg bg-primary-500 px-4 font-semibold text-white transition-colors hover:bg-primary-600 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            {hiddenNewPost === 'type' ? 'Ver en Todos' : 'Ver en Recientes'}
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/60">
         <div className="flex items-center gap-1.5 overflow-x-auto">
           {FILTER_TABS.map(tab => (
             <button
               key={tab.value}
               type="button"
-              onClick={() => setSelectedType(tab.value)}
+              onClick={() => changeFilters({ type: tab.value })}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
                 selectedType === tab.value
                   ? 'bg-primary-500 text-white shadow-sm'
@@ -156,7 +196,7 @@ export function FeedPage() {
         <div className="flex w-full sm:w-auto items-center gap-1 bg-muted/40 p-1 rounded-lg">
           <button
             type="button"
-            onClick={() => setOrdering('recent')}
+            onClick={() => changeFilters({ ordering: 'recent' })}
             className={`flex flex-1 sm:flex-initial items-center justify-center gap-1 px-2.5 py-1.5 sm:py-1 rounded-md text-xs font-medium transition-colors ${
               ordering === 'recent'
                 ? 'bg-background text-foreground shadow-sm'
@@ -168,7 +208,7 @@ export function FeedPage() {
           </button>
           <button
             type="button"
-            onClick={() => setOrdering('popular')}
+            onClick={() => changeFilters({ ordering: 'popular' })}
             className={`flex flex-1 sm:flex-initial items-center justify-center gap-1 px-2.5 py-1.5 sm:py-1 rounded-md text-xs font-medium transition-colors ${
               ordering === 'popular'
                 ? 'bg-background text-foreground shadow-sm'
@@ -190,7 +230,10 @@ export function FeedPage() {
           {error}
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div
+          aria-busy={isRefreshing}
+          className={`flex flex-col gap-4 transition-opacity ${isRefreshing ? 'opacity-60' : ''}`}
+        >
           {likeError && (
             <p
               role="alert"
