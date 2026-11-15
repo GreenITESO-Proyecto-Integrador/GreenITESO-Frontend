@@ -1,23 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { Flame, Clock } from 'lucide-react';
 import { getFeed, deletePost, updatePost, setPostLike } from '@/lib/api/feed';
 import { getStoredUser } from '@/lib/auth/session';
 import { FeedPost } from './components/FeedPost';
 import { CreatePostForm } from './components/CreatePostForm';
-import type { FeedOrdering, FeedPost as FeedPostType, PostLikeState, PostType } from '@/types/feed';
-
-const FILTER_TABS: readonly { value: PostType | ''; label: string }[] = [
-  { value: '', label: 'Todos' },
-  { value: 'SHARED_EVIDENCE', label: 'Evidencias' },
-  { value: 'COMMUNITY_MILESTONE', label: 'Hitos' },
-  { value: 'OFFICIAL_ANNOUNCEMENT', label: 'Anuncios' },
-];
+import { FeedFilters, type FeedTypeFilter } from './components/FeedFilters';
+import type { FeedOrdering, FeedPost as FeedPostType, PostLikeState } from '@/types/feed';
 
 export function FeedPage() {
   const [posts, setPosts] = useState<FeedPostType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedType, setSelectedType] = useState<PostType | ''>('');
+  const [selectedType, setSelectedType] = useState<FeedTypeFilter>('');
   const [ordering, setOrdering] = useState<FeedOrdering>('recent');
   const pendingLikesRef = useRef(new Set<number>());
   const [pendingLikeIds, setPendingLikeIds] = useState<ReadonlySet<number>>(() => new Set());
@@ -56,7 +49,7 @@ export function FeedPage() {
     };
   }, [selectedType, ordering]);
 
-  const changeFilters = (next: { type?: PostType | ''; ordering?: FeedOrdering }) => {
+  const changeFilters = (next: { type?: FeedTypeFilter; ordering?: FeedOrdering }) => {
     const nextType = next.type ?? selectedType;
     const nextOrdering = next.ordering ?? ordering;
     if (nextType === selectedType && nextOrdering === ordering) return;
@@ -175,51 +168,12 @@ export function FeedPage() {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/60">
-        <div className="flex items-center gap-1.5 overflow-x-auto">
-          {FILTER_TABS.map(tab => (
-            <button
-              key={tab.value}
-              type="button"
-              onClick={() => changeFilters({ type: tab.value })}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                selectedType === tab.value
-                  ? 'bg-primary-500 text-white shadow-sm'
-                  : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex w-full sm:w-auto items-center gap-1 bg-muted/40 p-1 rounded-lg">
-          <button
-            type="button"
-            onClick={() => changeFilters({ ordering: 'recent' })}
-            className={`flex flex-1 sm:flex-initial items-center justify-center gap-1 px-2.5 py-1.5 sm:py-1 rounded-md text-xs font-medium transition-colors ${
-              ordering === 'recent'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Clock className="w-3.5 h-3.5" />
-            Recientes
-          </button>
-          <button
-            type="button"
-            onClick={() => changeFilters({ ordering: 'popular' })}
-            className={`flex flex-1 sm:flex-initial items-center justify-center gap-1 px-2.5 py-1.5 sm:py-1 rounded-md text-xs font-medium transition-colors ${
-              ordering === 'popular'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Flame className="w-3.5 h-3.5" />
-            Populares
-          </button>
-        </div>
-      </div>
+      <FeedFilters
+        type={selectedType}
+        ordering={ordering}
+        onTypeChange={type => changeFilters({ type })}
+        onOrderingChange={nextOrdering => changeFilters({ ordering: nextOrdering })}
+      />
 
       {loading ? (
         <div className="text-center text-muted-foreground py-10 animate-pulse">
