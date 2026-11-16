@@ -217,6 +217,7 @@ export function FeedPage() {
                 onUpdate={handlePostUpdated}
                 onToggleLike={handleToggleLike}
                 isLikePending={pendingLikeIds.has(post.id)}
+                actionsDisabled={isRefreshing}
               />
             ))
           )}
