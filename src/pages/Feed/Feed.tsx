@@ -160,7 +160,14 @@ export function FeedPage() {
           <p>Tu publicación se creó, pero no aparece con el filtro u orden que tienes activo.</p>
           <button
             type="button"
-            onClick={() => changeFilters({ type: '', ordering: 'recent' })}
+            onClick={() =>
+              // Only undo what hides the post: the order, or (if the type excludes it) both.
+              changeFilters(
+                hiddenNewPost === 'type'
+                  ? { type: '', ordering: 'recent' }
+                  : { ordering: 'recent' },
+              )
+            }
             className="min-h-11 shrink-0 rounded-lg bg-primary-500 px-4 font-semibold text-white transition-colors hover:bg-primary-600 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:outline-none"
           >
             {hiddenNewPost === 'type' ? 'Ver en Todos' : 'Ver en Recientes'}
