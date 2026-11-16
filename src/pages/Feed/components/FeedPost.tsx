@@ -13,6 +13,7 @@ import {
   Recycle,
   TreePine,
   ShieldCheck,
+  ThumbsUp,
   type LucideIcon,
 } from 'lucide-react';
 import { CosmeticAvatar } from '@/components/shared/CosmeticAvatar';
@@ -25,6 +26,9 @@ interface FeedPostProps {
   currentUserId?: string;
   onDelete?: (postId: number) => void;
   onUpdate?: (postId: number, newContent: string) => Promise<void>;
+  onToggleLike?: (postId: number) => void;
+  /** True while this post's like or unlike request is in flight. */
+  isLikePending?: boolean;
 }
 
 const typeConfig = {
@@ -61,7 +65,14 @@ function getBadgeIcon(iconName?: string): LucideIcon {
   return BADGE_ICONS.get(iconName.toLowerCase()) ?? Award;
 }
 
-export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostProps) {
+export function FeedPost({
+  post,
+  currentUserId,
+  onDelete,
+  onUpdate,
+  onToggleLike,
+  isLikePending = false,
+}: FeedPostProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
   const [isSaving, setIsSaving] = useState(false);
@@ -76,7 +87,16 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
     .filter(Boolean)
     .join(' ')
     .trim();
-  const authorName = fullName || post.author?.nickname || post.author?.email || 'Usuario Ecológico';
+  // `display_name` already follows the author's privacy (backend #272). Never fall back to the
+  // institutional email: it would expose who is behind a private or nickname-only profile.
+  const authorName =
+    post.author?.display_name?.trim() ||
+    post.author?.nickname?.trim() ||
+    fullName ||
+    'Usuario GreenITESO';
+
+  const likedByMe = Boolean(post.liked_by_me);
+  const likesCount = post.likes_count ?? 0;
 
   const dateObj = new Date(post.created_at);
   const formattedDate = dateObj.toLocaleDateString('es-MX', {
@@ -222,6 +242,38 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
               alt="Evidencia"
               className="w-full h-auto object-cover max-h-96"
             />
+          </div>
+        )}
+
+        {!isEditing && (
+          <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => onToggleLike?.(post.id)}
+              disabled={!onToggleLike || isLikePending}
+              aria-pressed={likedByMe}
+              aria-busy={isLikePending}
+              aria-label={`Like, ${likesCount} ${likesCount === 1 ? 'like' : 'likes'}`}
+              className={`inline-flex min-h-11 items-center gap-1.5 px-3 rounded-lg text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
+                likedByMe
+                  ? 'bg-primary-500/15 text-primary-700 border border-primary-300 dark:bg-primary-900/40 dark:text-primary-300 dark:border-primary-800'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent'
+              }`}
+            >
+              <ThumbsUp
+                aria-hidden="true"
+                className={`size-4 ${likedByMe ? 'fill-current' : ''}`}
+              />
+              <span>Like</span>
+              {likesCount > 0 && (
+                <span
+                  aria-hidden="true"
+                  className="ml-0.5 px-1.5 py-0.5 rounded-full bg-background/80 text-foreground"
+                >
+                  {likesCount}
+                </span>
+              )}
+            </button>
           </div>
         )}
       </div>
