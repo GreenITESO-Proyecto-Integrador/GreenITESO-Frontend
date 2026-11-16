@@ -137,3 +137,76 @@ test('should display the backend error message and not create a post when upload
   ).toBeVisible();
   expect(postCreatedCalled).toBe(false);
 });
+
+test('should show a network error in Spanish and not create a post when the upload cannot connect', async ({
+  page,
+}) => {
+  await mockStudentSession(page);
+
+  let postCreatedCalled = false;
+
+  await page.route('**/api/v1/uploads/**', route => route.abort('failed'));
+
+  await page.route('**/api/**/feed/**', async route => {
+    if (route.request().method() === 'POST') {
+      postCreatedCalled = true;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
+    });
+  });
+
+  await page.goto('/feed');
+
+  await page.getByPlaceholder('¿Qué acción sostenible realizaste hoy?').fill('Intento sin red');
+  await page.getByRole('button', { name: /Añadir imagen/i }).click();
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'evidencia.png',
+    mimeType: 'image/png',
+    buffer: PIXEL_PNG,
+  });
+
+  await page.getByRole('button', { name: 'Publicar' }).click();
+
+  await expect(
+    page.getByText('Error de red al subir la imagen. Revisa tu conexión e inténtalo de nuevo.'),
+  ).toBeVisible();
+  await expect(page.getByText(/Failed to fetch/i)).toHaveCount(0);
+  expect(postCreatedCalled).toBe(false);
+});
+
+test('should show a fresh, loadable preview after removing an image and choosing another', async ({
+  page,
+}) => {
+  await mockStudentSession(page);
+  await page.route('**/api/**/feed/**', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
+    }),
+  );
+
+  await page.goto('/feed');
+  await page.getByRole('button', { name: /Añadir imagen/i }).click();
+
+  const fileInput = page.locator('input[type="file"]');
+  const preview = page.getByAltText('Previsualización de evidencia');
+  await fileInput.setInputFiles({ name: 'uno.png', mimeType: 'image/png', buffer: PIXEL_PNG });
+  await expect(preview).toBeVisible();
+  const firstUrl = await preview.getAttribute('src');
+
+  await page.getByRole('button', { name: 'Eliminar imagen seleccionada' }).click();
+  await expect(preview).toHaveCount(0);
+
+  // The cleanup effect revoked the first URL; the new one must still load.
+  await fileInput.setInputFiles({ name: 'dos.png', mimeType: 'image/png', buffer: PIXEL_PNG });
+  await expect(preview).toBeVisible();
+  await expect(preview).not.toHaveAttribute('src', firstUrl ?? '');
+  await expect
+    .poll(() => preview.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth))
+    .toBeGreaterThan(0);
+});

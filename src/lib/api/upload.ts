@@ -60,12 +60,10 @@ export async function uploadImage(file: File): Promise<string> {
       body: formData,
     });
   } catch (error) {
-    throw new Error(
-      error instanceof Error
-        ? error.message
-        : 'Error de red al subir la imagen. Inténtalo de nuevo.',
-      { cause: error },
-    );
+    // fetch only rejects on network failures, and its message ("Failed to fetch") is not for users.
+    throw new Error('Error de red al subir la imagen. Revisa tu conexión e inténtalo de nuevo.', {
+      cause: error,
+    });
   }
 
   if (!response.ok) {
