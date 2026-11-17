@@ -396,6 +396,93 @@ test('should disable like, edit, delete and save while a filter change is loadin
   expect(likeCalls(mock)).toEqual([]);
 });
 
+/** A promise the test resolves by hand, to hold a mocked response until it says so. */
+function gate() {
+  let open: () => void = () => {};
+  const opened = new Promise<void>(resolve => {
+    open = resolve;
+  });
+  return { open, opened };
+}
+
+/**
+ * Press "Publicar" with the create request held, switch to `filter` with its listing held, then let
+ * the post be created before that listing (requested earlier, so without the post) arrives.
+ */
+async function createPostWhileFilterLoads(
+  page: Page,
+  options: { filter: string; postType: PostType; content: string },
+) {
+  const createHeld = gate();
+  const listingHeld = gate();
+  const created = { ...post(99, { post_type: 'SHARED_EVIDENCE' }), content: options.content };
+  const filtered = post(5, { post_type: options.postType });
+  const mock = await mockFeed(page, {
+    listFor: url =>
+      url.searchParams.get('post_type') === options.postType ? [filtered] : [post(1)],
+    onCreate: async route => {
+      await createHeld.opened;
+      await fulfillJson(route, 201, created);
+    },
+  });
+  await page.route(new RegExp(`/api/v1/feed/\\?.*post_type=${options.postType}`), async route => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: CORS_HEADERS });
+      return;
+    }
+    await listingHeld.opened;
+    await route.fallback();
+  });
+  await page.goto('/feed');
+  await expect(page.getByText('Publicación 1')).toBeVisible();
+
+  await page.getByPlaceholder('¿Qué acción sostenible realizaste hoy?').fill(options.content);
+  await page.getByRole('button', { name: 'Publicar' }).click();
+  await expect.poll(() => mock.calls.filter(call => call.startsWith('POST '))).toHaveLength(1);
+
+  const typeFilters = page.getByRole('group', { name: 'Filtrar por tipo de publicación' });
+  await typeFilters.getByRole('button', { name: options.filter }).click();
+  await expect(page.locator('[aria-busy="true"]')).toBeVisible();
+
+  createHeld.open();
+  // The form clears once the post exists, while the filtered listing is still held.
+  await expect(page.getByPlaceholder('¿Qué acción sostenible realizaste hoy?')).toHaveValue('');
+  listingHeld.open();
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
+  await expect(page.getByText('Publicación 5')).toBeVisible();
+  return { typeFilters };
+}
+
+test('should keep a post created while a matching filter loads', async ({ page }) => {
+  await createPostWhileFilterLoads(page, {
+    filter: 'Evidencias',
+    postType: 'SHARED_EVIDENCE',
+    content: 'Composté en casa',
+  });
+
+  await expect(page.getByText('Composté en casa', { exact: true })).toBeVisible();
+  await expect(page.getByText('Publicación 1')).toHaveCount(0);
+  await expect(page.getByRole('status').filter({ hasText: 'Tu publicación se creó' })).toHaveCount(
+    0,
+  );
+});
+
+test('should judge a post created during a filter change by the new filter', async ({ page }) => {
+  const { typeFilters } = await createPostWhileFilterLoads(page, {
+    filter: 'Anuncios',
+    postType: 'OFFICIAL_ANNOUNCEMENT',
+    content: 'Apagué las luces',
+  });
+
+  await expect(page.getByText('Apagué las luces', { exact: true })).toHaveCount(0);
+  const notice = page.getByRole('status').filter({ hasText: 'Tu publicación se creó' });
+  await expect(notice.getByRole('button', { name: 'Ver en Todos' })).toBeVisible();
+  await expect(typeFilters.getByRole('button', { name: 'Anuncios' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+});
+
 test('should never show the author email as their name', async ({ page }) => {
   await mockFeed(page, {
     listFor: () => [

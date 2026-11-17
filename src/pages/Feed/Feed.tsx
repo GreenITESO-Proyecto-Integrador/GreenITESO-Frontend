@@ -18,6 +18,18 @@ export function FeedPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   /** Why the post the user just created is not in the visible list, if it is not. */
   const [hiddenNewPost, setHiddenNewPost] = useState<'type' | 'ordering' | null>(null);
+  /**
+   * The filters on screen and whether their listing is still loading. CreatePostForm reports a new
+   * post from the render where "Publicar" was pressed, so handlePostCreated reads this ref instead
+   * of state that may predate a filter change.
+   */
+  const viewRef = useRef<{ type: FeedTypeFilter; ordering: FeedOrdering; loading: boolean }>({
+    type: '',
+    ordering: 'recent',
+    loading: true,
+  });
+  /** Posts created while a listing was loading: that response was requested before they existed. */
+  const createdWhileLoadingRef = useRef<FeedPostType[]>([]);
 
   const currentUser = getStoredUser();
   const currentUserId = currentUser?.id;
@@ -29,7 +41,10 @@ export function FeedPage() {
       try {
         const data = await getFeed(1, selectedType || undefined, ordering);
         if (active) {
-          setPosts(data.results);
+          const missing = createdWhileLoadingRef.current.filter(
+            created => !data.results.some(post => post.id === created.id),
+          );
+          setPosts([...missing, ...data.results]);
         }
       } catch (err) {
         if (active) {
@@ -38,6 +53,8 @@ export function FeedPage() {
         console.error(err);
       } finally {
         if (active) {
+          createdWhileLoadingRef.current = [];
+          viewRef.current = { ...viewRef.current, loading: false };
           setLoading(false);
           setIsRefreshing(false);
         }
@@ -54,6 +71,9 @@ export function FeedPage() {
     const nextOrdering = next.ordering ?? ordering;
     if (nextType === selectedType && nextOrdering === ordering) return;
 
+    viewRef.current = { type: nextType, ordering: nextOrdering, loading: true };
+    // The new listing is requested after any post created so far, so it already includes them.
+    createdWhileLoadingRef.current = [];
     setSelectedType(nextType);
     setOrdering(nextOrdering);
     // Keep the current list on screen (marked busy) instead of blanking it on every click.
@@ -64,14 +84,20 @@ export function FeedPage() {
   };
 
   const handlePostCreated = (newPost: FeedPostType) => {
-    const matchesType = selectedType === '' || newPost.post_type === selectedType;
-    if (matchesType && ordering === 'recent') {
-      setHiddenNewPost(null);
-      setPosts(prevPosts => [newPost, ...prevPosts]);
+    const view = viewRef.current;
+    const matchesType = view.type === '' || newPost.post_type === view.type;
+    if (!matchesType || view.ordering !== 'recent') {
+      // Prepending it here would show a post the active filter or order does not contain.
+      setHiddenNewPost(matchesType ? 'ordering' : 'type');
       return;
     }
-    // Prepending it here would show a post the active filter or order does not contain.
-    setHiddenNewPost(matchesType ? 'ordering' : 'type');
+    setHiddenNewPost(null);
+    if (view.loading) {
+      // The listing on its way would replace the list without it: add it when that arrives.
+      createdWhileLoadingRef.current.push(newPost);
+      return;
+    }
+    setPosts(prevPosts => [newPost, ...prevPosts]);
   };
 
   const handlePostDeleted = async (postId: number) => {
