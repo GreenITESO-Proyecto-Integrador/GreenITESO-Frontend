@@ -780,14 +780,66 @@ test.describe('Profile Editing (T2-23)', () => {
     await expect(navbarPhoto).toHaveAttribute('src', uploadedAvatarUrl(1));
   });
 
-  test('should treat an external URL with /api/v1/avatars/ path as a pasted link', async ({
+  test('should not let a late profile lookup started on another page overwrite a photo saved on /profile', async ({
     page,
   }) => {
-    const externalUrl = `${imageHost}/api/v1/avatars/external.jpg`;
-    await setupProfile(page, { profile: { avatar_url: externalUrl } });
+    let holding = true;
+    let release!: () => void;
+    const heldGate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    await page.route('**/api/v1/clans/**', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ count: 0, results: [] }),
+      }),
+    );
+    const { profileGets } = await setupProfile(page, {
+      startPath: '/clans',
+      holdProfileGets: () => holding,
+      heldGate,
+    });
+    // Both CurrentUserAvatarProvider and MyClansSection (useEcologicalProfile) request /profile/me/.
+    await expect.poll(() => profileGets.length).toBeGreaterThanOrEqual(2);
+    holding = false;
+
+    await page.getByRole('button', { name: 'Menú de usuario' }).click();
+    await page.getByRole('menuitem', { name: 'Perfil' }).click();
+    await openEditor(page);
+    await page.getByTestId('profile-avatar-file').setInputFiles({
+      name: 'yo.png',
+      mimeType: 'image/png',
+      buffer: PIXEL_PNG,
+    });
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    const navbarPhoto = page.getByRole('button', { name: 'Menú de usuario' }).locator('img');
+    await expect(navbarPhoto).toHaveAttribute('src', uploadedAvatarUrl(1));
+
+    const heldResponse = page.waitForResponse(
+      response =>
+        response.url().includes('/api/v1/profile/me/') && response.request().method() === 'GET',
+    );
+    release();
+    await (await heldResponse).finished();
+    await expect(navbarPhoto).toHaveAttribute('src', uploadedAvatarUrl(1));
+    const storedAvatar = await page.evaluate(() => {
+      const raw = sessionStorage.getItem('greeniteso.user');
+      return raw ? (JSON.parse(raw) as { avatarUrl?: string }).avatarUrl : null;
+    });
+    expect(storedAvatar).toBe(uploadedAvatarUrl(1));
+  });
+
+  test('should treat a deployed backend uploaded photo URL as an uploaded photo', async ({
+    page,
+  }) => {
+    const deployedUrl =
+      'https://greeniteso-backend.example.run.app/api/v1/avatars/user-uuid-123/?v=7';
+    await setupProfile(page, { profile: { avatar_url: deployedUrl } });
     await openEditor(page);
 
-    await expect(page.getByLabel('Enlace de la foto')).toHaveValue(externalUrl);
+    await expect(page.getByLabel('Enlace de la foto')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Quitar' })).toBeVisible();
   });
 });
 

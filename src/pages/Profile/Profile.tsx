@@ -17,7 +17,9 @@ import { ActionHistorySection } from './components/ActionHistorySection';
 
 export function ProfilePage() {
   const navigate = useNavigate();
-  const { profile, status, errorMessage, reload, setProfile } = useEcologicalProfile();
+  const { profile, status, errorMessage, reload, setProfile } = useEcologicalProfile({
+    syncAvatar: true,
+  });
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   return (

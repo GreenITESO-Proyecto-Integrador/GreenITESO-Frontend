@@ -6,7 +6,7 @@ import { CurrentUserAvatarContext } from '@/lib/current-user-avatar-context';
 
 /**
  * Holds the signed-in user's profile photo for the navbar. It starts from the
- * login payload and is refreshed from `/profile/me/` once per mount (except on
+ * login payload and is refreshed from `/profile/me/` once per session (except on
  * `/profile`, where `useEcologicalProfile` already loads the profile and syncs
  * the photo), so a photo changed on another device, or a session stored before
  * photos existed, still shows up. A lookup that resolves after the photo was
@@ -15,10 +15,11 @@ import { CurrentUserAvatarContext } from '@/lib/current-user-avatar-context';
 export function CurrentUserAvatarProvider({ children }: { children: React.ReactNode }) {
   const userId = getStoredUser()?.id ?? null;
   const { pathname } = useLocation();
-  const initialPathnameRef = useRef(pathname);
   const [avatarUrl, setAvatarUrlState] = useState(() => getStoredUser()?.avatarUrl ?? '');
   // Bumped on every local change; a lookup started before a change is stale.
   const localChanges = useRef(0);
+  // Tracks which user's avatar has already been refreshed from `/profile/me/`.
+  const syncedUserRef = useRef<string | null>(null);
 
   const setAvatarUrl = useCallback((next: string) => {
     localChanges.current += 1;
@@ -26,21 +27,36 @@ export function CurrentUserAvatarProvider({ children }: { children: React.ReactN
     updateStoredUser({ avatarUrl: next });
   }, []);
 
+  const getChangeCount = useCallback(() => localChanges.current, []);
+
+  const syncFetchedAvatarUrl = useCallback(
+    (next: string, changeCountAtStart: number) => {
+      if (localChanges.current !== changeCountAtStart) return;
+      syncedUserRef.current = userId;
+      setAvatarUrlState(next);
+      updateStoredUser({ avatarUrl: next });
+    },
+    [userId],
+  );
+
   const value = useMemo(
     () => ({
       avatarUrl,
       setAvatarUrl,
+      getChangeCount,
+      syncFetchedAvatarUrl,
     }),
-    [avatarUrl, setAvatarUrl],
+    [avatarUrl, setAvatarUrl, getChangeCount, syncFetchedAvatarUrl],
   );
 
   useEffect(() => {
-    if (!userId || initialPathnameRef.current === '/profile') return;
+    if (!userId || pathname === '/profile' || syncedUserRef.current === userId) return;
     let cancelled = false;
     const changesAtStart = localChanges.current;
     fetchOwnAvatarUrl()
       .then(url => {
         if (cancelled || url === null || localChanges.current !== changesAtStart) return;
+        syncedUserRef.current = userId;
         setAvatarUrlState(url);
         updateStoredUser({ avatarUrl: url });
       })
@@ -49,7 +65,7 @@ export function CurrentUserAvatarProvider({ children }: { children: React.ReactN
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, pathname]);
 
   return (
     <CurrentUserAvatarContext.Provider value={value}>{children}</CurrentUserAvatarContext.Provider>

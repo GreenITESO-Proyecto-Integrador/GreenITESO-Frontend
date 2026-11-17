@@ -23,12 +23,7 @@ export const UPLOADED_AVATAR_PATH = '/api/v1/avatars/';
 export function isUploadedAvatarUrl(url: string | undefined): boolean {
   if (!url) return false;
   try {
-    const base = new URL(
-      getApiBaseUrl(),
-      typeof window !== 'undefined' ? window.location.origin : 'http://localhost',
-    );
-    const parsed = new URL(url, base);
-    return parsed.origin === base.origin && parsed.pathname.startsWith(UPLOADED_AVATAR_PATH);
+    return new URL(url, 'http://localhost').pathname.startsWith(UPLOADED_AVATAR_PATH);
   } catch {
     return false;
   }
