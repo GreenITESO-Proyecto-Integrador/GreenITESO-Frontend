@@ -13,9 +13,12 @@ import {
   Recycle,
   TreePine,
   ShieldCheck,
+  ThumbsUp,
   type LucideIcon,
 } from 'lucide-react';
-import { UserAvatar } from '@/components/shared/UserAvatar';
+import { CosmeticAvatar } from '@/components/shared/CosmeticAvatar';
+import { CosmeticBackground } from '@/components/shared/CosmeticBackground';
+import { cosmeticHostClass } from '@/lib/safe-image-url';
 import type { FeedPost as FeedPostType } from '@/types/feed';
 
 interface FeedPostProps {
@@ -23,6 +26,14 @@ interface FeedPostProps {
   currentUserId?: string;
   onDelete?: (postId: number) => void;
   onUpdate?: (postId: number, newContent: string) => Promise<void>;
+  onToggleLike?: (postId: number) => void;
+  /** True while this post's like or unlike request is in flight. */
+  isLikePending?: boolean;
+  /**
+   * True while the feed is replacing this list with a new filter or order. A like, edit or delete
+   * made now would be overwritten by the response already on its way, so they wait.
+   */
+  actionsDisabled?: boolean;
 }
 
 const typeConfig = {
@@ -59,7 +70,15 @@ function getBadgeIcon(iconName?: string): LucideIcon {
   return BADGE_ICONS.get(iconName.toLowerCase()) ?? Award;
 }
 
-export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostProps) {
+export function FeedPost({
+  post,
+  currentUserId,
+  onDelete,
+  onUpdate,
+  onToggleLike,
+  isLikePending = false,
+  actionsDisabled = false,
+}: FeedPostProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
   const [isSaving, setIsSaving] = useState(false);
@@ -74,7 +93,16 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
     .filter(Boolean)
     .join(' ')
     .trim();
-  const authorName = fullName || post.author?.nickname || post.author?.email || 'Usuario Ecológico';
+  // `display_name` already follows the author's privacy (backend #272). Never fall back to the
+  // institutional email: it would expose who is behind a private or nickname-only profile.
+  const authorName =
+    post.author?.display_name?.trim() ||
+    post.author?.nickname?.trim() ||
+    fullName ||
+    'Usuario GreenITESO';
+
+  const likedByMe = Boolean(post.liked_by_me);
+  const likesCount = post.likes_count ?? 0;
 
   const dateObj = new Date(post.created_at);
   const formattedDate = dateObj.toLocaleDateString('es-MX', {
@@ -119,8 +147,16 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
 
   return (
     <div className="mb-6 bg-card text-card-foreground rounded-xl border border-border shadow-sm overflow-hidden transition-colors">
-      <div className="p-4 flex flex-row items-center gap-4 border-b border-border/60">
-        <UserAvatar src={post.author?.avatar_url} name={authorName} className="size-12 text-lg" />
+      <div
+        className={`p-4 flex flex-row items-center gap-4 border-b border-border/60 ${cosmeticHostClass(post.author?.background_url)}`}
+      >
+        <CosmeticBackground url={post.author?.background_url} />
+        <CosmeticAvatar
+          src={post.author?.avatar_url}
+          name={authorName}
+          frameUrl={post.author?.frame_url}
+          className="size-12 text-lg"
+        />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -155,7 +191,8 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
               {onUpdate && (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                  disabled={actionsDisabled}
+                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                   title="Editar publicación"
                 >
                   <Edit2 className="w-4 h-4" />
@@ -164,7 +201,8 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
               {onDelete && (
                 <button
                   onClick={() => onDelete(post.id)}
-                  className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                  disabled={actionsDisabled}
+                  className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                   title="Eliminar publicación"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -194,7 +232,7 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
               </button>
               <button
                 onClick={handleSave}
-                disabled={isSaving || !editContent.trim()}
+                disabled={isSaving || actionsDisabled || !editContent.trim()}
                 className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 disabled:opacity-50 rounded-md transition-colors"
               >
                 <Check className="w-4 h-4" /> {isSaving ? 'Guardando...' : 'Guardar'}
@@ -212,6 +250,38 @@ export function FeedPost({ post, currentUserId, onDelete, onUpdate }: FeedPostPr
               alt="Evidencia"
               className="w-full h-auto object-cover max-h-96"
             />
+          </div>
+        )}
+
+        {!isEditing && (
+          <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => onToggleLike?.(post.id)}
+              disabled={!onToggleLike || isLikePending || actionsDisabled}
+              aria-pressed={likedByMe}
+              aria-busy={isLikePending}
+              aria-label={`Like, ${likesCount} ${likesCount === 1 ? 'like' : 'likes'}`}
+              className={`inline-flex min-h-11 items-center gap-1.5 px-3 rounded-lg text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
+                likedByMe
+                  ? 'bg-primary-500/15 text-primary-700 border border-primary-300 dark:bg-primary-900/40 dark:text-primary-300 dark:border-primary-800'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent'
+              }`}
+            >
+              <ThumbsUp
+                aria-hidden="true"
+                className={`size-4 ${likedByMe ? 'fill-current' : ''}`}
+              />
+              <span>Like</span>
+              {likesCount > 0 && (
+                <span
+                  aria-hidden="true"
+                  className="ml-0.5 px-1.5 py-0.5 rounded-full bg-background/80 text-foreground"
+                >
+                  {likesCount}
+                </span>
+              )}
+            </button>
           </div>
         )}
       </div>

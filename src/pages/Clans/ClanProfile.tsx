@@ -198,7 +198,16 @@ export function ClanProfilePage() {
             />
           ) : null}
           {isMember ? <ClanActiveCampaigns clanId={clan.id} /> : null}
-          <ClanMembersList members={clan.members} viewerId={viewerId} />
+          <ClanMembersList
+            members={clan.members}
+            viewerId={viewerId}
+            clanId={clan.id}
+            isLeader={isLeader}
+            onKicked={message => {
+              setNotice(message);
+              void reload({ silent: true });
+            }}
+          />
         </>
       ) : null}
     </div>

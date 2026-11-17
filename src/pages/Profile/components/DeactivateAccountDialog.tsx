@@ -9,6 +9,8 @@ import { deactivateAccount } from '@/lib/api/account';
 import { ApiError, toFriendlyMessage } from '@/lib/api/errors';
 import { clearSession } from '@/lib/auth/session';
 
+const DEACTIVATE_FALLBACK = 'No se pudo desactivar la cuenta.';
+
 interface DeactivateAccountDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -16,7 +18,7 @@ interface DeactivateAccountDialogProps {
 
 export function DeactivateAccountDialog({ open, onOpenChange }: DeactivateAccountDialogProps) {
   const navigate = useNavigate();
-  const { handleOpenChange, setBusy } = useDialogBusyGuard(onOpenChange);
+  const { handleOpenChange, setBusy, isBusy } = useDialogBusyGuard(onOpenChange);
   const [understood, setUnderstood] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,7 +30,8 @@ export function DeactivateAccountDialog({ open, onOpenChange }: DeactivateAccoun
   }, [open]);
 
   async function handleConfirm() {
-    if (!open || !understood || isSubmitting) return;
+    // The ref is already set on a second click in the same tick; `isSubmitting` is not.
+    if (!open || !understood || isBusy()) return;
     setError(null);
     setBusy(true);
     setIsSubmitting(true);
@@ -38,9 +41,13 @@ export function DeactivateAccountDialog({ open, onOpenChange }: DeactivateAccoun
       clearSession();
       navigate('/login', { replace: true });
     } catch (err) {
-      // A leader of a clan or the last admin is refused on the `account` field.
-      const accountError = err instanceof ApiError ? err.fieldErrors.account : undefined;
-      setError(accountError ?? toFriendlyMessage(err, 'No se pudo desactivar la cuenta.'));
+      // A leader of a clan or the last admin is refused on the `account` field. Any other API
+      // error would show the first field it carries, which may have nothing to do with this.
+      if (err instanceof ApiError) {
+        setError(err.fieldErrors.account ?? DEACTIVATE_FALLBACK);
+      } else {
+        setError(toFriendlyMessage(err, DEACTIVATE_FALLBACK));
+      }
       setBusy(false);
       setIsSubmitting(false);
     }

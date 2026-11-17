@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { CheckCircle2, X } from 'lucide-react';
 
 interface SuccessBannerProps {
@@ -12,10 +12,17 @@ const AUTO_DISMISS_MS = 6000;
  * Friendly success notice. Closes itself after a few seconds or on click.
  */
 export function SuccessBanner({ message, onDismiss }: SuccessBannerProps) {
+  // Callers often pass an inline arrow; keeping it in a ref stops each parent re-render from
+  // restarting the timer, so the banner closes after AUTO_DISMISS_MS of the same message.
+  const dismissRef = useRef(onDismiss);
   useEffect(() => {
-    const timer = window.setTimeout(onDismiss, AUTO_DISMISS_MS);
+    dismissRef.current = onDismiss;
+  });
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => dismissRef.current(), AUTO_DISMISS_MS);
     return () => window.clearTimeout(timer);
-  }, [message, onDismiss]);
+  }, [message]);
 
   return (
     <div

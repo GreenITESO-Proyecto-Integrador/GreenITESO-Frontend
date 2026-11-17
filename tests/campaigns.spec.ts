@@ -395,6 +395,9 @@ test.describe('Usuario: campañas', () => {
     await dialog.getByLabel('Descripción', { exact: true }).fill('Una semana sin plástico.');
     await dialog.getByLabel('Fecha de inicio').fill(isoDate(10));
     await dialog.getByLabel('Fecha de fin').fill(isoDate(30));
+    await dialog.getByRole('button', { name: 'Agregar misión' }).click();
+    await dialog.getByRole('combobox', { name: 'Acción 1' }).click();
+    await page.getByRole('option', { name: /Usar termo reutilizable/ }).click();
     await dialog.getByRole('button', { name: 'Proponer campaña' }).click();
 
     await expect(
@@ -408,8 +411,23 @@ test.describe('Usuario: campañas', () => {
     expect(call?.body).toMatchObject({
       title: 'Día sin plásticos',
       description: 'Una semana sin plástico.',
-      missions: [],
+      missions: [{ action_id: 'action-1', target_count: 1 }],
     });
+  });
+
+  test('should require a mission before proposing a campaign', async ({ page }) => {
+    const api = await mockApi(page);
+    await page.goto('/campaigns');
+    await page.getByRole('button', { name: 'Proponer campaña' }).click();
+    const dialog = dialogOf(page);
+    await dialog.getByLabel('Título', { exact: true }).fill('Día sin plásticos');
+    await dialog.getByLabel('Descripción', { exact: true }).fill('Una semana sin plástico.');
+    await dialog.getByLabel('Fecha de inicio').fill(isoDate(10));
+    await dialog.getByLabel('Fecha de fin').fill(isoDate(30));
+    await dialog.getByRole('button', { name: 'Proponer campaña' }).click();
+
+    await expect(dialog.getByText('Agrega al menos una misión a la campaña.')).toBeVisible();
+    expect(api.callsTo('POST', '/campaigns/proposals/')).toHaveLength(0);
   });
 });
 
@@ -430,6 +448,9 @@ test.describe('Líder: campaña privada', () => {
     await dialog.getByLabel('Descripción', { exact: true }).fill('Solo para el clan.');
     await dialog.getByLabel('Fecha de inicio').fill(isoDate(10));
     await dialog.getByLabel('Fecha de fin').fill(isoDate(30));
+    await dialog.getByRole('button', { name: 'Agregar misión' }).click();
+    await dialog.getByRole('combobox', { name: 'Acción 1' }).click();
+    await page.getByRole('option', { name: /Usar termo reutilizable/ }).click();
     await dialog.getByRole('button', { name: 'Crear campaña' }).click();
 
     await expect(page.getByText('¡Campaña creada! Ya está disponible para tu clan.')).toBeVisible();
@@ -455,6 +476,9 @@ test.describe('Líder: campaña privada', () => {
     await dialog.getByLabel('Descripción', { exact: true }).fill('Solo para el clan.');
     await dialog.getByLabel('Fecha de inicio').fill(isoDate(10));
     await dialog.getByLabel('Fecha de fin').fill(isoDate(30));
+    await dialog.getByRole('button', { name: 'Agregar misión' }).click();
+    await dialog.getByRole('combobox', { name: 'Acción 1' }).click();
+    await page.getByRole('option', { name: /Usar termo reutilizable/ }).click();
     await dialog.getByRole('button', { name: 'Crear campaña' }).click();
 
     await expect(dialog.getByRole('alert')).toContainText('Solo el líder de este clan');
@@ -477,7 +501,7 @@ test.describe('Admin: campañas', () => {
     await dialog.getByLabel('Fecha de inicio').fill(isoDate(10));
     await dialog.getByLabel('Fecha de fin').fill(isoDate(30));
     await dialog.getByRole('button', { name: 'Agregar misión' }).click();
-    await dialog.locator('#mission-action-1').click();
+    await dialog.getByRole('combobox', { name: 'Acción 1' }).click();
     await page.getByRole('option', { name: /Usar termo reutilizable/ }).click();
     await dialog.getByLabel('Meta').fill('3');
     await dialog.getByRole('button', { name: 'Crear campaña' }).click();

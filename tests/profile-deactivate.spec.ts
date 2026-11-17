@@ -90,6 +90,8 @@ test.describe('Desactivar cuenta (#176)', () => {
     page,
   }) => {
     const { posted } = await setupProfile(page);
+    // A flag left by an earlier sign-in must not survive the session it belongs to.
+    await page.evaluate(() => sessionStorage.setItem('greeniteso.reactivated_notice', '1'));
 
     const dialog = await openDialog(page);
     await dialog.getByRole('checkbox').check();
@@ -101,8 +103,9 @@ test.describe('Desactivar cuenta (#176)', () => {
       sessionStorage.getItem('greeniteso.access_token'),
       sessionStorage.getItem('greeniteso.refresh_token'),
       sessionStorage.getItem('greeniteso.user'),
+      sessionStorage.getItem('greeniteso.reactivated_notice'),
     ]);
-    expect(stored).toEqual([null, null, null]);
+    expect(stored).toEqual([null, null, null, null]);
   });
 
   test('a clan leader is told why, and keeps the session', async ({ page }) => {
@@ -144,11 +147,45 @@ test.describe('Desactivar cuenta (#176)', () => {
   });
 });
 
+test.describe('Desactivar cuenta: errores ajenos al campo account (#109)', () => {
+  test('two clicks in the same tick send a single request', async ({ page }) => {
+    const { posted } = await setupProfile(page, {
+      deactivateError: { status: 400, body: { account: ['You lead a clan.'] } },
+    });
+
+    const dialog = await openDialog(page);
+    await dialog.getByRole('checkbox').check();
+    // Both clicks run before React re-renders, so only the busy ref can stop the second one.
+    await dialog.getByRole('button', { name: 'Desactivar mi cuenta' }).evaluate(button => {
+      (button as HTMLButtonElement).click();
+      (button as HTMLButtonElement).click();
+    });
+
+    await expect(dialog.getByRole('alert')).toBeVisible();
+    expect(posted).toHaveLength(1);
+  });
+
+  test('an error on another field shows the generic message, not that field', async ({ page }) => {
+    await setupProfile(page, {
+      deactivateError: { status: 400, body: { confirm: ['This field is required.'] } },
+    });
+
+    const dialog = await openDialog(page);
+    await dialog.getByRole('checkbox').check();
+    await dialog.getByRole('button', { name: 'Desactivar mi cuenta' }).click();
+
+    const alert = dialog.getByRole('alert');
+    await expect(alert).toHaveText('No se pudo desactivar la cuenta.');
+    await expect(dialog).toBeVisible();
+  });
+});
+
 test.describe('Cuenta reactivada (#176)', () => {
   test('welcomes the user back once after signing in to a deactivated account', async ({
     page,
   }) => {
     await mockStudentSession(page);
+    await failUnmockedApiCalls(page);
     await page.addInitScript(() => {
       // The login page leaves this behind before redirecting home.
       if (!sessionStorage.getItem('seen')) {
@@ -181,5 +218,55 @@ test.describe('Cuenta reactivada (#176)', () => {
 
     await page.reload();
     await expect(page.getByText('Reactivamos tu cuenta')).toHaveCount(0);
+  });
+
+  test('the welcome-back banner closes on time even if the dashboard re-renders (#109)', async ({
+    page,
+  }) => {
+    await page.clock.install();
+    await mockStudentSession(page);
+    await failUnmockedApiCalls(page);
+    await page.addInitScript(() => sessionStorage.setItem('greeniteso.reactivated_notice', '1'));
+    await page.route('**/api/v1/campaigns/**', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ results: [], next: null }),
+      }),
+    );
+    await page.route('**/api/v1/profile/me/', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(profile),
+      }),
+    );
+    // Held until the banner has been up a while, so its answer re-renders the dashboard late.
+    let releaseTrend = () => {};
+    const trendHeld = new Promise<void>(resolve => {
+      releaseTrend = resolve;
+    });
+    await page.route('**/api/v1/profile/me/impact-trend/', async route => {
+      await trendHeld;
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    });
+
+    await page.goto('/');
+    const banner = page.getByRole('status').filter({ hasText: 'Reactivamos tu cuenta' });
+    await expect(banner).toBeVisible();
+
+    await expect(page.getByText('Cargando tu tendencia…')).toBeVisible();
+    // Stop the clock so only runFor moves it: otherwise it keeps flowing while expect() polls and
+    // a restarted timer would still fire in time.
+    await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 100);
+
+    // Halfway through, the late trend answer re-renders the dashboard; the banner must still close
+    // 6 s after it appeared, not 6 s after that re-render.
+    await page.clock.runFor(3000);
+    await expect(banner).toBeVisible();
+    releaseTrend();
+    await expect(page.getByText('Cargando tu tendencia…')).toHaveCount(0);
+    await page.clock.runFor(3500);
+    await expect(banner).toHaveCount(0);
   });
 });
