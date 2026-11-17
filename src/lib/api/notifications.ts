@@ -25,6 +25,7 @@ const API_TYPE_TO_CATEGORY: Record<ApiNotificationType, NotificationType> = {
   CLAN_REQ_ACCEPTED: 'CLAN',
   CLAN_REQ_REJECTED: 'CLAN',
   MISSION_COMPLETED: 'MISSION',
+  POST_LIKED: 'SOCIAL',
   SOCIAL_FOLLOW: 'SOCIAL',
   SYSTEM: 'SYSTEM',
 };
@@ -50,6 +51,7 @@ const API_TYPE_TO_ROUTE: Partial<Record<ApiNotificationType, string>> = {
   CLAN_REQ_ACCEPTED: '/clans',
   CLAN_REQ_REJECTED: '/clans',
   MISSION_COMPLETED: '/campaigns',
+  POST_LIKED: '/feed',
   SOCIAL_FOLLOW: '/feed',
 };
 
