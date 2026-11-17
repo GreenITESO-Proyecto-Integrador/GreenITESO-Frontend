@@ -1,5 +1,6 @@
 import { Bell, Leaf, LogOut, Search, User as UserIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { BrandLogo } from '@/components/custom/BrandLogo';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { UserAvatar } from '@/components/shared/UserAvatar';
@@ -35,9 +36,7 @@ export function Navbar({ unreadNotifications = 0, userNickname = 'Usuario' }: Na
     <header className="fixed inset-x-0 top-0 z-50 h-16 border-b border-border bg-card">
       <div className="flex h-full items-center gap-4 px-4">
         <Link to="/" data-tour="app-brand" className="flex shrink-0 items-center gap-2">
-          <span className="flex size-9 items-center justify-center rounded-xl bg-primary-500 text-white">
-            <Leaf className="size-5" />
-          </span>
+          <BrandLogo className="h-9" decorative />
           <span className="hidden text-lg font-extrabold text-foreground sm:inline">
             GreenITESO
           </span>

@@ -7,7 +7,8 @@ declare global {
   }
 }
 
-const UPLOAD_ENDPOINT = '/api/uploads/';
+// Actualizado a la ruta v1
+const UPLOAD_ENDPOINT = '/api/v1/uploads/';
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
@@ -38,46 +39,64 @@ interface UploadResponse {
   url: string;
 }
 
+interface UploadErrorResponse {
+  error?: string;
+  detail?: string;
+}
+
 export async function uploadImage(file: File): Promise<string> {
   const validation = validateImageFile(file);
   if (!validation.valid) {
     throw new Error(validation.error || 'Archivo no válido.');
   }
 
-  try {
-    const formData = new FormData();
-    formData.append('image', file);
+  const formData = new FormData();
+  formData.append('image', file);
 
-    const response = await apiFetch(UPLOAD_ENDPOINT, {
+  let response: Response;
+  try {
+    response = await apiFetch(UPLOAD_ENDPOINT, {
       method: 'POST',
       body: formData,
     });
-
-    if (!response.ok) {
-      throw new Error('Error al subir la imagen al servidor.');
-    }
-
-    const data = (await response.json()) as UploadResponse;
-
-    if (!data?.url) {
-      throw new Error('Respuesta inválida del servidor de subida.');
-    }
-
-    return data.url;
   } catch (error) {
-    // El fallback de prueba únicamente se permite en entorno de desarrollo local
-    if (import.meta.env.DEV) {
-      console.warn(
-        '[DEV] Endpoint de subida no disponible o falló. Usando imagen mock de desarrollo.',
-        error,
-      );
-      return 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&w=1200&q=80';
+    // fetch rejects with a TypeError when the request never reaches the server, and its message
+    // ("Failed to fetch") is not for users. Any other error (an abort, a bug) keeps its own meaning.
+    if (error instanceof TypeError) {
+      throw new Error('Error de red al subir la imagen. Revisa tu conexión e inténtalo de nuevo.', {
+        cause: error,
+      });
+    }
+    throw error;
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      // apiFetch already tried to refresh the token, so the session is over. The API's `detail`
+      // ("Given token not valid…") is in English and does not tell the user what to do.
+      throw new Error('Tu sesión expiró. Vuelve a iniciar sesión e inténtalo de nuevo.');
     }
 
-    // En producción se propaga el error real para no falsificar la evidencia
-    throw new Error(
-      error instanceof Error ? error.message : 'Error al subir la imagen. Inténtalo de nuevo.',
-      { cause: error },
-    );
+    let serverMessage: string | undefined;
+    try {
+      const errorData = (await response.json()) as UploadErrorResponse;
+      serverMessage = errorData?.error || errorData?.detail;
+    } catch {
+      // Si la respuesta no es JSON (ej. 502 Bad Gateway de Cloud Run), usamos fallback
+    }
+
+    if (response.status === 429) {
+      throw new Error('Has subido demasiadas imágenes. Espera un minuto e inténtalo de nuevo.');
+    }
+
+    throw new Error(serverMessage || 'Error al subir la imagen al servidor.');
   }
+
+  const data = (await response.json()) as UploadResponse;
+
+  if (!data?.url) {
+    throw new Error('Respuesta inválida del servidor de subida.');
+  }
+
+  return data.url;
 }

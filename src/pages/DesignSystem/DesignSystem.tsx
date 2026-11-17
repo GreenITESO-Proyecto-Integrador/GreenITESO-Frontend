@@ -1,3 +1,4 @@
+import { LogoShowcase } from './sections/LogoShowcase';
 import { Typography } from './sections/Typography';
 import { ColorPalette } from './sections/ColorPalette';
 import { SemanticStates } from './sections/SemanticStates';
@@ -19,6 +20,7 @@ export function DesignSystemPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-12">
+        <LogoShowcase />
         <Typography />
         <ColorPalette
           title="Paleta Primaria - Verde Ecológico"

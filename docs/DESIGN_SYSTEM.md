@@ -265,6 +265,15 @@ Para mantener consistencia en campos de texto, selecciones y botones sin importa
   - Estados vacíos (_Empty states_) / Logros: `size-10` ($40\text{px}$) a `size-12` ($48\text{px}$).
 - **Comportamiento:** Los íconos deben heredar el color del texto mediante `currentColor` (clases de color de Tailwind).
 
+### 8.1 Logo de Marca
+
+- **Archivo:** `public/logo-greeniteso.svg` (`viewBox` 112×121, relación ≈ 0.93:1). Es la única versión oficial; no existe variante para modo oscuro.
+- **Componente:** `BrandLogo` (`src/components/custom/BrandLogo.tsx`). Es el único punto de uso: no referenciar el SVG con `<img>` sueltos.
+  - `className`: define el tamaño por **altura** (`h-9` en Navbar, `h-16` en Login, `h-28` en Home); el ancho es `w-auto`.
+  - `decorative`: úsalo cuando el texto "GreenITESO" ya aparece junto al logo (`alt=""`); si no, el `alt` es `GreenITESO`.
+- **Reglas:** no recolorear, deformar ni encerrar en un contenedor de color. El ícono `Leaf` de Lucide **no** es el logo; se reserva para significado semántico (impacto, acciones, insignias).
+- **Favicon y PWA:** el favicon usa el mismo SVG. Los íconos PNG viven en `public/icons/` (`icon-192`, `icon-512`, `icon-maskable-512`, `apple-touch-icon`) y se declaran en `public/manifest.webmanifest`; se regeneran con `node scripts/generate-pwa-icons.mjs`. El color de tema es `primary-500` (`#6ba439`).
+
 ## 9. Uso de shadcn/ui — Instalación Bajo Demanda
 
 **shadcn/ui** proporciona componentes accesibles y reutilizables basados en Radix UI y Tailwind CSS. **No se instalan como un paquete monolítico**, sino que **se agregan bajo demanda** directamente al proyecto según sea necesario.

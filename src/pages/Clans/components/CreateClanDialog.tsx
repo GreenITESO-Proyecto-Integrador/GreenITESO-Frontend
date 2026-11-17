@@ -2,27 +2,17 @@ import { useRef, useState, type FormEvent } from 'react';
 import { ModalContent } from '@/components/custom/ModalContent';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { CharCounter } from '@/components/campaigns/CharCounter';
-import { FieldError } from '@/components/campaigns/FieldError';
-import { DESCRIPTION_MAX_LENGTH, TITLE_MAX_LENGTH } from '@/components/campaigns/field-limits';
-import { FilterChips } from '@/components/shared/FilterChips';
 import { useDialogBusyGuard } from '@/hooks/use-dialog-busy-guard';
 import { createClan } from '@/lib/api/clans';
-import { ApiError, toFriendlyMessage } from '@/lib/api/errors';
-import { PRIVACY_META, PRIVACY_OPTIONS } from '@/lib/clan-meta';
-import type { ClanListItem, ClanPrivacy } from '@/types/clan';
+import type { ClanListItem } from '@/types/clan';
+import { readClanFormError, type ClanFormValues } from './clan-form';
+import { ClanFormFields } from './ClanFormFields';
 
 interface CreateClanDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: (clan: ClanListItem) => void;
 }
-
-/** Backend keys shown under a specific field; anything else goes in the general error. */
-const FIELD_KEYS = ['name', 'description', 'privacy'];
 
 function CreateClanForm({
   onCreated,
@@ -33,9 +23,11 @@ function CreateClanForm({
   onCancel: () => void;
   onBusyChange: (busy: boolean) => void;
 }) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [privacy, setPrivacy] = useState<ClanPrivacy>('PUBLIC');
+  const [values, setValues] = useState<ClanFormValues>({
+    name: '',
+    description: '',
+    privacy: 'PUBLIC',
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -45,7 +37,7 @@ function CreateClanForm({
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const found: Record<string, string> = {};
-    if (!name.trim()) found.name = 'Escribe un nombre para el clan.';
+    if (!values.name.trim()) found.name = 'Escribe un nombre para el clan.';
     setErrors(found);
     setSubmitError(null);
     if (Object.keys(found).length > 0 || inFlight.current) return;
@@ -55,20 +47,15 @@ function CreateClanForm({
     setSubmitting(true);
     try {
       const clan = await createClan({
-        name: name.trim(),
-        description: description.trim(),
-        privacy,
+        name: values.name.trim(),
+        description: values.description.trim(),
+        privacy: values.privacy,
       });
       onCreated(clan);
     } catch (error) {
-      if (error instanceof ApiError) {
-        const entries = Object.entries(error.fieldErrors);
-        setErrors(Object.fromEntries(entries.filter(([key]) => FIELD_KEYS.includes(key))));
-        const general = entries.find(([key]) => !FIELD_KEYS.includes(key));
-        setSubmitError(general ? general[1] : entries.length === 0 ? error.message : null);
-      } else {
-        setSubmitError(toFriendlyMessage(error, 'No se pudo crear el clan.'));
-      }
+      const failure = readClanFormError(error, 'No se pudo crear el clan.');
+      setErrors(failure.errors);
+      setSubmitError(failure.submitError);
     } finally {
       inFlight.current = false;
       onBusyChange(false);
@@ -78,46 +65,7 @@ function CreateClanForm({
 
   return (
     <form onSubmit={event => void handleSubmit(event)} className="flex flex-col gap-5" noValidate>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="clan-name">Nombre</Label>
-        <Input
-          id="clan-name"
-          value={name}
-          maxLength={TITLE_MAX_LENGTH}
-          onChange={event => setName(event.target.value)}
-          aria-invalid={errors.name ? true : undefined}
-          className="h-11 rounded-xl px-3"
-          autoComplete="off"
-        />
-        <CharCounter value={name} max={TITLE_MAX_LENGTH} />
-        <FieldError message={errors.name} />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="clan-description">Descripción (opcional)</Label>
-        <Textarea
-          id="clan-description"
-          value={description}
-          maxLength={DESCRIPTION_MAX_LENGTH}
-          onChange={event => setDescription(event.target.value)}
-          aria-invalid={errors.description ? true : undefined}
-          className="min-h-24 rounded-xl px-3 py-2"
-        />
-        <CharCounter value={description} max={DESCRIPTION_MAX_LENGTH} />
-        <FieldError message={errors.description} />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label>Privacidad</Label>
-        <FilterChips
-          label="Privacidad del clan"
-          options={PRIVACY_OPTIONS}
-          value={privacy}
-          onChange={setPrivacy}
-        />
-        <p className="text-xs text-muted-foreground">{PRIVACY_META[privacy].description}</p>
-        <FieldError message={errors.privacy} />
-      </div>
+      <ClanFormFields values={values} errors={errors} onChange={setValues} />
 
       {submitError ? (
         <p

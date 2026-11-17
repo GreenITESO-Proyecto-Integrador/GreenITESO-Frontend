@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Send, Image as ImageIcon, Upload, X, Link as LinkIcon } from 'lucide-react';
 import { createPost } from '@/lib/api/feed';
 import { uploadImage, validateImageFile } from '@/lib/api/upload';
@@ -23,6 +23,14 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
   const [error, setError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Sole owner of the preview URL: revokes the previous one when it changes and the last on unmount.
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const handleFileSelection = (file: File) => {
     setError(null);
@@ -30,10 +38,6 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
     if (!validation.valid) {
       setError(validation.error || 'Archivo inválido');
       return;
-    }
-
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
     }
 
     setSelectedFile(file);
@@ -71,9 +75,6 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
   };
 
   const handleRemoveImage = () => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
     setSelectedFile(null);
     setPreviewUrl(null);
     setImageUrl('');

@@ -8,6 +8,7 @@ import {
   Target,
   Trophy,
   User,
+  UserCog,
   Users,
 } from 'lucide-react';
 
@@ -32,6 +33,7 @@ export const SECONDARY_NAV_LINKS: NavLink[] = [
   { label: 'Clanes', href: '/clans', icon: Users },
   { label: 'Leaderboard', href: '/leaderboard', icon: Trophy },
   { label: 'Auditoría', href: '/audit', icon: ClipboardCheck, adminOnly: true },
+  { label: 'Usuarios', href: '/admin/users', icon: UserCog, adminOnly: true },
 ];
 
 export const ALL_NAV_LINKS: NavLink[] = [...PRIMARY_NAV_LINKS, ...SECONDARY_NAV_LINKS];

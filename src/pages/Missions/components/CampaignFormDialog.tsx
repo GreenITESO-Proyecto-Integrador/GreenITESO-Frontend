@@ -119,7 +119,9 @@ function CampaignForm({
     if (!description.trim()) found.description = 'Escribe una descripción.';
     Object.assign(found, validateDates(startDate, endDate, { checkStartMin: true }));
 
-    if (rows.some(row => !row.actionId)) {
+    if (rows.length === 0) {
+      found.missions = 'Agrega al menos una misión a la campaña.';
+    } else if (rows.some(row => !row.actionId)) {
       found.missions = 'Selecciona una acción en cada misión.';
     } else if (
       rows.some(row => !Number.isInteger(Number(row.targetCount)) || Number(row.targetCount) < 1)
@@ -398,8 +400,6 @@ function CampaignForm({
               </div>
             ))}
 
-            <FieldError message={errors.missions} />
-
             <Button
               type="button"
               variant="outline"
@@ -412,6 +412,7 @@ function CampaignForm({
             </Button>
           </>
         ) : null}
+        <FieldError message={errors.missions} />
       </fieldset>
 
       {submitError ? (

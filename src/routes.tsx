@@ -7,6 +7,7 @@ import { HomePage } from './pages/Home/Home';
 import { DesignSystemPage } from './pages/DesignSystem/DesignSystem';
 import { ActionCatalogPage } from './pages/ActionCatalog/ActionCatalog';
 import { ActionLogFormPage } from './pages/ActionLogForm/ActionLogForm';
+import { AdminUsersPage } from './pages/AdminUsers/AdminUsers';
 import { AuditReviewPage } from './pages/AuditReview/AuditReview';
 import { LeaderboardPage } from './pages/Leaderboard/Leaderboard';
 import { MissionsPage } from './pages/Missions/Missions';
@@ -54,6 +55,11 @@ export const routes = [
       key="audit-review"
       path="/audit"
       element={protectedElement(<AuditReviewPage />, ADMIN_ROLES)}
+    />
+    <Route
+      key="admin-users"
+      path="/admin/users"
+      element={protectedElement(<AdminUsersPage />, ADMIN_ROLES)}
     />
     <Route key="clans" path="/clans" element={protectedElement(<ClansPage />)} />
     <Route
