@@ -12,11 +12,16 @@ type PostType = 'OFFICIAL_ANNOUNCEMENT' | 'COMMUNITY_MILESTONE' | 'SHARED_EVIDEN
 
 function post(
   id: number,
-  overrides: { post_type?: PostType; liked_by_me?: boolean; likes_count?: number } = {},
+  overrides: {
+    post_type?: PostType;
+    liked_by_me?: boolean;
+    likes_count?: number;
+    author_id?: string;
+  } = {},
 ) {
   return {
     id,
-    author_id: 'user-ana',
+    author_id: overrides.author_id ?? 'user-ana',
     author: { id: 'user-ana', display_name: 'Ana', avatar_url: '' },
     post_type: overrides.post_type ?? 'COMMUNITY_MILESTONE',
     content: `Publicación ${id}`,
@@ -286,6 +291,109 @@ test('should prepend a new post that matches the active filter', async ({ page }
     0,
   );
   expect(listCalls(mock)).toHaveLength(listingsBefore);
+});
+
+test('should warn about a new post hidden by the popular order and keep its type when showing it', async ({
+  page,
+}) => {
+  const created = { ...post(99, { post_type: 'SHARED_EVIDENCE' }), content: 'Llevé mi bolsa' };
+  const evidence = post(5, { post_type: 'SHARED_EVIDENCE', likes_count: 8 });
+  let saved = false;
+  const mock = await mockFeed(page, {
+    listFor: url => {
+      if (url.searchParams.get('post_type') !== 'SHARED_EVIDENCE') return [post(1)];
+      if (url.searchParams.get('ordering') === 'popular') return [evidence];
+      return saved ? [created, evidence] : [evidence];
+    },
+    onCreate: async route => {
+      saved = true;
+      await fulfillJson(route, 201, created);
+    },
+  });
+  await page.goto('/feed');
+
+  const typeFilters = page.getByRole('group', { name: 'Filtrar por tipo de publicación' });
+  const ordering = page.getByRole('group', { name: 'Ordenar publicaciones' });
+  await typeFilters.getByRole('button', { name: 'Evidencias' }).click();
+  await ordering.getByRole('button', { name: 'Populares' }).click();
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
+  await expect(page.getByText('Publicación 5')).toBeVisible();
+
+  await page.getByPlaceholder('¿Qué acción sostenible realizaste hoy?').fill('Llevé mi bolsa');
+  await page.getByRole('button', { name: 'Publicar' }).click();
+
+  // The type matches, so only the popular order hides it.
+  const notice = page.getByRole('status').filter({ hasText: 'Tu publicación se creó' });
+  await expect(notice).toBeVisible();
+  await expect(page.getByText('Llevé mi bolsa', { exact: true })).toHaveCount(0);
+  const listingsBefore = listCalls(mock).length;
+
+  await notice.getByRole('button', { name: 'Ver en Recientes' }).click();
+  await expect(ordering.getByRole('button', { name: 'Recientes' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(typeFilters.getByRole('button', { name: 'Evidencias' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByText('Llevé mi bolsa', { exact: true })).toBeVisible();
+  await expect(notice).toHaveCount(0);
+  expect(listCalls(mock).slice(listingsBefore)).toEqual([
+    'GET /api/v1/feed/?page=1&post_type=SHARED_EVIDENCE',
+  ]);
+});
+
+test('should disable like, edit, delete and save while a filter change is loading', async ({
+  page,
+}) => {
+  let releaseAnnouncements: () => void = () => {};
+  const announcementsHeld = new Promise<void>(resolve => {
+    releaseAnnouncements = resolve;
+  });
+  // Both posts belong to the signed-in user (mockStudentSession), so they show edit and delete.
+  const mine = { author_id: 'test-user-id' };
+  const mock = await mockFeed(page, {
+    listFor: () => [post(1, mine), post(2, mine)],
+  });
+  await page.route(/\/api\/v1\/feed\/\?.*post_type=OFFICIAL_ANNOUNCEMENT/, async route => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: CORS_HEADERS });
+      return;
+    }
+    await announcementsHeld;
+    await route.fallback();
+  });
+  await page.goto('/feed');
+
+  const editing = page.locator('div.rounded-xl').filter({ hasText: 'Publicación 1' });
+  const idle = page.locator('div.rounded-xl').filter({ hasText: 'Publicación 2' });
+  await editing.getByRole('button', { name: 'Editar publicación' }).click();
+  const saveButton = editing.getByRole('button', { name: 'Guardar' });
+  const idleControls = [
+    idle.getByRole('button', { name: /^Like,/ }),
+    idle.getByRole('button', { name: 'Editar publicación' }),
+    idle.getByRole('button', { name: 'Eliminar publicación' }),
+  ];
+  for (const control of [saveButton, ...idleControls]) {
+    await expect(control).toBeEnabled();
+  }
+
+  await page
+    .getByRole('group', { name: 'Filtrar por tipo de publicación' })
+    .getByRole('button', { name: 'Anuncios' })
+    .click();
+  await expect(page.locator('[aria-busy="true"]')).toBeVisible();
+  for (const control of [saveButton, ...idleControls]) {
+    await expect(control).toBeDisabled();
+  }
+
+  releaseAnnouncements();
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
+  for (const control of [saveButton, ...idleControls]) {
+    await expect(control).toBeEnabled();
+  }
+  expect(likeCalls(mock)).toEqual([]);
 });
 
 test('should never show the author email as their name', async ({ page }) => {
