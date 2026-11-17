@@ -1,15 +1,22 @@
 import { useState, useEffect } from 'react';
 import { MessageSquare, Clock, CheckCircle2, Eye, Loader2, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Dialog, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ModalContent } from '@/components/custom/ModalContent';
 import type { FeedbackSubmission } from '@/types/feedback';
-import { fetchFeedbackScreenshotBlobUrl } from '@/lib/api/feedback';
+import { fetchFeedbackScreenshotPreview } from '@/lib/api/feedback';
 import { cn } from '@/lib/utils';
 
 interface MyFeedbackListProps {
   items: FeedbackSubmission[];
   isLoading: boolean;
+  errorMessage?: string | null;
+  onRetry?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  loadMoreError?: string | null;
+  onLoadMore?: () => void;
 }
 
 const CATEGORY_NAMES: Record<string, string> = {
@@ -56,17 +63,27 @@ function StatusBadge({ status }: { status: FeedbackSubmission['status'] }) {
   );
 }
 
-export function MyFeedbackList({ items, isLoading }: MyFeedbackListProps) {
+export function MyFeedbackList({
+  items,
+  isLoading,
+  errorMessage = null,
+  onRetry,
+  hasMore = false,
+  isLoadingMore = false,
+  loadMoreError = null,
+  onLoadMore,
+}: MyFeedbackListProps) {
   const [loadingScreenshotId, setLoadingScreenshotId] = useState<string | null>(null);
   const [screenshotErrorId, setScreenshotErrorId] = useState<string | null>(null);
   const [activeScreenshot, setActiveScreenshot] = useState<{
     url: string;
+    revoke: boolean;
     subject: string;
   } | null>(null);
 
   useEffect(() => {
     return () => {
-      if (activeScreenshot?.url) {
+      if (activeScreenshot?.revoke && activeScreenshot.url) {
         URL.revokeObjectURL(activeScreenshot.url);
       }
     };
@@ -76,8 +93,12 @@ export function MyFeedbackList({ items, isLoading }: MyFeedbackListProps) {
     try {
       setLoadingScreenshotId(item.id);
       setScreenshotErrorId(null);
-      const blobUrl = await fetchFeedbackScreenshotBlobUrl(item.id);
-      setActiveScreenshot({ url: blobUrl, subject: item.subject });
+      const preview = await fetchFeedbackScreenshotPreview(item.id);
+      setActiveScreenshot({
+        url: preview.url,
+        revoke: preview.revoke,
+        subject: item.subject,
+      });
     } catch {
       setScreenshotErrorId(item.id);
     } finally {
@@ -86,9 +107,6 @@ export function MyFeedbackList({ items, isLoading }: MyFeedbackListProps) {
   };
 
   const handleCloseModal = () => {
-    if (activeScreenshot?.url) {
-      URL.revokeObjectURL(activeScreenshot.url);
-    }
     setActiveScreenshot(null);
   };
 
@@ -101,6 +119,28 @@ export function MyFeedbackList({ items, isLoading }: MyFeedbackListProps) {
             className="h-28 rounded-2xl border border-border bg-card animate-pulse p-4"
           />
         ))}
+      </div>
+    );
+  }
+
+  if (errorMessage && items.length === 0) {
+    return (
+      <div
+        role="alert"
+        className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-center space-y-3"
+      >
+        <AlertCircle className="size-8 text-destructive mx-auto" />
+        <p className="text-sm font-semibold text-foreground">{errorMessage}</p>
+        {onRetry && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onRetry}
+            className="min-h-11 rounded-xl font-semibold cursor-pointer"
+          >
+            Reintentar
+          </Button>
+        )}
       </div>
     );
   }
@@ -120,6 +160,29 @@ export function MyFeedbackList({ items, isLoading }: MyFeedbackListProps) {
 
   return (
     <>
+      {errorMessage && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-xs text-destructive"
+        >
+          <span className="flex items-center gap-1.5 font-medium">
+            <AlertCircle className="size-4 shrink-0" />
+            {errorMessage}
+          </span>
+          {onRetry && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onRetry}
+              className="min-h-11 rounded-xl font-semibold cursor-pointer"
+            >
+              Reintentar
+            </Button>
+          )}
+        </div>
+      )}
+
       <div className="space-y-3">
         {items.map(item => {
           const date = item.createdAt
@@ -203,6 +266,34 @@ export function MyFeedbackList({ items, isLoading }: MyFeedbackListProps) {
           );
         })}
       </div>
+
+      {loadMoreError && (
+        <p role="alert" className="flex items-center gap-1.5 text-xs text-destructive font-medium">
+          <AlertCircle className="size-3.5 shrink-0" />
+          {loadMoreError}
+        </p>
+      )}
+
+      {hasMore && onLoadMore && (
+        <div className="pt-2 flex justify-center">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isLoadingMore}
+            onClick={onLoadMore}
+            className="min-h-11 rounded-xl font-semibold cursor-pointer"
+          >
+            {isLoadingMore ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                <span>Cargando…</span>
+              </>
+            ) : (
+              <span>Ver más</span>
+            )}
+          </Button>
+        </div>
+      )}
 
       <Dialog open={Boolean(activeScreenshot)} onOpenChange={open => !open && handleCloseModal()}>
         <ModalContent className="sm:max-w-2xl p-6">

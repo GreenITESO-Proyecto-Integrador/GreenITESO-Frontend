@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { AlertTriangle, Eye, Leaf, MessageSquare, Sparkles } from 'lucide-react';
 import type { FeedbackCategory } from '@/types/feedback';
 import { cn } from '@/lib/utils';
@@ -53,24 +54,49 @@ export function FeedbackCategoryPicker({
   onChange,
   disabled = false,
 }: FeedbackCategoryPickerProps) {
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (disabled) return;
+    let nextIndex: number | null = null;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      nextIndex = (index + 1) % CATEGORIES.length;
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      nextIndex = (index - 1 + CATEGORIES.length) % CATEGORIES.length;
+    }
+    if (nextIndex !== null) {
+      e.preventDefault();
+      const nextOption = CATEGORIES[nextIndex];
+      if (nextOption) {
+        onChange(nextOption.value);
+        itemRefs.current[nextIndex]?.focus();
+      }
+    }
+  };
+
   return (
     <div
       role="radiogroup"
       aria-label="Tipo de comentario"
       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
     >
-      {CATEGORIES.map(category => {
+      {CATEGORIES.map((category, index) => {
         const Icon = category.icon;
         const isSelected = value === category.value;
 
         return (
           <button
             key={category.value}
+            ref={el => {
+              itemRefs.current[index] = el;
+            }}
             type="button"
             role="radio"
             aria-checked={isSelected}
+            tabIndex={isSelected ? 0 : -1}
             disabled={disabled}
             onClick={() => onChange(category.value)}
+            onKeyDown={e => handleKeyDown(e, index)}
             className={cn(
               'flex items-start gap-3.5 p-4 rounded-2xl border text-left cursor-pointer transition-all min-h-16',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',

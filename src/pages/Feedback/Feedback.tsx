@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowLeft, CheckCircle2, Paperclip, Send, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,10 @@ import { MyFeedbackList } from './components/MyFeedbackList';
 const MAX_SUBJECT_LENGTH = 120;
 const MIN_MESSAGE_LENGTH = 10;
 const MAX_MESSAGE_LENGTH = 1000;
+
+function countCodePoints(text: string): number {
+  return [...text].length;
+}
 
 export function FeedbackPage() {
   const navigate = useNavigate();
@@ -38,26 +42,71 @@ export function FeedbackPage() {
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Submissions history
+  // Submissions history & pagination
   const [mySubmissions, setMySubmissions] = useState<FeedbackSubmission[]>([]);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
+  const [nextPageUrl, setNextPageUrl] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
+  const latestHistoryRequestRef = useRef(0);
 
-  // Load history on mount
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
+    const requestId = latestHistoryRequestRef.current + 1;
+    latestHistoryRequestRef.current = requestId;
     setIsLoadingHistory(true);
+    setHistoryError(null);
+    setLoadMoreError(null);
+
     try {
       const res = await fetchMyFeedback();
-      setMySubmissions(res.results);
-    } catch {
-      // Best-effort history load
+      if (requestId !== latestHistoryRequestRef.current) return;
+
+      setMySubmissions(prev => {
+        const fetchedIds = new Set(res.results.map(item => item.id));
+        const localOnly = prev.filter(item => !fetchedIds.has(item.id));
+        setTotalCount(res.count + localOnly.length);
+        return [...localOnly, ...res.results];
+      });
+      setNextPageUrl(res.next);
+    } catch (err) {
+      if (requestId !== latestHistoryRequestRef.current) return;
+      setHistoryError(toFriendlyMessage(err, 'No se pudieron cargar tus comentarios enviados.'));
     } finally {
-      setIsLoadingHistory(false);
+      if (requestId === latestHistoryRequestRef.current) {
+        setIsLoadingHistory(false);
+      }
+    }
+  }, []);
+
+  const handleLoadMore = async () => {
+    if (!nextPageUrl || isLoadingMore) return;
+    setIsLoadingMore(true);
+    setLoadMoreError(null);
+
+    try {
+      const res = await fetchMyFeedback(nextPageUrl);
+      setMySubmissions(prev => {
+        const existingIds = new Set(prev.map(item => item.id));
+        const incoming = res.results.filter(item => !existingIds.has(item.id));
+        return [...prev, ...incoming];
+      });
+      setTotalCount(prev => Math.max(prev ?? 0, res.count));
+      setNextPageUrl(res.next);
+    } catch (err) {
+      setLoadMoreError(toFriendlyMessage(err, 'No se pudieron cargar más comentarios.'));
+    } finally {
+      setIsLoadingMore(false);
     }
   };
 
   useEffect(() => {
     void loadHistory();
-  }, []);
+    return () => {
+      latestHistoryRequestRef.current += 1;
+    };
+  }, [loadHistory]);
 
   // Cleanup image preview object url
   useEffect(() => {
@@ -92,9 +141,14 @@ export function FeedbackPage() {
 
   const subjectTrimmed = subject.trim();
   const messageTrimmed = message.trim();
-  const isSubjectValid = subjectTrimmed.length > 0 && subjectTrimmed.length <= MAX_SUBJECT_LENGTH;
+  const subjectLength = countCodePoints(subject);
+  const messageLength = countCodePoints(message);
+  const subjectTrimmedLength = countCodePoints(subjectTrimmed);
+  const messageTrimmedLength = countCodePoints(messageTrimmed);
+
+  const isSubjectValid = subjectTrimmedLength > 0 && subjectTrimmedLength <= MAX_SUBJECT_LENGTH;
   const isMessageValid =
-    messageTrimmed.length >= MIN_MESSAGE_LENGTH && messageTrimmed.length <= MAX_MESSAGE_LENGTH;
+    messageTrimmedLength >= MIN_MESSAGE_LENGTH && messageTrimmedLength <= MAX_MESSAGE_LENGTH;
   const canSubmit = isSubjectValid && isMessageValid && !isSubmitting && !fileError;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -124,8 +178,12 @@ export function FeedbackPage() {
       setRating(null);
       handleRemoveFile();
 
-      // Prepend to history
-      setMySubmissions(prev => [created, ...prev]);
+      // Prepend to history without duplicating
+      setMySubmissions(prev => {
+        if (prev.some(item => item.id === created.id)) return prev;
+        return [created, ...prev];
+      });
+      setTotalCount(prev => (prev !== null ? prev + 1 : null));
     } catch (err) {
       setStatusMessage({
         type: 'error',
@@ -135,6 +193,8 @@ export function FeedbackPage() {
       setIsSubmitting(false);
     }
   };
+
+  const displayedTotal = totalCount ?? mySubmissions.length;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 space-y-10 pb-28">
@@ -215,12 +275,12 @@ export function FeedbackPage() {
             </Label>
             <span
               className={`text-xs ${
-                subject.length > MAX_SUBJECT_LENGTH
+                subjectLength > MAX_SUBJECT_LENGTH
                   ? 'text-destructive font-bold'
                   : 'text-muted-foreground'
               }`}
             >
-              {subject.length} / {MAX_SUBJECT_LENGTH}
+              {subjectLength} / {MAX_SUBJECT_LENGTH}
             </span>
           </div>
           <Input
@@ -244,12 +304,12 @@ export function FeedbackPage() {
             </Label>
             <span
               className={`text-xs ${
-                message.length > MAX_MESSAGE_LENGTH
+                messageLength > MAX_MESSAGE_LENGTH
                   ? 'text-destructive font-bold'
                   : 'text-muted-foreground'
               }`}
             >
-              {message.length} / {MAX_MESSAGE_LENGTH}
+              {messageLength} / {MAX_MESSAGE_LENGTH}
             </span>
           </div>
           <Textarea
@@ -262,10 +322,10 @@ export function FeedbackPage() {
             placeholder="Describe qué sucedió, los pasos para reproducir el fallo o los beneficios de la idea que propones..."
             className="rounded-xl resize-none"
           />
-          {message.length > 0 && message.length < MIN_MESSAGE_LENGTH && (
+          {messageLength > 0 && messageLength < MIN_MESSAGE_LENGTH && (
             <p className="text-xs text-destructive font-medium">
-              Escribe al menos {MIN_MESSAGE_LENGTH} caracteres (
-              {MIN_MESSAGE_LENGTH - message.length} más).
+              Escribe al menos {MIN_MESSAGE_LENGTH} caracteres ({MIN_MESSAGE_LENGTH - messageLength}{' '}
+              más).
             </p>
           )}
         </div>
@@ -370,10 +430,19 @@ export function FeedbackPage() {
       <section aria-labelledby="mis-comentarios-title" className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 id="mis-comentarios-title" className="text-xl font-bold text-foreground">
-            Mis comentarios enviados ({mySubmissions.length})
+            Mis comentarios enviados ({displayedTotal})
           </h2>
         </div>
-        <MyFeedbackList items={mySubmissions} isLoading={isLoadingHistory} />
+        <MyFeedbackList
+          items={mySubmissions}
+          isLoading={isLoadingHistory}
+          errorMessage={historyError}
+          onRetry={() => void loadHistory()}
+          hasMore={Boolean(nextPageUrl)}
+          isLoadingMore={isLoadingMore}
+          loadMoreError={loadMoreError}
+          onLoadMore={() => void handleLoadMore()}
+        />
       </section>
     </div>
   );

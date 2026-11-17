@@ -1,5 +1,6 @@
 import { apiFetch, getApiBaseUrl } from './client';
 import { readError } from './errors';
+import { evidenceRequestPath, readEvidencePreview } from './evidence-preview';
 import type {
   FeedbackCreatePayload,
   FeedbackSubmission,
@@ -8,6 +9,11 @@ import type {
 
 export const FEEDBACK_PATH = '/api/v1/feedback/';
 export const MY_FEEDBACK_PATH = '/api/v1/feedback/mine/';
+
+export interface ScreenshotPreviewSource {
+  url: string;
+  revoke: boolean;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -84,8 +90,11 @@ export async function submitFeedback(payload: FeedbackCreatePayload): Promise<Fe
   return mapFeedbackSubmission(data);
 }
 
-export async function fetchMyFeedback(): Promise<PaginatedFeedback> {
-  const response = await apiFetch(MY_FEEDBACK_PATH);
+export async function fetchMyFeedback(
+  pageUrlOrPath = MY_FEEDBACK_PATH,
+): Promise<PaginatedFeedback> {
+  const path = evidenceRequestPath(pageUrlOrPath) || MY_FEEDBACK_PATH;
+  const response = await apiFetch(path);
   if (!response.ok) {
     throw await readError(response, 'No se pudieron cargar tus comentarios.');
   }
@@ -108,14 +117,24 @@ export function getFeedbackScreenshotUrl(submissionId: string): string {
 }
 
 /**
- * Load the protected feedback screenshot using the stored access token,
- * returning a revocable Object URL for direct image display.
+ * Load the protected feedback screenshot using the stored access token.
+ * Supports both direct image byte responses and signed-URL redirects.
  */
-export async function fetchFeedbackScreenshotBlobUrl(submissionId: string): Promise<string> {
+export async function fetchFeedbackScreenshotPreview(
+  submissionId: string,
+): Promise<ScreenshotPreviewSource> {
   const response = await apiFetch(`${FEEDBACK_PATH}${submissionId}/screenshot/`);
-  if (!response.ok) {
+  const preview = await readEvidencePreview(response);
+  if (!preview) {
     throw new Error(`Error al obtener la captura (${response.status})`);
   }
-  const blob = await response.blob();
-  return URL.createObjectURL(blob);
+  if (preview.kind === 'blob') {
+    return { url: URL.createObjectURL(preview.blob), revoke: true };
+  }
+  return { url: preview.url, revoke: false };
+}
+
+export async function fetchFeedbackScreenshotBlobUrl(submissionId: string): Promise<string> {
+  const preview = await fetchFeedbackScreenshotPreview(submissionId);
+  return preview.url;
 }

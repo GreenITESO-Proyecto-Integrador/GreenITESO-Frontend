@@ -156,4 +156,204 @@ test.describe('Feedback and Suggestions (/feedback)', () => {
       page.getByRole('heading', { name: 'Buzón de Comentarios y Sugerencias' }),
     ).toBeVisible();
   });
+
+  test('should preserve a newly submitted item when the initial history load finishes late', async ({
+    page,
+  }) => {
+    let releaseHistory!: () => void;
+    const historyGate = new Promise<void>(resolve => {
+      releaseHistory = resolve;
+    });
+
+    await page.route(myFeedbackUrl, async route => {
+      await historyGate;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          count: 1,
+          next: null,
+          previous: null,
+          results: [
+            {
+              id: 'fb-old-1',
+              user_email: 'estudiante@iteso.mx',
+              category: 'IDEA',
+              rating: 5,
+              subject: 'Comentario anterior en el servidor',
+              message: 'Este comentario ya existía antes de enviar el nuevo.',
+              has_screenshot: false,
+              status: 'OPEN',
+              admin_notes: '',
+              created_at: new Date().toISOString(),
+            },
+          ],
+        }),
+      });
+    });
+
+    await page.route(feedbackUrl, async route => {
+      if (route.request().method() === 'POST') {
+        const body = JSON.parse(route.request().postData() || '{}') as Record<string, unknown>;
+        await route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            id: 'fb-new-2',
+            user_email: 'estudiante@iteso.mx',
+            category: body.category,
+            rating: body.rating,
+            subject: body.subject,
+            message: body.message,
+            has_screenshot: false,
+            status: 'OPEN',
+            admin_notes: '',
+            created_at: new Date().toISOString(),
+          }),
+        });
+        return;
+      }
+      await route.fallback();
+    });
+
+    await page.goto('/feedback');
+
+    await page.getByLabel(/Asunto breve/i).fill('Nuevo comentario enviado antes de cargar');
+    await page
+      .getByLabel(/Cuéntanos los detalles/i)
+      .fill('Este comentario se envió mientras la carga inicial estaba en espera.');
+    await page.getByRole('button', { name: /Enviar comentario/i }).click();
+
+    const historySection = page.getByRole('region', { name: /Mis comentarios enviados/i });
+    await expect(
+      historySection.getByText('Nuevo comentario enviado antes de cargar'),
+    ).toBeVisible();
+
+    const heldHistoryResponse = page.waitForResponse(
+      res => res.url().includes('/api/v1/feedback/mine/') && res.request().method() === 'GET',
+    );
+    releaseHistory();
+    await (await heldHistoryResponse).finished();
+
+    await expect(
+      historySection.getByText('Nuevo comentario enviado antes de cargar'),
+    ).toBeVisible();
+    await expect(historySection.getByText('Comentario anterior en el servidor')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Mis comentarios enviados (2)' })).toBeVisible();
+  });
+
+  test('should show an error state with retry when history loading fails', async ({ page }) => {
+    let attempts = 0;
+    await page.route(myFeedbackUrl, async route => {
+      attempts += 1;
+      if (attempts <= 2) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Error temporal del servidor.' }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          count: 1,
+          next: null,
+          previous: null,
+          results: [
+            {
+              id: 'fb-recovered',
+              user_email: 'estudiante@iteso.mx',
+              category: 'ECO_ACTION',
+              rating: 5,
+              subject: 'Sugerencia recuperada tras reintentar',
+              message: 'Contenido cargado exitosamente después del reintento.',
+              has_screenshot: false,
+              status: 'RESOLVED',
+              admin_notes: 'Implementado.',
+              created_at: new Date().toISOString(),
+            },
+          ],
+        }),
+      });
+    });
+
+    await page.goto('/feedback');
+
+    const historySection = page.getByRole('region', { name: /Mis comentarios enviados/i });
+    await expect(historySection.getByText('Aún no has enviado comentarios')).toHaveCount(0);
+    await expect(historySection.getByRole('button', { name: 'Reintentar' })).toBeVisible();
+
+    await historySection.getByRole('button', { name: 'Reintentar' }).click();
+    await expect(historySection.getByText('Sugerencia recuperada tras reintentar')).toBeVisible();
+  });
+
+  test('should display total count and paginate history with Ver más', async ({ page }) => {
+    const firstPageItems = Array.from({ length: 20 }, (_, idx) => ({
+      id: `fb-page1-${idx + 1}`,
+      user_email: 'estudiante@iteso.mx',
+      category: 'IDEA',
+      rating: 4,
+      subject: `Comentario página 1 #${idx + 1}`,
+      message: 'Detalle del comentario en la primera página.',
+      has_screenshot: false,
+      status: 'OPEN',
+      admin_notes: '',
+      created_at: new Date().toISOString(),
+    }));
+
+    await page.route('**/api/v1/feedback/mine/**', async route => {
+      const url = new URL(route.request().url());
+      if (url.searchParams.get('page') === '2') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            count: 21,
+            next: null,
+            previous: 'http://localhost:8000/api/v1/feedback/mine/',
+            results: [
+              {
+                id: 'fb-page2-21',
+                user_email: 'estudiante@iteso.mx',
+                category: 'BUG',
+                rating: 3,
+                subject: 'Comentario número 21 en página 2',
+                message: 'Detalle del comentario antiguo en la segunda página.',
+                has_screenshot: false,
+                status: 'IN_REVIEW',
+                admin_notes: '',
+                created_at: new Date().toISOString(),
+              },
+            ],
+          }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          count: 21,
+          next: 'http://localhost:8000/api/v1/feedback/mine/?page=2',
+          previous: null,
+          results: firstPageItems,
+        }),
+      });
+    });
+
+    await page.goto('/feedback');
+
+    await expect(
+      page.getByRole('heading', { name: 'Mis comentarios enviados (21)' }),
+    ).toBeVisible();
+    const historySection = page.getByRole('region', { name: /Mis comentarios enviados/i });
+    await expect(historySection.getByText('Comentario número 21 en página 2')).toHaveCount(0);
+
+    await historySection.getByRole('button', { name: 'Ver más' }).click();
+    await expect(historySection.getByText('Comentario número 21 en página 2')).toBeVisible();
+    await expect(historySection.getByRole('button', { name: 'Ver más' })).toHaveCount(0);
+  });
 });
