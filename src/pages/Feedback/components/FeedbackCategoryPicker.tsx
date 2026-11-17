@@ -76,7 +76,7 @@ export function FeedbackCategoryPicker({
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
               disabled && 'opacity-60 cursor-not-allowed',
               isSelected
-                ? 'border-primary-500 bg-primary-50/70 dark:bg-primary-950/40 ring-2 ring-primary-500/20'
+                ? 'border-primary-500 bg-primary-50/70 dark:bg-primary-900/40 ring-2 ring-primary-500/20'
                 : 'border-border bg-card hover:bg-muted/40',
             )}
           >
