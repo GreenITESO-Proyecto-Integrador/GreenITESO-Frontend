@@ -29,6 +29,11 @@ interface FeedPostProps {
   onToggleLike?: (postId: number) => void;
   /** True while this post's like or unlike request is in flight. */
   isLikePending?: boolean;
+  /**
+   * True while the feed is replacing this list with a new filter or order. A like, edit or delete
+   * made now would be overwritten by the response already on its way, so they wait.
+   */
+  actionsDisabled?: boolean;
 }
 
 const typeConfig = {
@@ -72,6 +77,7 @@ export function FeedPost({
   onUpdate,
   onToggleLike,
   isLikePending = false,
+  actionsDisabled = false,
 }: FeedPostProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
@@ -185,7 +191,8 @@ export function FeedPost({
               {onUpdate && (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                  disabled={actionsDisabled}
+                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                   title="Editar publicación"
                 >
                   <Edit2 className="w-4 h-4" />
@@ -194,7 +201,8 @@ export function FeedPost({
               {onDelete && (
                 <button
                   onClick={() => onDelete(post.id)}
-                  className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                  disabled={actionsDisabled}
+                  className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                   title="Eliminar publicación"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -224,7 +232,7 @@ export function FeedPost({
               </button>
               <button
                 onClick={handleSave}
-                disabled={isSaving || !editContent.trim()}
+                disabled={isSaving || actionsDisabled || !editContent.trim()}
                 className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 disabled:opacity-50 rounded-md transition-colors"
               >
                 <Check className="w-4 h-4" /> {isSaving ? 'Guardando...' : 'Guardar'}
@@ -250,7 +258,7 @@ export function FeedPost({
             <button
               type="button"
               onClick={() => onToggleLike?.(post.id)}
-              disabled={!onToggleLike || isLikePending}
+              disabled={!onToggleLike || isLikePending || actionsDisabled}
               aria-pressed={likedByMe}
               aria-busy={isLikePending}
               aria-label={`Like, ${likesCount} ${likesCount === 1 ? 'like' : 'likes'}`}
