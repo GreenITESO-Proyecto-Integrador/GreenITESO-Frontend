@@ -23,6 +23,7 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
   const [error, setError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Sole owner of the preview URL: revokes the previous one when it changes and the last on unmount.
   useEffect(() => {
     return () => {
       if (previewUrl) {
@@ -37,10 +38,6 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
     if (!validation.valid) {
       setError(validation.error || 'Archivo inválido');
       return;
-    }
-
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
     }
 
     setSelectedFile(file);
@@ -78,9 +75,6 @@ export function CreatePostForm({ onPostCreated }: CreatePostFormProps) {
   };
 
   const handleRemoveImage = () => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
     setSelectedFile(null);
     setPreviewUrl(null);
     setImageUrl('');

@@ -263,6 +263,8 @@ export function GuidedTourProvider({
             primaryColor: 'var(--color-primary-500)',
             skipBeacon: true,
             showProgress: true,
+            scrollOffset: 96,
+            scrollDuration: 250,
             targetWaitTimeout: 5000,
             textColor: 'var(--color-foreground)',
             zIndex: 60,

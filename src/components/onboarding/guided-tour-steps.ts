@@ -47,13 +47,13 @@ export const SIMPLE_STEPS: TourStep[] = [
     route: '/leaderboard',
     target: TOUR_TARGETS.leaderboardOverview,
     content: 'Consulta tu posición y compárate con otras personas y clanes.',
-    placement: 'top',
+    placement: 'bottom',
   },
   {
     route: '/actions',
     target: TOUR_TARGETS.actionsOverview,
     content: 'Explora el catálogo para conocer las acciones sustentables y sus puntos.',
-    placement: 'top',
+    placement: 'bottom',
   },
 ];
 
@@ -74,13 +74,13 @@ export const CAMPAIGN_STEPS: TourStep[] = [
     route: '/campaigns',
     target: TOUR_TARGETS.campaignsList,
     content: 'Abre una tarjeta para consultar los detalles de una campaña disponible.',
-    placement: 'top',
+    placement: 'bottom',
   },
   {
     route: '/campaigns',
     target: TOUR_TARGETS.campaignsProposals,
     content: 'Aquí puedes revisar tus propuestas y proponer nuevas campañas.',
-    placement: 'top',
+    placement: 'bottom',
   },
   {
     route: '/campaigns',

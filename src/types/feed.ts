@@ -7,12 +7,22 @@ export type PostType =
   | 'ACHIEVEMENT'
   | 'GENERAL';
 
+/** Listing order accepted by `GET /api/v1/feed/?ordering=`. */
+export type FeedOrdering = 'recent' | 'popular';
+
+/** Like state of a post as the backend confirms it after a like or unlike. */
+export interface PostLikeState {
+  liked_by_me: boolean;
+  likes_count: number;
+}
+
 export interface AuthorInfo {
   id: string | number;
   email?: string;
   first_name?: string;
   last_name?: string;
   nickname?: string;
+  display_name?: string;
   avatar_url?: string | null;
   /** Image of the author's active avatar frame; empty when none. */
   frame_url?: string | null;
@@ -38,6 +48,8 @@ export interface FeedPost {
   image_url?: string | null;
   badge_user?: string | null;
   badge_info?: BadgeInfo | null;
+  likes_count?: number;
+  liked_by_me?: boolean;
   relative_time?: string;
   created_at: string;
   updated_at: string;

@@ -60,15 +60,23 @@ export async function uploadImage(file: File): Promise<string> {
       body: formData,
     });
   } catch (error) {
-    throw new Error(
-      error instanceof Error
-        ? error.message
-        : 'Error de red al subir la imagen. Inténtalo de nuevo.',
-      { cause: error },
-    );
+    // fetch rejects with a TypeError when the request never reaches the server, and its message
+    // ("Failed to fetch") is not for users. Any other error (an abort, a bug) keeps its own meaning.
+    if (error instanceof TypeError) {
+      throw new Error('Error de red al subir la imagen. Revisa tu conexión e inténtalo de nuevo.', {
+        cause: error,
+      });
+    }
+    throw error;
   }
 
   if (!response.ok) {
+    if (response.status === 401) {
+      // apiFetch already tried to refresh the token, so the session is over. The API's `detail`
+      // ("Given token not valid…") is in English and does not tell the user what to do.
+      throw new Error('Tu sesión expiró. Vuelve a iniciar sesión e inténtalo de nuevo.');
+    }
+
     let serverMessage: string | undefined;
     try {
       const errorData = (await response.json()) as UploadErrorResponse;
