@@ -6,7 +6,7 @@ import { ModalContent } from '@/components/custom/ModalContent';
 import type { FeedbackSubmission } from '@/types/feedback';
 import { fetchFeedbackScreenshotPreview } from '@/lib/api/feedback';
 import { cn } from '@/lib/utils';
-import { CATEGORY_NAMES } from './feedback-categories';
+import { FeedbackCategoryBadge } from './FeedbackCategoryBadge';
 import { StatusBadge } from './FeedbackStatusBadge';
 
 interface MyFeedbackListProps {
@@ -157,9 +157,7 @@ export function MyFeedbackList({
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-muted text-muted-foreground">
-                    {CATEGORY_NAMES[item.category] || item.category}
-                  </span>
+                  <FeedbackCategoryBadge category={item.category} />
                   {item.rating ? (
                     <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
                       ★ {item.rating}/5

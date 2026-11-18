@@ -1,38 +1,96 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { MessageSquare } from 'lucide-react';
+import { CheckCircle2, MessageSquare } from 'lucide-react';
 import { FilterChips } from '@/components/shared/FilterChips';
+import { ConfirmActionDialog } from '@/components/shared/ConfirmActionDialog';
 import { Pagination } from '@/components/shared/Pagination';
 import { SectionState } from '@/components/shared/SectionState';
 import { ApiError, toFriendlyMessage } from '@/lib/api/errors';
 import { fetchAllFeedback } from '@/lib/api/feedback';
 import { cn } from '@/lib/utils';
 import type { FeedbackCategory, FeedbackStatus, FeedbackSubmission } from '@/types/feedback';
+import { CATEGORY_STYLES } from '../Feedback/components/feedback-categories';
+import { STATUS_STYLES } from '../Feedback/components/feedback-statuses';
 import { AdminFeedbackCard } from './components/AdminFeedbackCard';
 
 type StatusFilter = FeedbackStatus | 'all';
 type CategoryFilter = FeedbackCategory | 'all';
 
-const STATUS_FILTERS: readonly { value: StatusFilter; label: string }[] = [
-  { value: 'all', label: 'Todos' },
-  { value: 'OPEN', label: 'Recibidos' },
-  { value: 'IN_REVIEW', label: 'En revisión' },
-  { value: 'RESOLVED', label: 'Resueltos' },
+const STATUS_FILTER_LABELS: Record<FeedbackStatus, string> = {
+  OPEN: 'Recibidos',
+  IN_REVIEW: 'En revisión',
+  RESOLVED: 'Resueltos',
+};
+
+const STATUS_FILTERS = [
+  ...(['OPEN', 'IN_REVIEW', 'RESOLVED'] as FeedbackStatus[]).map(value => ({
+    value: value as StatusFilter,
+    label: STATUS_FILTER_LABELS[value],
+    icon: STATUS_STYLES[value].icon,
+    activeClassName: STATUS_STYLES[value].classes,
+  })),
+  { value: 'all' as StatusFilter, label: 'Todos' },
 ];
 
-const CATEGORY_FILTERS: readonly { value: CategoryFilter; label: string }[] = [
-  { value: 'all', label: 'Todas' },
-  { value: 'BUG', label: 'Errores' },
-  { value: 'IDEA', label: 'Ideas' },
-  { value: 'ECO_ACTION', label: 'Acciones eco' },
-  { value: 'ACCESSIBILITY', label: 'Accesibilidad' },
-  { value: 'OTHER', label: 'Otros' },
+const CATEGORY_FILTER_LABELS: Record<FeedbackCategory, string> = {
+  BUG: 'Errores',
+  IDEA: 'Ideas',
+  ECO_ACTION: 'Acciones eco',
+  ACCESSIBILITY: 'Accesibilidad',
+  OTHER: 'Otros',
+};
+
+const CATEGORY_FILTERS = [
+  { value: 'all' as CategoryFilter, label: 'Todas' },
+  ...(Object.keys(CATEGORY_FILTER_LABELS) as FeedbackCategory[]).map(category => ({
+    value: category as CategoryFilter,
+    label: CATEGORY_FILTER_LABELS[category],
+    icon: CATEGORY_STYLES[category].icon,
+    activeClassName: CATEGORY_STYLES[category].classes,
+  })),
 ];
+
+/** Empty-state copy that says what an empty list means for the active filters. */
+function emptyCopy(status: StatusFilter, category: CategoryFilter) {
+  if (category !== 'all') {
+    return {
+      title: 'Sin comentarios de este tipo',
+      text: 'No hay comentarios de esta categoría con ese estado. Prueba con otro filtro.',
+      icon: MessageSquare,
+    };
+  }
+  if (status === 'OPEN') {
+    return {
+      title: 'Todo al día',
+      text: 'No hay comentarios nuevos por revisar.',
+      icon: CheckCircle2,
+    };
+  }
+  if (status === 'IN_REVIEW') {
+    return {
+      title: 'Nada en revisión',
+      text: 'Ningún comentario está en revisión ahora.',
+      icon: MessageSquare,
+    };
+  }
+  if (status === 'RESOLVED') {
+    return {
+      title: 'Aún no hay resueltos',
+      text: 'Los comentarios que marques como resueltos aparecerán aquí.',
+      icon: MessageSquare,
+    };
+  }
+  return {
+    title: 'Sin comentarios',
+    text: 'Todavía nadie ha enviado comentarios.',
+    icon: MessageSquare,
+  };
+}
 
 /**
  * Admin window to read all feedback, set its status and reply with notes.
  */
 export function AdminFeedbackPage() {
-  const [status, setStatus] = useState<StatusFilter>('all');
+  const [status, setStatus] = useState<StatusFilter>('OPEN');
   const [category, setCategory] = useState<CategoryFilter>('all');
 
   // The page belongs to the filters it was chosen for: other filters mean page 1 again.
@@ -50,6 +108,27 @@ export function AdminFeedbackPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const latestRequest = useRef(0);
+  const headerRef = useRef<HTMLElement>(null);
+
+  // Cards with unsaved edits report here, so changing page or filter can ask first.
+  const dirtyIds = useRef(new Set<string>());
+  const [pendingNav, setPendingNav] = useState<(() => void) | null>(null);
+  const handleDirtyChange = useCallback((id: string, dirty: boolean) => {
+    if (dirty) dirtyIds.current.add(id);
+    else dirtyIds.current.delete(id);
+  }, []);
+  const guardNavigation = useCallback((navigate: () => void) => {
+    if (dirtyIds.current.size > 0) setPendingNav(() => navigate);
+    else navigate();
+  }, []);
+  const goToPage = useCallback(
+    (next: number) =>
+      guardNavigation(() => {
+        setPage(next);
+        headerRef.current?.scrollIntoView({ block: 'start' });
+      }),
+    [guardNavigation, setPage],
+  );
   const loadStateRef = useRef<'loading' | 'success' | 'error'>('loading');
 
   const changeLoadState = useCallback((next: 'loading' | 'success' | 'error') => {
@@ -91,9 +170,11 @@ export function AdminFeedbackPage() {
     setItems(prev => prev.map(item => (item.id === updated.id ? updated : item)));
   }, []);
 
+  const empty = emptyCopy(status, category);
+
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 pt-8 pb-24">
-      <header>
+      <header ref={headerRef}>
         <p className="text-xs font-semibold tracking-wider text-primary-600 uppercase dark:text-primary-400">
           Administración
         </p>
@@ -109,13 +190,15 @@ export function AdminFeedbackPage() {
           label="Filtrar por estado"
           options={STATUS_FILTERS}
           value={status}
-          onChange={setStatus}
+          balanced
+          onChange={next => guardNavigation(() => setStatus(next))}
         />
         <FilterChips
           label="Filtrar por categoría"
           options={CATEGORY_FILTERS}
           value={category}
-          onChange={setCategory}
+          balanced
+          onChange={next => guardNavigation(() => setCategory(next))}
         />
       </div>
 
@@ -126,22 +209,46 @@ export function AdminFeedbackPage() {
         isEmpty={items.length === 0}
         loadingText="Cargando comentarios…"
         errorTitle="No se pudieron cargar los comentarios"
-        emptyIcon={MessageSquare}
-        emptyTitle="Sin comentarios"
-        emptyText="No hay comentarios con esos filtros. Prueba con otros."
+        emptyIcon={empty.icon}
+        emptyTitle={empty.title}
+        emptyText={empty.text}
       >
         <ul
           aria-label="Comentarios"
           aria-busy={refreshing}
-          className={cn('flex flex-col gap-4 transition-opacity', refreshing && 'opacity-60')}
+          className={cn('flex flex-col gap-3 transition-opacity', refreshing && 'opacity-60')}
         >
           {items.map(item => (
-            <AdminFeedbackCard key={item.id} item={item} onUpdated={handleUpdated} />
+            <AdminFeedbackCard
+              key={item.id}
+              item={item}
+              onUpdated={handleUpdated}
+              onDirtyChange={handleDirtyChange}
+            />
           ))}
         </ul>
       </SectionState>
 
-      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} label="comentarios" />
+      <Pagination page={page} totalPages={totalPages} onPageChange={goToPage} label="comentarios" />
+
+      <ConfirmActionDialog
+        open={pendingNav !== null}
+        onOpenChange={open => {
+          if (!open) setPendingNav(null);
+        }}
+        title="¿Descartar cambios sin guardar?"
+        description="Tienes respuestas o estados editados que no has guardado. Si continúas, se perderán."
+        confirmLabel="Descartar y continuar"
+        pendingLabel="Continuando…"
+        destructive
+        action={() => Promise.resolve()}
+        fallbackError="No se pudo continuar."
+        onDone={() => {
+          dirtyIds.current.clear();
+          pendingNav?.();
+          setPendingNav(null);
+        }}
+      />
     </div>
   );
 }
