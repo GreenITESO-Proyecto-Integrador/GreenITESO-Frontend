@@ -201,7 +201,9 @@ async function openEditor(page: Page) {
 
 test.describe('Profile Editing (T2-23)', () => {
   test('should open edit profile modal with current data', async ({ page }) => {
-    await setupProfile(page);
+    const { profileGets } = await setupProfile(page);
+    // /profile loads the profile once and shares the photo with the navbar (#94).
+    expect(profileGets).toHaveLength(1);
     await openEditor(page);
 
     await expect(
@@ -574,6 +576,8 @@ test.describe('Profile Editing (T2-23)', () => {
     await page.mouse.click(5, 5);
     await expect(page.getByRole('heading', { name: 'Editar perfil' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Guardando…' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Subir foto' })).toBeDisabled();
+    await expect(page.getByTestId('profile-avatar-file')).toBeDisabled();
 
     releasePatch();
     await expect(page.getByText('¡Perfil actualizado correctamente!')).toBeVisible();
@@ -766,10 +770,76 @@ test.describe('Profile Editing (T2-23)', () => {
     const navbarPhoto = page.getByRole('button', { name: 'Menú de usuario' }).locator('img');
     await expect(navbarPhoto).toHaveAttribute('src', uploadedAvatarUrl(1));
 
+    const heldLookup = page.waitForResponse(
+      response =>
+        response.url().includes('/api/v1/profile/me/') && response.request().method() === 'GET',
+    );
     release();
-    // Give the held (stale) response time to land, then check it was ignored.
-    await page.waitForTimeout(500);
+    // Wait for the held (stale) response to land, then check it was ignored.
+    await (await heldLookup).finished();
     await expect(navbarPhoto).toHaveAttribute('src', uploadedAvatarUrl(1));
+  });
+
+  test('should not let a late profile lookup started on another page overwrite a photo saved on /profile', async ({
+    page,
+  }) => {
+    let holding = true;
+    let release!: () => void;
+    const heldGate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    await page.route('**/api/v1/clans/**', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ count: 0, results: [] }),
+      }),
+    );
+    const { profileGets } = await setupProfile(page, {
+      startPath: '/clans',
+      holdProfileGets: () => holding,
+      heldGate,
+    });
+    // Both CurrentUserAvatarProvider and MyClansSection (useEcologicalProfile) request /profile/me/.
+    await expect.poll(() => profileGets.length).toBeGreaterThanOrEqual(2);
+    holding = false;
+
+    await page.getByRole('button', { name: 'Menú de usuario' }).click();
+    await page.getByRole('menuitem', { name: 'Perfil' }).click();
+    await openEditor(page);
+    await page.getByTestId('profile-avatar-file').setInputFiles({
+      name: 'yo.png',
+      mimeType: 'image/png',
+      buffer: PIXEL_PNG,
+    });
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    const navbarPhoto = page.getByRole('button', { name: 'Menú de usuario' }).locator('img');
+    await expect(navbarPhoto).toHaveAttribute('src', uploadedAvatarUrl(1));
+
+    const heldResponse = page.waitForResponse(
+      response =>
+        response.url().includes('/api/v1/profile/me/') && response.request().method() === 'GET',
+    );
+    release();
+    await (await heldResponse).finished();
+    await expect(navbarPhoto).toHaveAttribute('src', uploadedAvatarUrl(1));
+    const storedAvatar = await page.evaluate(() => {
+      const raw = sessionStorage.getItem('greeniteso.user');
+      return raw ? (JSON.parse(raw) as { avatarUrl?: string }).avatarUrl : null;
+    });
+    expect(storedAvatar).toBe(uploadedAvatarUrl(1));
+  });
+
+  test('should treat a deployed backend uploaded photo URL as an uploaded photo', async ({
+    page,
+  }) => {
+    const deployedUrl =
+      'https://greeniteso-backend.example.run.app/api/v1/avatars/user-uuid-123/?v=7';
+    await setupProfile(page, { profile: { avatar_url: deployedUrl } });
+    await openEditor(page);
+
+    await expect(page.getByLabel('Enlace de la foto')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Quitar' })).toBeVisible();
   });
 });
 

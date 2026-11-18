@@ -67,6 +67,7 @@ export function ClanMembersList({
                   src={member.avatarUrl}
                   name={name}
                   frameUrl={member.frameUrl}
+                  decorative
                   className="size-11 rounded-xl text-sm"
                 />
                 <div className="min-w-0 flex-1">

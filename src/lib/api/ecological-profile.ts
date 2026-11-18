@@ -23,7 +23,7 @@ export const UPLOADED_AVATAR_PATH = '/api/v1/avatars/';
 export function isUploadedAvatarUrl(url: string | undefined): boolean {
   if (!url) return false;
   try {
-    return new URL(url, getApiBaseUrl()).pathname.startsWith(UPLOADED_AVATAR_PATH);
+    return new URL(url, 'http://localhost').pathname.startsWith(UPLOADED_AVATAR_PATH);
   } catch {
     return false;
   }
@@ -238,18 +238,7 @@ export async function updateEcologicalProfile(
     body: JSON.stringify(body),
   });
 
-  if (!response.ok) {
-    throw await readError(response, 'No se pudo actualizar el perfil.');
-  }
-
-  let data: unknown;
-  try {
-    data = await response.json();
-  } catch {
-    throw new Error('La respuesta del servidor no es un JSON válido');
-  }
-
-  return mapEcologicalProfile(data);
+  return readProfileResponse(response, 'No se pudo actualizar el perfil.');
 }
 
 /**

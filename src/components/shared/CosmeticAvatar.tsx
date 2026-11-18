@@ -11,6 +11,8 @@ interface CosmeticAvatarProps {
   className?: string;
   /** Image of the avatar frame the person picked; empty or missing shows none. */
   frameUrl?: string | null;
+  /** When rendered next to the visible name, hide the duplicate accessible name. */
+  decorative?: boolean;
 }
 
 /** The frame image. If it fails to load it disappears instead of leaving a broken-image icon. */

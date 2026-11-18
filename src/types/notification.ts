@@ -31,6 +31,7 @@ export type ApiNotificationType =
   | 'CLAN_REQ_ACCEPTED'
   | 'CLAN_REQ_REJECTED'
   | 'MISSION_COMPLETED'
+  | 'POST_LIKED'
   | 'SOCIAL_FOLLOW'
   | 'SYSTEM';
 

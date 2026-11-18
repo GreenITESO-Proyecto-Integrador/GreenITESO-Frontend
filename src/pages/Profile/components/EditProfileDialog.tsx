@@ -42,9 +42,47 @@ const CLOSE_AFTER_SAVE_MS = 700;
 
 type PreviewStatus = 'loading' | 'loaded' | 'failed';
 
+/**
+ * Discriminated union of the avatar editor state (#94).
+ *
+ * - `uploaded`: keeping the existing device-uploaded photo on the profile.
+ * - `file`: a new photo picked from the device, uploaded only when the form is saved.
+ * - `link`: a pasted URL (or the initial state when the profile has no uploaded photo).
+ * - `removed`: "Quitar" was clicked, clearing any picked file, link, or uploaded photo.
+ */
+type AvatarDraft = (
+  | { kind: 'uploaded' }
+  | { kind: 'file'; file: File; previewUrl: string }
+  | { kind: 'link'; url: string }
+  | { kind: 'removed' }
+) & {
+  isLinkOpen: boolean;
+  fileError: string | null;
+  preview: { url: string; status: PreviewStatus } | null;
+};
+
 /** The pasted link the form starts from; an uploaded photo has none. */
 function initialLink(profile: EcologicalProfile): string {
   return isUploadedAvatarUrl(profile.avatarUrl) ? '' : (profile.avatarUrl ?? '');
+}
+
+function initialAvatarDraft(profile: EcologicalProfile): AvatarDraft {
+  if (isUploadedAvatarUrl(profile.avatarUrl)) {
+    return {
+      kind: 'uploaded',
+      isLinkOpen: false,
+      fileError: null,
+      preview: null,
+    };
+  }
+  const url = profile.avatarUrl ?? '';
+  return {
+    kind: 'link',
+    url,
+    isLinkOpen: url !== '',
+    fileError: null,
+    preview: null,
+  };
 }
 
 /**
@@ -104,17 +142,8 @@ export function EditProfileDialog({
   // Form states
   const [bio, setBio] = useState(profile.bio ?? '');
   const [visibility, setVisibility] = useState<ProfileVisibility>(profile.visibility);
-  const [avatarUrl, setAvatarUrl] = useState(initialLink(profile));
-  const [isLinkOpen, setIsLinkOpen] = useState(initialLink(profile) !== '');
-  // A photo picked from the device; it is only uploaded when the form is saved.
-  const [avatarFile, setAvatarFile] = useState<{ file: File; previewUrl: string } | null>(null);
-  const [avatarFileError, setAvatarFileError] = useState<string | null>(null);
-  // "Quitar" on an uploaded photo, which has no link to clear.
-  const [isAvatarRemoved, setIsAvatarRemoved] = useState(false);
+  const [avatar, setAvatar] = useState<AvatarDraft>(() => initialAvatarDraft(profile));
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // Load result of the preview image, tagged with the URL it belongs to so a stale
-  // result never applies to a newly typed URL.
-  const [preview, setPreview] = useState<{ url: string; status: PreviewStatus } | null>(null);
 
   // Preferences states
   const initialPrefs = profile.preferences ?? {};
@@ -155,12 +184,7 @@ export function EditProfileDialog({
     const current = profileRef.current;
     setBio(current.bio ?? '');
     setVisibility(current.visibility);
-    setAvatarUrl(initialLink(current));
-    setIsLinkOpen(initialLink(current) !== '');
-    setAvatarFile(null);
-    setAvatarFileError(null);
-    setIsAvatarRemoved(false);
-    setPreview(null);
+    setAvatar(initialAvatarDraft(current));
     setBioError(null);
     setStatusMessage(null);
 
@@ -191,7 +215,7 @@ export function EditProfileDialog({
   useEffect(() => () => clearTimeout(closeTimerRef.current), []);
 
   // Free the picked file's preview once it is replaced or the modal closes.
-  const avatarPreviewUrl = avatarFile?.previewUrl;
+  const avatarPreviewUrl = avatar.kind === 'file' ? avatar.previewUrl : undefined;
   useEffect(
     () => () => {
       if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
@@ -203,6 +227,7 @@ export function EditProfileDialog({
     `${profile.firstName ?? ''} ${profile.lastName ?? ''}`.trim() || profile.email || 'U',
   );
 
+  const avatarUrl = avatar.kind === 'link' ? avatar.url : '';
   const trimmedAvatarUrl = avatarUrl.trim();
   const avatarFormatError = validateAvatarUrl(trimmedAvatarUrl);
   const hasUploadedAvatar = isUploadedAvatarUrl(profile.avatarUrl);
@@ -210,14 +235,18 @@ export function EditProfileDialog({
   // What the preview shows: the picked file, else the typed link, else the
   // current uploaded photo unless it was removed.
   const previewSrc =
-    avatarFile?.previewUrl ??
-    (trimmedAvatarUrl !== ''
-      ? trimmedAvatarUrl
-      : hasUploadedAvatar && !isAvatarRemoved
-        ? (profile.avatarUrl ?? '')
-        : '');
-  const previewStatus: PreviewStatus = preview?.url === previewSrc ? preview.status : 'loading';
-  const linkPreviewed = !avatarFile && trimmedAvatarUrl !== '';
+    avatar.kind === 'file'
+      ? avatar.previewUrl
+      : avatar.kind === 'removed'
+        ? ''
+        : trimmedAvatarUrl !== ''
+          ? trimmedAvatarUrl
+          : hasUploadedAvatar
+            ? (profile.avatarUrl ?? '')
+            : '';
+  const previewStatus: PreviewStatus =
+    avatar.preview?.url === previewSrc ? avatar.preview.status : 'loading';
+  const linkPreviewed = avatar.kind !== 'file' && trimmedAvatarUrl !== '';
   // A new link is only saved once the browser could actually load it, so a broken
   // link never reaches other users. An unchanged link never blocks other edits.
   const avatarBlocksSave =
@@ -225,13 +254,14 @@ export function EditProfileDialog({
   const showPreviewImage = previewSrc !== '' && (!linkPreviewed || avatarFormatError === null);
   // A picked file is uploaded on its own request; otherwise a changed link, or
   // removing an uploaded photo, goes in the PATCH ("" clears either kind).
-  const avatarUrlPatch = avatarFile
-    ? undefined
-    : avatarChanged
-      ? trimmedAvatarUrl
-      : isAvatarRemoved && hasUploadedAvatar
-        ? ''
-        : undefined;
+  const avatarUrlPatch =
+    avatar.kind === 'file'
+      ? undefined
+      : avatarChanged
+        ? trimmedAvatarUrl
+        : avatar.kind === 'removed' && hasUploadedAvatar
+          ? ''
+          : undefined;
 
   // Unlocked items calculation
   const allUnlockedKeys = Array.from(
@@ -259,29 +289,39 @@ export function EditProfileDialog({
     const file = e.target.files?.[0];
     // Let the same file be picked again after a removal.
     e.target.value = '';
-    if (!file) return;
+    if (!file || isSubmitting) return;
     const validation = validateImageFile(file);
     if (!validation.valid) {
-      setAvatarFileError(validation.error ?? 'Archivo no válido.');
+      setAvatar(current => ({ ...current, fileError: validation.error ?? 'Archivo no válido.' }));
       return;
     }
-    setAvatarFileError(null);
-    setAvatarFile({ file, previewUrl: URL.createObjectURL(file) });
-    setAvatarUrl('');
-    setIsAvatarRemoved(false);
+    setAvatar(current => ({
+      kind: 'file',
+      file,
+      previewUrl: URL.createObjectURL(file),
+      isLinkOpen: current.isLinkOpen,
+      fileError: null,
+      preview: null,
+    }));
   };
 
   const handleRemoveAvatar = () => {
-    setAvatarFile(null);
-    setAvatarFileError(null);
-    setAvatarUrl('');
-    setIsAvatarRemoved(true);
+    setAvatar(current => ({
+      kind: 'removed',
+      isLinkOpen: current.isLinkOpen,
+      fileError: null,
+      preview: null,
+    }));
   };
 
   const handleLinkChange = (value: string) => {
-    setAvatarUrl(value);
-    setAvatarFile(null);
-    setAvatarFileError(null);
+    setAvatar(current => ({
+      kind: 'link',
+      url: value,
+      isLinkOpen: true,
+      fileError: null,
+      preview: current.preview,
+    }));
   };
   const bioLength = getBioLength(bio);
 
@@ -336,14 +376,21 @@ export function EditProfileDialog({
             : null,
       };
 
-      if (avatarFile) {
+      if (avatar.kind === 'file') {
         // The upload goes first, so a failed upload saves nothing. Once it succeeds the photo
         // stays saved even if the PATCH below fails: drop the picked file so a retry only
         // re-sends the other fields instead of uploading the photo again.
-        const withPhoto = await uploadProfileAvatar(avatarFile.file);
+        const withPhoto = await uploadProfileAvatar(avatar.file);
         photoSaved = true;
         onProfileUpdated(withPhoto);
-        if (session === sessionRef.current) setAvatarFile(null);
+        if (session === sessionRef.current) {
+          setAvatar(current => ({
+            kind: 'uploaded',
+            isLinkOpen: false,
+            fileError: null,
+            preview: current.preview,
+          }));
+        }
       }
 
       const updated = await updateEcologicalProfile({
@@ -424,8 +471,18 @@ export function EditProfileDialog({
                       src={previewSrc}
                       alt="Previsualización"
                       className={previewStatus === 'loaded' ? 'size-full object-cover' : 'hidden'}
-                      onLoad={() => setPreview({ url: previewSrc, status: 'loaded' })}
-                      onError={() => setPreview({ url: previewSrc, status: 'failed' })}
+                      onLoad={() =>
+                        setAvatar(current => ({
+                          ...current,
+                          preview: { url: previewSrc, status: 'loaded' },
+                        }))
+                      }
+                      onError={() =>
+                        setAvatar(current => ({
+                          ...current,
+                          preview: { url: previewSrc, status: 'failed' },
+                        }))
+                      }
                     />
                   ) : null}
                   {!showPreviewImage || previewStatus !== 'loaded' ? (
@@ -449,6 +506,7 @@ export function EditProfileDialog({
                     ref={fileInputRef}
                     type="file"
                     accept={IMAGE_FILE_ACCEPT}
+                    disabled={isSubmitting}
                     onChange={handleAvatarFileChange}
                     className="hidden"
                     data-testid="profile-avatar-file"
@@ -456,6 +514,7 @@ export function EditProfileDialog({
                   <Button
                     type="button"
                     variant="outline"
+                    disabled={isSubmitting}
                     onClick={() => fileInputRef.current?.click()}
                     className="flex h-11 items-center gap-1.5 rounded-xl font-semibold cursor-pointer"
                   >
@@ -467,6 +526,7 @@ export function EditProfileDialog({
                       type="button"
                       variant="ghost"
                       size="sm"
+                      disabled={isSubmitting}
                       onClick={handleRemoveAvatar}
                       className="flex h-11 items-center gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer rounded-xl font-medium"
                     >
@@ -477,21 +537,21 @@ export function EditProfileDialog({
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                  {avatarFile
-                    ? `Se subirá «${avatarFile.file.name}» al guardar.`
+                  {avatar.kind === 'file'
+                    ? `Se subirá «${avatar.file.name}» al guardar.`
                     : 'JPG, PNG o WEBP de máximo 5 MB.'}
                 </p>
-                {avatarFileError ? (
+                {avatar.fileError ? (
                   <p
                     role="alert"
                     className="text-xs text-destructive font-medium flex items-center gap-1"
                   >
                     <AlertCircle className="size-3.5" />
-                    <span>{avatarFileError}</span>
+                    <span>{avatar.fileError}</span>
                   </p>
                 ) : null}
 
-                {isLinkOpen ? (
+                {avatar.isLinkOpen ? (
                   <div className="space-y-1.5 pt-1">
                     <Label
                       htmlFor="profile-avatar-url"
@@ -503,6 +563,7 @@ export function EditProfileDialog({
                       id="profile-avatar-url"
                       type="url"
                       inputMode="url"
+                      disabled={isSubmitting}
                       value={avatarUrl}
                       onChange={e => handleLinkChange(e.target.value)}
                       placeholder="https://…/mi-foto.jpg"
@@ -517,8 +578,9 @@ export function EditProfileDialog({
                     type="button"
                     variant="link"
                     size="sm"
-                    onClick={() => setIsLinkOpen(true)}
-                    className="h-auto gap-1 px-0 text-xs text-primary-700 dark:text-primary-300 cursor-pointer"
+                    disabled={isSubmitting}
+                    onClick={() => setAvatar(current => ({ ...current, isLinkOpen: true }))}
+                    className="min-h-11 gap-1 px-0 text-xs text-primary-700 dark:text-primary-300 cursor-pointer"
                   >
                     <Link2 className="size-3.5" />
                     Usar un enlace
