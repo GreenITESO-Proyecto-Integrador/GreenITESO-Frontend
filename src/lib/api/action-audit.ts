@@ -1,4 +1,9 @@
-import type { ActionLogStatus, AuditActionSummary, PendingAuditLog } from '@/types/action-audit';
+import type {
+  ActionLogStatus,
+  AuditActionSummary,
+  AuditUserSummary,
+  PendingAuditLog,
+} from '@/types/action-audit';
 import { apiFetch, getApiBaseUrl } from './client';
 
 export const ACTION_LOGS_PATH = '/api/v1/action-logs/';
@@ -61,14 +66,14 @@ function mapActionSummary(raw: unknown): AuditActionSummary {
 /**
  * Map a nested or UUID-only user reference without modeling Team 2 identity.
  */
-function mapUserSummary(raw: unknown): { id: string } {
+function mapUserSummary(raw: unknown): AuditUserSummary {
   if (typeof raw === 'string') {
-    return { id: raw };
+    return { id: raw, email: '' };
   }
   if (!isRecord(raw)) {
-    return { id: '' };
+    return { id: '', email: '' };
   }
-  return { id: readString(raw.id) };
+  return { id: readString(raw.id), email: readString(raw.email) };
 }
 
 /**
