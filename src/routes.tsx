@@ -16,6 +16,7 @@ import { ClansPage } from './pages/Clans/Clans';
 import { ClanProfilePage } from './pages/Clans/ClanProfile';
 import { NotificationsPage } from './pages/Notifications/Notifications';
 import { ProfilePage } from './pages/Profile/Profile';
+import { FeedbackPage } from './pages/Feedback/Feedback';
 import { StorePage } from './pages/Store/Store';
 import { ADMIN_ROLES, type UserRole } from './types/auth';
 
@@ -69,6 +70,7 @@ export const routes = [
     />
     <Route key="leaderboard" path="/leaderboard" element={protectedElement(<LeaderboardPage />)} />
     <Route key="profile" path="/profile" element={protectedElement(<ProfilePage />)} />
+    <Route key="feedback" path="/feedback" element={protectedElement(<FeedbackPage />)} />
     <Route key="catch-all" path="*" element={protectedElement(<DashboardPage />)} />
   </Route>,
 ];
