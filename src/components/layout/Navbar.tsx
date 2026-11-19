@@ -17,6 +17,7 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { useCurrentUserAvatar } from '@/hooks/use-current-user-avatar';
 import { clearSession } from '@/lib/auth/session';
 import { useGuidedTour } from '@/hooks/use-guided-tour';
+import { useIsAdmin } from '@/hooks/use-has-role';
 
 interface NavbarProps {
   unreadNotifications?: number;
@@ -25,6 +26,7 @@ interface NavbarProps {
 
 export function Navbar({ unreadNotifications = 0, userNickname = 'Usuario' }: NavbarProps) {
   const navigate = useNavigate();
+  const isAdmin = useIsAdmin();
   const { user } = useCurrentUser();
   const { avatarUrl } = useCurrentUserAvatar();
   const { canReplay, startSimple, startCampaigns } = useGuidedTour();
@@ -88,7 +90,10 @@ export function Navbar({ unreadNotifications = 0, userNickname = 'Usuario' }: Na
                 <UserIcon />
                 Perfil
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/feedback')} className="cursor-pointer">
+              <DropdownMenuItem
+                onClick={() => navigate(isAdmin ? '/admin/feedback' : '/feedback')}
+                className="cursor-pointer"
+              >
                 <MessageSquarePlus />
                 Buzón de feedback
               </DropdownMenuItem>

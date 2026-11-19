@@ -44,28 +44,29 @@ export function CampaignCard({ campaign, onSelect }: CampaignCardProps) {
       className="gap-4 rounded-2xl bg-card py-0 shadow-sm ring-1 ring-border transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <CardHeader className="gap-3 p-4 pb-0">
-        <div className="flex min-w-0 items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div
-              className={cn(
-                'flex size-11 shrink-0 items-center justify-center rounded-xl',
-                iconClassName,
-              )}
-            >
-              <ScopeIcon className="size-6" />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                {scopeLabel}
-              </p>
-              <CardTitle className="truncate text-lg font-semibold text-foreground">
-                {campaign.title}
-              </CardTitle>
-            </div>
-          </div>
-          <Badge variant="outline" className={statusMeta.className}>
+        <div className="flex min-w-0 items-center justify-between gap-3">
+          <p className="min-w-0 truncate text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+            {scopeLabel}
+          </p>
+          <Badge variant="outline" className={cn('shrink-0', statusMeta.className)}>
             {statusMeta.label}
           </Badge>
+        </div>
+        <div className="flex min-w-0 items-start gap-3">
+          <div
+            className={cn(
+              'flex size-11 shrink-0 items-center justify-center rounded-xl',
+              iconClassName,
+            )}
+          >
+            <ScopeIcon className="size-6" />
+          </div>
+          <CardTitle
+            title={campaign.title}
+            className="line-clamp-2 min-w-0 flex-1 text-lg leading-snug font-semibold text-foreground [overflow-wrap:anywhere]"
+          >
+            {campaign.title}
+          </CardTitle>
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 p-4">
