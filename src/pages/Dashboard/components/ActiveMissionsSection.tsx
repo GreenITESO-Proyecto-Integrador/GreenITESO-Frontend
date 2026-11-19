@@ -1,4 +1,5 @@
 import { Target } from 'lucide-react';
+import { WRAP_TEXT } from '@/components/campaigns/field-limits';
 import { MissionItem } from '@/components/shared/MissionItem';
 import { SectionState } from '@/components/shared/SectionState';
 import type { Campaign } from '@/types/campaign';
@@ -51,7 +52,9 @@ export function ActiveMissionsSection({
         <div className="flex flex-col gap-5">
           {activeGroups.map(group => (
             <div key={group.campaign.id} className="flex flex-col gap-2">
-              <h3 className="text-lg font-semibold text-foreground">{group.campaign.title}</h3>
+              <h3 className={`text-lg leading-snug font-semibold text-foreground ${WRAP_TEXT}`}>
+                {group.campaign.title}
+              </h3>
               {group.missions.map(mission => (
                 <MissionItem
                   key={mission.id}
