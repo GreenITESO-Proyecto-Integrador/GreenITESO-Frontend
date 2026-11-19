@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { MessageSquare, Clock, CheckCircle2, Eye, Loader2, AlertCircle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { MessageSquare, Eye, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ModalContent } from '@/components/custom/ModalContent';
 import type { FeedbackSubmission } from '@/types/feedback';
 import { fetchFeedbackScreenshotPreview } from '@/lib/api/feedback';
 import { cn } from '@/lib/utils';
+import { FeedbackCategoryBadge } from './FeedbackCategoryBadge';
+import { StatusBadge } from './FeedbackStatusBadge';
 
 interface MyFeedbackListProps {
   items: FeedbackSubmission[];
@@ -17,50 +18,6 @@ interface MyFeedbackListProps {
   isLoadingMore?: boolean;
   loadMoreError?: string | null;
   onLoadMore?: () => void;
-}
-
-const CATEGORY_NAMES: Record<string, string> = {
-  BUG: 'Error técnico',
-  IDEA: 'Idea o mejora',
-  ECO_ACTION: 'Acción eco',
-  ACCESSIBILITY: 'Accesibilidad',
-  OTHER: 'Comentario',
-};
-
-function StatusBadge({ status }: { status: FeedbackSubmission['status'] }) {
-  if (status === 'RESOLVED') {
-    return (
-      <Badge
-        variant="outline"
-        className="gap-1 border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
-      >
-        <CheckCircle2 className="size-3" />
-        Resuelto
-      </Badge>
-    );
-  }
-
-  if (status === 'IN_REVIEW') {
-    return (
-      <Badge
-        variant="outline"
-        className="gap-1 border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300"
-      >
-        <Clock className="size-3" />
-        En revisión
-      </Badge>
-    );
-  }
-
-  return (
-    <Badge
-      variant="outline"
-      className="gap-1 border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
-    >
-      <Clock className="size-3" />
-      Recibido
-    </Badge>
-  );
 }
 
 export function MyFeedbackList({
@@ -200,9 +157,7 @@ export function MyFeedbackList({
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-muted text-muted-foreground">
-                    {CATEGORY_NAMES[item.category] || item.category}
-                  </span>
+                  <FeedbackCategoryBadge category={item.category} />
                   {item.rating ? (
                     <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
                       ★ {item.rating}/5

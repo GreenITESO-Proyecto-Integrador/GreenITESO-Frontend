@@ -88,6 +88,11 @@ export function FeedbackRatingPicker({
           );
         })}
         {value !== null && (
+          <span aria-live="polite" className="text-xs font-semibold text-foreground px-1">
+            {RATINGS.find(item => item.value === value)?.label}
+          </span>
+        )}
+        {value !== null && (
           <button
             type="button"
             disabled={disabled}

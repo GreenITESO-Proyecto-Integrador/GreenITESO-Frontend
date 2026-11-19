@@ -2,6 +2,9 @@ import { apiFetch, getApiBaseUrl } from './client';
 import { readError } from './errors';
 import { evidenceRequestPath, readEvidencePreview } from './evidence-preview';
 import type {
+  AdminFeedbackFilters,
+  AdminFeedbackPage,
+  FeedbackAdminUpdatePayload,
   FeedbackCreatePayload,
   FeedbackSubmission,
   PaginatedFeedback,
@@ -110,6 +113,61 @@ export async function fetchMyFeedback(
     previous: typeof data.previous === 'string' ? data.previous : null,
     results: data.results.map(mapFeedbackSubmission),
   };
+}
+
+export const ADMIN_FEEDBACK_PAGE_SIZE = 10;
+
+/**
+ * One page of every feedback submission (admin only), optionally filtered.
+ */
+export async function fetchAllFeedback({
+  category = 'all',
+  status = 'all',
+  page = 1,
+}: AdminFeedbackFilters = {}): Promise<AdminFeedbackPage> {
+  const query = new URLSearchParams({
+    page: String(page),
+    page_size: String(ADMIN_FEEDBACK_PAGE_SIZE),
+  });
+  if (category !== 'all') query.set('category', category);
+  if (status !== 'all') query.set('status', status);
+
+  const response = await apiFetch(`${FEEDBACK_PATH}?${query.toString()}`);
+  if (!response.ok) {
+    throw await readError(response, 'No se pudieron cargar los comentarios.');
+  }
+
+  const data: unknown = await response.json();
+  if (!isRecord(data) || !Array.isArray(data.results)) {
+    throw new Error('Respuesta de feedback inválida');
+  }
+  const count = typeof data.count === 'number' ? data.count : data.results.length;
+  return {
+    items: data.results.map(mapFeedbackSubmission),
+    totalPages: Math.max(1, Math.ceil(count / ADMIN_FEEDBACK_PAGE_SIZE)),
+  };
+}
+
+/**
+ * Change the status and/or admin notes of a submission (admin only).
+ */
+export async function updateFeedback(
+  submissionId: string,
+  payload: FeedbackAdminUpdatePayload,
+): Promise<FeedbackSubmission> {
+  const body: Record<string, string> = {};
+  if (payload.status !== undefined) body.status = payload.status;
+  if (payload.adminNotes !== undefined) body.admin_notes = payload.adminNotes;
+
+  const response = await apiFetch(`${FEEDBACK_PATH}${encodeURIComponent(submissionId)}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw await readError(response, 'No se pudo actualizar el comentario.');
+  }
+  return mapFeedbackSubmission(await response.json());
 }
 
 export function getFeedbackScreenshotUrl(submissionId: string): string {

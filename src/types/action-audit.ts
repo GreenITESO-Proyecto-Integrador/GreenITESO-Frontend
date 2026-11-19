@@ -8,6 +8,7 @@ export interface AuditActionSummary {
 
 export interface AuditUserSummary {
   id: string;
+  email: string;
 }
 
 export interface PendingAuditLog {

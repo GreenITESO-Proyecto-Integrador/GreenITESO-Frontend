@@ -41,6 +41,7 @@ export function FeedbackPage() {
     text: string;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bannerRef = useRef<HTMLDivElement>(null);
 
   // Submissions history & pagination
   const [mySubmissions, setMySubmissions] = useState<FeedbackSubmission[]>([]);
@@ -51,6 +52,17 @@ export function FeedbackPage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const latestHistoryRequestRef = useRef(0);
+  const mySubmissionsRef = useRef<FeedbackSubmission[]>([]);
+  useEffect(() => {
+    mySubmissionsRef.current = mySubmissions;
+  }, [mySubmissions]);
+
+  // The banner sits above the form but the submit button is below it: bring it into view.
+  useEffect(() => {
+    if (!statusMessage) return;
+    bannerRef.current?.scrollIntoView({ block: 'center' });
+    bannerRef.current?.focus({ preventScroll: true });
+  }, [statusMessage]);
 
   const loadHistory = useCallback(async () => {
     const requestId = latestHistoryRequestRef.current + 1;
@@ -63,12 +75,10 @@ export function FeedbackPage() {
       const res = await fetchMyFeedback();
       if (requestId !== latestHistoryRequestRef.current) return;
 
-      setMySubmissions(prev => {
-        const fetchedIds = new Set(res.results.map(item => item.id));
-        const localOnly = prev.filter(item => !fetchedIds.has(item.id));
-        setTotalCount(res.count + localOnly.length);
-        return [...localOnly, ...res.results];
-      });
+      const fetchedIds = new Set(res.results.map(item => item.id));
+      const localOnly = mySubmissionsRef.current.filter(item => !fetchedIds.has(item.id));
+      setMySubmissions([...localOnly, ...res.results]);
+      setTotalCount(res.count + localOnly.length);
       setNextPageUrl(res.next);
     } catch (err) {
       if (requestId !== latestHistoryRequestRef.current) return;
@@ -227,8 +237,10 @@ export function FeedbackPage() {
       {/* Feedback banner */}
       {statusMessage && (
         <div
+          ref={bannerRef}
+          tabIndex={-1}
           role="alert"
-          className={`p-4 rounded-2xl text-sm flex items-center gap-2.5 border font-medium ${
+          className={`p-4 rounded-2xl outline-none text-sm flex items-center gap-2.5 border font-medium ${
             statusMessage.type === 'success'
               ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
               : 'bg-destructive/10 text-destructive border-destructive/20'
