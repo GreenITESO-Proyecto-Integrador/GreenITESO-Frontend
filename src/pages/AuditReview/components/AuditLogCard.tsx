@@ -51,7 +51,9 @@ export function AuditLogCard({ log, busy, disabled, onApprove, onReject }: Audit
         <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
           <div>
             <dt className="text-xs text-muted-foreground">Usuario</dt>
-            <dd className="font-medium break-all text-foreground">{log.user.id || '—'}</dd>
+            <dd className="font-medium break-all text-foreground">
+              {log.user.email || log.user.id || '—'}
+            </dd>
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">Puntos</dt>
