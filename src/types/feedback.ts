@@ -30,3 +30,19 @@ export interface PaginatedFeedback {
   previous: string | null;
   results: FeedbackSubmission[];
 }
+
+export interface FeedbackAdminUpdatePayload {
+  status?: FeedbackStatus;
+  adminNotes?: string;
+}
+
+export interface AdminFeedbackFilters {
+  category?: FeedbackCategory | 'all';
+  status?: FeedbackStatus | 'all';
+  page?: number;
+}
+
+export interface AdminFeedbackPage {
+  items: FeedbackSubmission[];
+  totalPages: number;
+}

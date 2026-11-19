@@ -1,47 +1,22 @@
 import { useRef } from 'react';
-import { AlertTriangle, Eye, Leaf, MessageSquare, Sparkles } from 'lucide-react';
 import type { FeedbackCategory } from '@/types/feedback';
 import { cn } from '@/lib/utils';
+import { CATEGORY_NAMES, CATEGORY_STYLES } from './feedback-categories';
 
-interface CategoryOption {
-  value: FeedbackCategory;
-  label: string;
-  description: string;
-  icon: typeof AlertTriangle;
-}
+const CATEGORY_DESCRIPTIONS: Record<FeedbackCategory, string> = {
+  BUG: 'Algo no funciona o se ve mal',
+  IDEA: 'Propuesta para la plataforma',
+  ECO_ACTION: 'Sugerir acción o campaña',
+  ACCESSIBILITY: 'Vista, colores o teclado',
+  OTHER: 'Duda o comentario general',
+};
 
-const CATEGORIES: CategoryOption[] = [
-  {
-    value: 'BUG',
-    label: 'Error técnico',
-    description: 'Algo no funciona o se ve mal',
-    icon: AlertTriangle,
-  },
-  {
-    value: 'IDEA',
-    label: 'Idea o mejora',
-    description: 'Propuesta para la plataforma',
-    icon: Sparkles,
-  },
-  {
-    value: 'ECO_ACTION',
-    label: 'Nueva acción eco',
-    description: 'Sugerir acción o campaña',
-    icon: Leaf,
-  },
-  {
-    value: 'ACCESSIBILITY',
-    label: 'Accesibilidad',
-    description: 'Vista, colores o teclado',
-    icon: Eye,
-  },
-  {
-    value: 'OTHER',
-    label: 'Otro comentario',
-    description: 'Duda o comentario general',
-    icon: MessageSquare,
-  },
-];
+const CATEGORIES = (Object.keys(CATEGORY_DESCRIPTIONS) as FeedbackCategory[]).map(value => ({
+  value,
+  label: CATEGORY_NAMES[value],
+  description: CATEGORY_DESCRIPTIONS[value],
+  icon: CATEGORY_STYLES[value].icon,
+}));
 
 interface FeedbackCategoryPickerProps {
   value: FeedbackCategory;
@@ -102,16 +77,16 @@ export function FeedbackCategoryPicker({
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
               disabled && 'opacity-60 cursor-not-allowed',
               isSelected
-                ? 'border-primary-500 bg-primary-50/70 dark:bg-primary-900/40 ring-2 ring-primary-500/20'
+                ? CATEGORY_STYLES[category.value].card
                 : 'border-border bg-card hover:bg-muted/40',
             )}
           >
             <div
               className={cn(
-                'size-10 rounded-xl flex items-center justify-center shrink-0 transition-colors',
+                'size-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors',
                 isSelected
-                  ? 'bg-primary-600 text-white dark:bg-primary-500'
-                  : 'bg-muted text-muted-foreground',
+                  ? CATEGORY_STYLES[category.value].classes
+                  : 'border-transparent bg-muted text-muted-foreground',
               )}
             >
               <Icon className="size-5" />
